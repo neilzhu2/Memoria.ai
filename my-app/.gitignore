@@ -1,0 +1,16 @@
+# Node / Expo
+node_modules/
+.expo/
+.expo-shared/
+web-build/
+dist/
+
+# Native folders (if you ever run `expo prebuild`)
+ios/
+android/
+
+# System / editor
+.DS_Store
+*.log
+*.swp
+.env*
