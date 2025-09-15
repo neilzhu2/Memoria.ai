@@ -10,7 +10,7 @@ dist/
 
 # Node
 node_modules/
-my-app/node_modules/
+Memoria.ai/node_modules/
 
 # Backup of the old inner repo
 .git_my-app_backup/
