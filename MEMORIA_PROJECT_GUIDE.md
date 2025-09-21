@@ -313,9 +313,11 @@ When ending a work session, update:
 - **UX Research Strategist:** User experience and elderly user research
 
 ### Key Resources
-- **Prototype Location:** `/Product&Design/Prototype.ai/`
+- **Main React Native App:** `/Memoria.ai/` (with enhanced src/ structure)
+- **Original Prototype:** `/Product&Design/Prototype.ai/`
 - **Competitive Analysis:** `/Product&Design/Competitor Analysis.pdf`
 - **Naming Research:** `/Product&Design/Naming.pdf`
+- **Generated Documentation:** `/docsByClaude/` (research, implementation, cultural, architecture)
 - **Main Repository:** `/Users/lihanzhu/Desktop/Memoria/`
 
 ---
