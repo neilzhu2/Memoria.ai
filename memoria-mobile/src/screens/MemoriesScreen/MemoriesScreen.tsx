@@ -1,187 +1,282 @@
 /**
- * Memories Screen for Memoria.ai
- * List view of all memories with filtering and search
- * Optimized for elderly users with large touch targets and clear typography
+ * Enhanced Memories Screen for Memoria.ai
+ * Complete memory management interface with all accessibility features
+ * Optimized for elderly users with comprehensive functionality
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  TextInput,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { MemoriesScreenProps, Memory } from '../../types';
 import { useMemoryStore, useSettingsStore } from '../../stores';
+import MemoryList from '../../components/memory/MemoryList';
+import ShareMemoryModal from '../../components/memory/ShareMemoryModal';
+import AccessibleButton from '../../components/accessibility/AccessibleButton';
 
 const MemoriesScreen: React.FC<MemoriesScreenProps> = ({ navigation, route }) => {
   const { filter = 'all' } = route.params || {};
-  const { memories, filteredMemories, searchMemories, setFilters } = useMemoryStore();
-  const { getCurrentFontSize, getCurrentTouchTargetSize, shouldUseHighContrast } = useSettingsStore();
+  const {
+    memories,
+    filteredMemories,
+    setFilters,
+    clearFilters,
+    loadingState,
+    stats,
+    calculateStats
+  } = useMemoryStore();
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const {
+    getCurrentFontSize,
+    getCurrentTouchTargetSize,
+    shouldUseHighContrast,
+    hapticFeedbackEnabled,
+    language
+  } = useSettingsStore();
+
+  const [selectedMemoryForShare, setSelectedMemoryForShare] = useState<Memory | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+
   const fontSize = getCurrentFontSize();
   const touchTargetSize = getCurrentTouchTargetSize();
   const highContrast = shouldUseHighContrast();
 
+  // Apply initial filter based on route params
   useEffect(() => {
-    // Apply initial filter based on route params
-    if (filter === 'favorites') {
-      setFilters({ isFavorite: true });
-    } else if (filter === 'recent') {
-      setFilters({ dateRange: { start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), end: new Date() } });
+    const initialFilter = {
+      ...(filter === 'favorites' && { isFavorite: true }),
+      ...(filter === 'recent' && {
+        dateRange: {
+          start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          end: new Date()
+        }
+      }),
+      ...(filter === 'archived' && { isArchived: true }),
+    };
+
+    if (Object.keys(initialFilter).length > 0) {
+      setFilters(initialFilter);
+    } else {
+      clearFilters();
     }
-  }, [filter]);
+  }, [filter, setFilters, clearFilters]);
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    searchMemories(query);
-  };
-
-  const handleMemoryPress = (memoryId: string) => {
-    navigation.navigate('MemoryDetails', { memoryId });
-  };
-
-  const renderMemoryItem = ({ item }: { item: Memory }) => (
-    <TouchableOpacity
-      style={styles.memoryCard}
-      onPress={() => handleMemoryPress(item.id)}
-      accessible={true}
-      accessibilityRole="button"
-      accessibilityLabel={`Memory: ${item.title}, recorded on ${item.createdAt.toLocaleDateString()}`}
-    >
-      <View style={styles.memoryHeader}>
-        <Text style={styles.memoryTitle} numberOfLines={2}>
-          {item.isFavorite ? '⭐ ' : ''}{item.title}
-        </Text>
-        <Text style={styles.memoryDate}>
-          {item.createdAt.toLocaleDateString()}
-        </Text>
-      </View>
-      <Text style={styles.memoryDescription} numberOfLines={3}>
-        {item.transcription || item.description || 'No transcription available'}
-      </Text>
-      <View style={styles.memoryMeta}>
-        <Text style={styles.metaText}>
-          Duration: {Math.floor(item.duration / 60)}:{(item.duration % 60).toString().padStart(2, '0')}
-        </Text>
-        <Text style={styles.metaText}>
-          Language: {item.language.toUpperCase()}
-        </Text>
-      </View>
-    </TouchableOpacity>
+  // Calculate stats when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      calculateStats();
+    }, [calculateStats])
   );
+
+  // Handle hardware back button
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        navigation.goBack();
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription?.remove();
+    }, [navigation])
+  );
+
+  const handleMemoryPress = useCallback((memory: Memory) => {
+    // Navigate to memory details or handle custom action
+    if (navigation.getState().routes.find(route => route.name === 'MemoryDetails')) {
+      navigation.navigate('MemoryDetails', { memoryId: memory.id });
+    }
+  }, [navigation]);
+
+  const handleShareMemory = useCallback((memory: Memory) => {
+    setSelectedMemoryForShare(memory);
+    setShowShareModal(true);
+  }, []);
+
+  const handleCloseShare = useCallback(() => {
+    setShowShareModal(false);
+    setSelectedMemoryForShare(null);
+  }, []);
+
+  const getEmptyMessage = () => {
+    switch (filter) {
+      case 'favorites':
+        return language === 'zh'
+          ? '您还没有收藏的记忆。\n点击星星图标来收藏重要的记忆！'
+          : 'You have no favorite memories yet.\nTap the star icon to favorite important memories!';
+      case 'recent':
+        return language === 'zh'
+          ? '最近7天没有记忆。\n开始录制来记录最近的想法！'
+          : 'No memories from the last 7 days.\nStart recording to capture recent thoughts!';
+      case 'archived':
+        return language === 'zh'
+          ? '没有已归档的记忆。'
+          : 'No archived memories.';
+      default:
+        return language === 'zh'
+          ? '还没有记忆。\n开始录制来创建您的第一个记忆！'
+          : 'No memories yet.\nStart recording to create your first memory!';
+    }
+  };
 
   const styles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: highContrast ? '#000000' : '#f8fafc',
     },
-    searchContainer: {
-      padding: 16,
-      backgroundColor: highContrast ? '#333333' : '#ffffff',
-    },
-    searchInput: {
-      height: touchTargetSize,
-      borderWidth: 1,
-      borderColor: highContrast ? '#666666' : '#d1d5db',
-      borderRadius: 8,
+    header: {
+      backgroundColor: highContrast ? '#222222' : '#ffffff',
       paddingHorizontal: 16,
-      fontSize: fontSize,
-      color: highContrast ? '#ffffff' : '#1f2937',
-      backgroundColor: highContrast ? '#666666' : '#ffffff',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: highContrast ? '#444444' : '#e5e7eb',
     },
-    memoryCard: {
-      backgroundColor: highContrast ? '#333333' : '#ffffff',
-      marginHorizontal: 16,
-      marginVertical: 8,
-      padding: 16,
-      borderRadius: 12,
-      minHeight: touchTargetSize,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-    },
-    memoryHeader: {
+    headerTop: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       marginBottom: 8,
     },
-    memoryTitle: {
-      flex: 1,
-      fontSize: fontSize + 2,
-      fontWeight: '600',
+    title: {
+      fontSize: fontSize + 6,
+      fontWeight: 'bold',
       color: highContrast ? '#ffffff' : '#1f2937',
-      marginRight: 8,
     },
-    memoryDate: {
-      fontSize: fontSize - 2,
-      color: highContrast ? '#cccccc' : '#6b7280',
-    },
-    memoryDescription: {
+    subtitle: {
       fontSize: fontSize,
-      color: highContrast ? '#cccccc' : '#374151',
-      lineHeight: fontSize * 1.4,
-      marginBottom: 12,
-    },
-    memoryMeta: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-    },
-    metaText: {
-      fontSize: fontSize - 2,
       color: highContrast ? '#cccccc' : '#6b7280',
+      fontWeight: '500',
     },
-    emptyState: {
+    actionButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    content: {
+      flex: 1,
+    },
+    errorContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 40,
+      paddingHorizontal: 40,
     },
-    emptyText: {
+    errorText: {
       fontSize: fontSize + 2,
-      color: highContrast ? '#cccccc' : '#6b7280',
+      color: '#dc2626',
       textAlign: 'center',
-      lineHeight: (fontSize + 2) * 1.5,
+      fontWeight: '600',
+      marginBottom: 24,
+    },
+    retryButton: {
+      paddingHorizontal: 32,
     },
   });
 
+  // Handle critical errors
+  if (loadingState.error && memories.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>
+            {language === 'zh'
+              ? '加载记忆时出错\n请检查您的连接并重试'
+              : 'Error loading memories\nPlease check your connection and try again'}
+          </Text>
+          <AccessibleButton
+            title={language === 'zh' ? '重试' : 'Retry'}
+            onPress={() => {
+              // Trigger reload
+              calculateStats();
+            }}
+            variant="primary"
+            style={styles.retryButton}
+            accessibilityLabel={language === 'zh' ? '重新加载记忆' : 'Reload memories'}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const getFilterTitle = () => {
+    switch (filter) {
+      case 'favorites':
+        return language === 'zh' ? '收藏的记忆' : 'Favorite Memories';
+      case 'recent':
+        return language === 'zh' ? '最近的记忆' : 'Recent Memories';
+      case 'archived':
+        return language === 'zh' ? '已归档记忆' : 'Archived Memories';
+      default:
+        return language === 'zh' ? '我的记忆' : 'My Memories';
+    }
+  };
+
+  const getFilterSubtitle = () => {
+    if (stats) {
+      switch (filter) {
+        case 'favorites':
+          return `${stats.favoriteCount} ${language === 'zh' ? '个收藏' : 'favorites'}`;
+        case 'recent':
+          const recentCount = filteredMemories.length;
+          return `${recentCount} ${language === 'zh' ? '个最近记忆' : 'recent memories'}`;
+        default:
+          return `${stats.totalCount} ${language === 'zh' ? '个记忆' : 'memories'}`;
+      }
+    }
+    return '';
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search memories..."
-          placeholderTextColor={highContrast ? '#999999' : '#9ca3af'}
-          value={searchQuery}
-          onChangeText={handleSearch}
-          accessible={true}
-          accessibilityLabel="Search memories"
-          accessibilityHint="Type to search through your memories"
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.title}>{getFilterTitle()}</Text>
+            {getFilterSubtitle() && (
+              <Text style={styles.subtitle}>{getFilterSubtitle()}</Text>
+            )}
+          </View>
+
+          {/* Quick action button */}
+          <AccessibleButton
+            title={language === 'zh' ? '录制' : 'Record'}
+            onPress={() => navigation.navigate('Recording')}
+            variant="primary"
+            style={styles.actionButton}
+            accessibilityLabel={language === 'zh' ? '开始录制新记忆' : 'Start recording new memory'}
+          />
+        </View>
+      </View>
+
+      {/* Main Content */}
+      <View style={styles.content}>
+        <MemoryList
+          initialFilter={filter === 'all' ? {} :
+            filter === 'favorites' ? { isFavorite: true } :
+            filter === 'recent' ? { dateRange: { start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), end: new Date() } } :
+            filter === 'archived' ? { isArchived: true } : {}
+          }
+          emptyMessage={getEmptyMessage()}
+          onMemoryPress={handleMemoryPress}
+          showSearch={true}
+          showFilters={true}
         />
       </View>
 
-      <FlatList
-        data={filteredMemories.length > 0 ? filteredMemories : memories}
-        renderItem={renderMemoryItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>
-              {searchQuery ? 'No memories found matching your search.' : 'No memories yet.\nStart recording to create your first memory!'}
-            </Text>
-          </View>
-        )}
-      />
+      {/* Share Modal */}
+      {selectedMemoryForShare && (
+        <ShareMemoryModal
+          visible={showShareModal}
+          memory={selectedMemoryForShare}
+          onClose={handleCloseShare}
+        />
+      )}
     </SafeAreaView>
   );
 };

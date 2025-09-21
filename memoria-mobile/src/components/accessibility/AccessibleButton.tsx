@@ -18,7 +18,7 @@ import { useSettingsStore } from '../../stores';
 interface AccessibleButtonProps {
   title: string;
   onPress: (event: GestureResponderEvent) => void;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'destructive';
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   accessibilityLabel?: string;
@@ -74,7 +74,7 @@ const AccessibleButton: React.FC<AccessibleButtonProps> = ({
           primary: '#2563eb',
           secondary: highContrast ? '#666666' : '#e5e7eb',
           danger: '#dc2626',
-        }[variant];
+        }[variant] || (variant === 'destructive' ? '#dc2626' : '#2563eb');
 
     return {
       backgroundColor,

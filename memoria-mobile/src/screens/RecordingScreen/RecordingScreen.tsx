@@ -8,11 +8,11 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   Alert,
   Animated,
   AccessibilityInfo,
   Vibration,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -20,6 +20,13 @@ import * as Haptics from 'expo-haptics';
 
 import { RecordingScreenProps } from '../../types';
 import { useAudioStore, useMemoryStore, useUserStore, useSettingsStore } from '../../stores';
+import {
+  AudioLevelIndicator,
+  VoiceRecordingButton,
+  RecordingControls,
+  VoiceGuidance,
+  VoiceGuidanceService,
+} from '../../components';
 
 const RecordingScreen: React.FC<RecordingScreenProps> = ({ navigation, route }) => {
   const { editMemoryId } = route.params || {};
@@ -42,14 +49,33 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ navigation, route }) 
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTitle, setRecordingTitle] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [showPermissionHelp, setShowPermissionHelp] = useState(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const audioLevelInterval = useRef<NodeJS.Timeout | null>(null);
 
   const fontSize = getCurrentFontSize();
   const touchTargetSize = getCurrentTouchTargetSize();
   const highContrast = shouldUseHighContrast();
   const maxDuration = audioSettings.maxRecordingDuration;
+
+  // Welcome message for elderly users when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      const timer = setTimeout(() => {
+        if (!isRecording) {
+          VoiceGuidanceService.speak(
+            'Welcome to memory recording. This is where you can share your stories and preserve your memories. Tap the blue recording button when you\'re ready to begin.',
+            { rate: 0.7 } // Slower for elderly users
+          );
+        }
+      }, 1000); // Small delay to let screen transition complete
+
+      return () => clearTimeout(timer);
+    }, [isRecording])
+  );
 
   // Animation for recording indicator
   useEffect(() => {
@@ -89,6 +115,30 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ navigation, route }) 
       progressAnim.setValue(0);
     }
   }, [recordingDuration, maxDuration, isRecording]);
+
+  // Audio level monitoring for elderly users
+  useEffect(() => {
+    if (isRecording && !isPaused) {
+      audioLevelInterval.current = setInterval(() => {
+        // Simulate audio level - in real implementation this would come from the audio service
+        // The audio service would need to expose real-time audio level monitoring
+        const simulatedLevel = Math.random() * 0.6 + 0.2; // Simulate 0.2-0.8 range
+        setAudioLevel(simulatedLevel);
+      }, 100);
+    } else {
+      if (audioLevelInterval.current) {
+        clearInterval(audioLevelInterval.current);
+        audioLevelInterval.current = null;
+      }
+      setAudioLevel(0);
+    }
+
+    return () => {
+      if (audioLevelInterval.current) {
+        clearInterval(audioLevelInterval.current);
+      }
+    };
+  }, [isRecording, isPaused]);
 
   // Accessibility announcements
   useEffect(() => {
@@ -136,12 +186,35 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ navigation, route }) 
       });
 
       setIsPaused(false);
+      setShowPermissionHelp(false);
     } catch (error) {
-      Alert.alert(
-        'Recording Error',
-        'Unable to start recording. Please check your microphone permissions and try again.',
-        [{ text: 'OK', style: 'default' }]
+      console.error('Recording start error:', error);
+
+      // Voice guidance for error
+      VoiceGuidanceService.announceError(
+        error instanceof Error ? error.message : 'Unable to start recording'
       );
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isPermissionError = errorMessage.toLowerCase().includes('permission');
+
+      if (isPermissionError) {
+        setShowPermissionHelp(true);
+        Alert.alert(
+          'Microphone Permission Required',
+          'Memoria needs access to your microphone to record your memories. Please enable microphone permissions in your device settings.',
+          [
+            { text: 'Settings', onPress: () => {/* Open settings if available */} },
+            { text: 'OK', style: 'default' }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Recording Error',
+          'Unable to start recording. Please try again in a moment.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
     }
   };
 
@@ -155,36 +228,53 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ navigation, route }) 
       const audioRecording = await stopRecording();
 
       if (audioRecording && recordingDuration >= 1) {
-        // Navigate to save/title screen or auto-save with timestamp
-        const title = recordingTitle || `Memory ${new Date().toLocaleDateString()}`;
+        // Auto-generate title with timestamp for elderly users
+        const title = recordingTitle || `Memory ${new Date().toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        })}`;
 
         const newMemory = {
           title,
           audioFilePath: audioRecording.filePath,
+          duration: audioRecording.duration,
+          fileSize: audioRecording.fileSize,
           language: user?.preferredLanguage || 'en',
           tags: [],
+          createdAt: new Date(),
         };
 
         if (editMemoryId) {
           // Update existing memory
           await updateMemory(editMemoryId, {
             title,
+            audioFilePath: audioRecording.filePath,
+            duration: audioRecording.duration,
             updatedAt: new Date()
           });
+          VoiceGuidanceService.announceSuccess('Your memory has been updated successfully.');
         } else {
           // Create new memory
           await addMemory(newMemory as any);
+          VoiceGuidanceService.announceSuccess('Your memory has been saved successfully.');
         }
 
-        navigation.goBack();
+        // Small delay to let voice guidance finish
+        setTimeout(() => {
+          navigation.goBack();
+        }, 1500);
       } else {
+        VoiceGuidanceService.announceError('Recording too short. Please record for at least 1 second.');
         Alert.alert(
           'Recording Too Short',
-          'Please record for at least 1 second.',
+          'Please record for at least 1 second to save your memory.',
           [{ text: 'OK', style: 'default' }]
         );
       }
     } catch (error) {
+      console.error('Recording save error:', error);
+      VoiceGuidanceService.announceError('Unable to save recording');
       Alert.alert(
         'Save Error',
         'Unable to save your recording. Please try again.',
@@ -251,130 +341,134 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ navigation, route }) 
       flex: 1,
       backgroundColor: highContrast ? '#000000' : '#f8fafc',
     },
-    content: {
+    scrollContainer: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+    },
+    content: {
+      flexGrow: 1,
       padding: 20,
-    },
-    statusContainer: {
       alignItems: 'center',
-      marginBottom: 40,
     },
-    statusText: {
-      fontSize: fontSize + 2,
-      fontWeight: '600',
+    headerContainer: {
+      alignItems: 'center',
+      marginBottom: 30,
+      paddingTop: 10,
+    },
+    headerTitle: {
+      fontSize: fontSize + 6,
+      fontWeight: '700',
       color: highContrast ? '#ffffff' : '#1f2937',
       textAlign: 'center',
       marginBottom: 8,
     },
-    timeDisplay: {
-      fontSize: fontSize + 16,
-      fontWeight: '700',
-      color: isRecording ? '#dc2626' : (highContrast ? '#ffffff' : '#374151'),
-      fontFamily: 'monospace',
-      marginBottom: 16,
-    },
-    maxTimeDisplay: {
-      fontSize: fontSize - 2,
+    headerSubtitle: {
+      fontSize: fontSize,
       color: highContrast ? '#cccccc' : '#6b7280',
       textAlign: 'center',
     },
-    recordingIndicatorContainer: {
-      alignItems: 'center',
-      marginBottom: 50,
-    },
-    recordingIndicator: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      backgroundColor: isRecording ? '#dc2626' : (highContrast ? '#666666' : '#e5e7eb'),
+    timeContainer: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
       justifyContent: 'center',
-      alignItems: 'center',
       marginBottom: 20,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 8,
     },
-    recordingDot: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: '#ffffff',
+    timeDisplay: {
+      fontSize: fontSize + 18,
+      fontWeight: '700',
+      color: isRecording ? '#dc2626' : (highContrast ? '#ffffff' : '#374151'),
+      fontFamily: 'monospace',
+    },
+    maxTimeDisplay: {
+      fontSize: fontSize + 2,
+      color: highContrast ? '#cccccc' : '#6b7280',
+      fontFamily: 'monospace',
+      marginLeft: 8,
+    },
+    progressContainer: {
+      width: '100%',
+      alignItems: 'center',
+      marginBottom: 30,
     },
     progressBarContainer: {
-      width: '80%',
-      height: 8,
+      width: '90%',
+      height: 12,
       backgroundColor: highContrast ? '#333333' : '#e5e7eb',
-      borderRadius: 4,
+      borderRadius: 6,
       overflow: 'hidden',
     },
     progressBar: {
       height: '100%',
-      backgroundColor: '#dc2626',
+      backgroundColor: isRecording ? '#dc2626' : '#2563eb',
+      borderRadius: 6,
+    },
+    audioLevelContainer: {
+      marginBottom: 40,
+      alignItems: 'center',
+    },
+    recordingButtonContainer: {
+      marginBottom: 40,
+      alignItems: 'center',
     },
     controlsContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      alignItems: 'center',
       width: '100%',
-      paddingHorizontal: 20,
-      marginTop: 50,
+      marginBottom: 30,
     },
-    controlButton: {
-      width: touchTargetSize + 20,
-      height: touchTargetSize + 20,
-      borderRadius: (touchTargetSize + 20) / 2,
-      justifyContent: 'center',
+    statusContainer: {
       alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 4,
+      marginBottom: 20,
     },
-    primaryButton: {
-      backgroundColor: isRecording ? '#dc2626' : '#2563eb',
-    },
-    secondaryButton: {
-      backgroundColor: highContrast ? '#666666' : '#6b7280',
-    },
-    disabledButton: {
-      backgroundColor: highContrast ? '#333333' : '#d1d5db',
-    },
-    buttonText: {
-      color: '#ffffff',
-      fontSize: fontSize - 2,
+    statusText: {
+      fontSize: fontSize + 2,
       fontWeight: '600',
+      color: isRecording
+        ? (isPaused ? '#f59e0b' : '#dc2626')
+        : (highContrast ? '#ffffff' : '#374151'),
       textAlign: 'center',
     },
-    helpText: {
-      position: 'absolute',
-      bottom: 40,
-      left: 20,
-      right: 20,
+    permissionHelpContainer: {
+      backgroundColor: highContrast ? '#333333' : '#fef3c7',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 20,
+      width: '100%',
+    },
+    permissionHelpText: {
+      fontSize: fontSize,
+      color: highContrast ? '#ffffff' : '#92400e',
       textAlign: 'center',
-      fontSize: fontSize - 2,
-      color: highContrast ? '#cccccc' : '#6b7280',
-      lineHeight: (fontSize - 2) * 1.5,
+      lineHeight: fontSize * 1.5,
     },
   });
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Status Display */}
-        <View style={styles.statusContainer}>
-          <Text
-            style={styles.statusText}
-            accessible={true}
-            accessibilityLabel={getRecordingStatusText()}
-          >
-            {getRecordingStatusText()}
-          </Text>
+      {/* Voice Guidance Component */}
+      <VoiceGuidance
+        isRecording={isRecording}
+        isPaused={isPaused}
+        recordingDuration={recordingDuration}
+        maxDuration={maxDuration}
+        announceOnChange={true}
+        announceTimeWarnings={true}
+      />
 
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header with Status */}
+        <View style={styles.headerContainer}>
+          <Text style={styles.headerTitle}>
+            {editMemoryId ? 'Update Memory' : 'Record Memory'}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            Share your story, preserve your legacy
+          </Text>
+        </View>
+
+        {/* Time Display */}
+        <View style={styles.timeContainer}>
           <Text
             style={styles.timeDisplay}
             accessible={true}
@@ -382,28 +476,13 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ navigation, route }) 
           >
             {formatTime(recordingDuration)}
           </Text>
-
-          <Text
-            style={styles.maxTimeDisplay}
-            accessible={true}
-            accessibilityLabel={`Maximum recording time: ${formatTime(maxDuration)}`}
-          >
-            Max: {formatTime(maxDuration)}
+          <Text style={styles.maxTimeDisplay}>
+            / {formatTime(maxDuration)}
           </Text>
         </View>
 
-        {/* Recording Indicator */}
-        <View style={styles.recordingIndicatorContainer}>
-          <Animated.View
-            style={[
-              styles.recordingIndicator,
-              { transform: [{ scale: pulseAnim }] }
-            ]}
-          >
-            {isRecording && <View style={styles.recordingDot} />}
-          </Animated.View>
-
-          {/* Progress Bar */}
+        {/* Progress Bar */}
+        <View style={styles.progressContainer}>
           <View style={styles.progressBarContainer}>
             <Animated.View
               style={[
@@ -419,69 +498,60 @@ const RecordingScreen: React.FC<RecordingScreenProps> = ({ navigation, route }) 
           </View>
         </View>
 
-        {/* Control Buttons */}
-        <View style={styles.controlsContainer}>
-          {/* Cancel Button */}
-          <TouchableOpacity
-            style={[styles.controlButton, styles.secondaryButton]}
-            onPress={handleCancel}
-            disabled={isProcessing}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel recording"
-            accessibilityHint="Tap to cancel and return to previous screen"
-          >
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
-
-          {/* Pause/Resume Button */}
-          <TouchableOpacity
-            style={[
-              styles.controlButton,
-              isRecording ? styles.secondaryButton : styles.disabledButton
-            ]}
-            onPress={handlePauseResume}
-            disabled={!isRecording || isProcessing}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel={isPaused ? 'Resume recording' : 'Pause recording'}
-            accessibilityHint={isPaused ? 'Tap to resume recording' : 'Tap to pause recording'}
-          >
-            <Text style={styles.buttonText}>
-              {isPaused ? 'Resume' : 'Pause'}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Start/Stop Button */}
-          <TouchableOpacity
-            style={[styles.controlButton, styles.primaryButton]}
-            onPress={isRecording ? handleStopRecording : handleStartRecording}
-            disabled={isProcessing}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
-            accessibilityHint={isRecording ? 'Tap to stop and save recording' : 'Tap to start recording'}
-          >
-            <Text style={styles.buttonText}>
-              {isRecording ? 'Stop' : 'Start'}
-            </Text>
-          </TouchableOpacity>
+        {/* Audio Level Indicator */}
+        <View style={styles.audioLevelContainer}>
+          <AudioLevelIndicator
+            audioLevel={audioLevel}
+            isRecording={isRecording && !isPaused}
+            showLabel={true}
+            size="large"
+          />
         </View>
 
-        {/* Help Text */}
-        <Text
-          style={styles.helpText}
-          accessible={true}
-          accessibilityLabel="Recording instructions"
-        >
-          {!isRecording
-            ? 'Tap Start to begin recording your memory. Speak clearly and at a comfortable volume.'
-            : isPaused
-            ? 'Recording is paused. Tap Resume to continue or Stop to save.'
-            : 'Speak clearly. You can pause anytime or tap Stop when finished.'
-          }
-        </Text>
-      </View>
+        {/* Main Recording Button */}
+        <View style={styles.recordingButtonContainer}>
+          <VoiceRecordingButton
+            isRecording={isRecording}
+            onPress={isRecording ? handleStopRecording : handleStartRecording}
+            disabled={isProcessing || showPermissionHelp}
+            size="large"
+          />
+        </View>
+
+        {/* Recording Controls */}
+        <View style={styles.controlsContainer}>
+          <RecordingControls
+            isRecording={isRecording}
+            isPaused={isPaused}
+            isProcessing={isProcessing}
+            onStartStop={isRecording ? handleStopRecording : handleStartRecording}
+            onPauseResume={handlePauseResume}
+            onCancel={handleCancel}
+            showCancel={true}
+            showPauseResume={true}
+          />
+        </View>
+
+        {/* Permission Help */}
+        {showPermissionHelp && (
+          <View style={styles.permissionHelpContainer}>
+            <Text style={styles.permissionHelpText}>
+              Microphone access is required to record your memories. Please check your device settings and allow microphone permissions for Memoria.
+            </Text>
+          </View>
+        )}
+
+        {/* Status Text */}
+        <View style={styles.statusContainer}>
+          <Text
+            style={styles.statusText}
+            accessible={true}
+            accessibilityLabel={getRecordingStatusText()}
+          >
+            {getRecordingStatusText()}
+          </Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };

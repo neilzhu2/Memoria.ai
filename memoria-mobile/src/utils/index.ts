@@ -3,6 +3,10 @@
  * Common helper functions used throughout the app
  */
 
+// Audio file management
+export { default as AudioFileManager } from './audioFileManager';
+export type { AudioFileMetadata } from './audioFileManager';
+
 export const formatDuration = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;

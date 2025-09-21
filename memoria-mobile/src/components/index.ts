@@ -6,8 +6,11 @@
 // Accessibility components
 export * from './accessibility';
 
-// Common components would be exported here
-// export * from './common';
+// Memory management components
+export * from './memory';
 
-// Audio components would be exported here
-// export * from './audio';
+// Audio recording components
+export { default as AudioLevelIndicator } from './AudioLevelIndicator';
+export { default as VoiceRecordingButton } from './VoiceRecordingButton';
+export { default as RecordingControls } from './RecordingControls';
+export { default as VoiceGuidance, VoiceGuidanceService } from './VoiceGuidance';

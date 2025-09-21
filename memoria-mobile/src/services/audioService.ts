@@ -16,6 +16,7 @@ import {
   AudioError,
   TranscriptionResult
 } from '../types';
+import { AudioFileManager } from '../utils';
 
 export class AudioService {
   private recording: Audio.Recording | null = null;
@@ -27,6 +28,9 @@ export class AudioService {
    */
   async initialize(): Promise<void> {
     try {
+      // Initialize audio file manager
+      await AudioFileManager.initialize();
+
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
@@ -80,16 +84,17 @@ export class AudioService {
       // Provide haptic feedback for elderly users
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Generate file path
-      const fileName = `memoria_${Date.now()}.m4a`;
-      const filePath = `${FileSystem.documentDirectory}recordings/${fileName}`;
+      // Generate temporary file path - will be moved by AudioFileManager
+      const fileName = AudioFileManager.generateFileName();
+      const tempDir = `${FileSystem.cacheDirectory}recordings/`;
 
-      // Ensure recordings directory exists
-      const recordingsDir = `${FileSystem.documentDirectory}recordings/`;
-      const dirInfo = await FileSystem.getInfoAsync(recordingsDir);
+      // Ensure temp directory exists
+      const dirInfo = await FileSystem.getInfoAsync(tempDir);
       if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(recordingsDir, { intermediates: true });
+        await FileSystem.makeDirectoryAsync(tempDir, { intermediates: true });
       }
+
+      const filePath = `${tempDir}${fileName}`;
 
       const audioRecording: AudioRecording = {
         id: Date.now().toString(),
@@ -405,12 +410,96 @@ export class AudioService {
   }
 
   /**
+   * Save recording with metadata management
+   */
+  async saveRecording(
+    tempFilePath: string,
+    title?: string,
+    duration?: number
+  ): Promise<{ recordingId: string; filePath: string }> {
+    try {
+      const metadata = await AudioFileManager.saveRecording(tempFilePath, title, {
+        duration: duration || 0,
+      });
+
+      return {
+        recordingId: metadata.id,
+        filePath: metadata.filePath,
+      };
+    } catch (error) {
+      throw this.createAudioError('RECORDING_SAVE_FAILED', 'Failed to save recording', error);
+    }
+  }
+
+  /**
+   * Get all recordings with metadata
+   */
+  async getAllRecordings() {
+    try {
+      return await AudioFileManager.getAllRecordings();
+    } catch (error) {
+      throw this.createAudioError('RECORDINGS_FETCH_FAILED', 'Failed to fetch recordings', error);
+    }
+  }
+
+  /**
+   * Delete a recording
+   */
+  async deleteRecording(recordingId: string): Promise<void> {
+    try {
+      await AudioFileManager.deleteRecording(recordingId);
+    } catch (error) {
+      throw this.createAudioError('RECORDING_DELETE_FAILED', 'Failed to delete recording', error);
+    }
+  }
+
+  /**
+   * Backup recording to device storage
+   */
+  async backupRecording(recordingId: string): Promise<string | null> {
+    try {
+      return await AudioFileManager.backupRecording(recordingId);
+    } catch (error) {
+      console.warn('Failed to backup recording:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clean up old temporary files
+   */
+  async cleanupTempFiles(): Promise<void> {
+    try {
+      await AudioFileManager.cleanupTempFiles(24); // Clean files older than 24 hours
+    } catch (error) {
+      console.warn('Failed to cleanup temp files:', error);
+    }
+  }
+
+  /**
+   * Get storage statistics
+   */
+  async getStorageStats() {
+    try {
+      return await AudioFileManager.getStorageStats();
+    } catch (error) {
+      console.warn('Failed to get storage stats:', error);
+      return {
+        totalRecordings: 0,
+        totalSize: 0,
+        averageSize: 0,
+      };
+    }
+  }
+
+  /**
    * Clean up resources
    */
   async cleanup(): Promise<void> {
     try {
       await this.stopRecording();
       await this.stopAudio();
+      await this.cleanupTempFiles();
     } catch (error) {
       console.warn('Error during audio service cleanup:', error);
     }

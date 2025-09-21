@@ -15,6 +15,7 @@ import {
   AudioError,
   LoadingState
 } from '../types';
+import { audioService } from '../services/audioService';
 
 interface AudioState {
   // Recording state
@@ -140,26 +141,19 @@ export const useAudioStore = create<AudioState>()(
       try {
         set({ loadingState: { isLoading: true } });
 
-        // Check microphone permission first
-        const hasPermission = await get().requestMicrophonePermission();
-        if (!hasPermission) {
+        // Initialize audio service
+        await audioService.initialize();
+
+        // Check permissions
+        const permissions = await audioService.checkPermissions();
+        if (permissions.microphone !== 'granted') {
           throw new Error('Microphone permission denied');
         }
 
         const finalConfig = { ...get().recordingConfig, ...config };
 
-        // Create new recording
-        const recording: AudioRecording = {
-          id: Date.now().toString(),
-          filePath: '', // Will be set by audio service
-          duration: 0,
-          fileSize: 0,
-          quality: finalConfig.quality,
-          sampleRate: get().getRecordingQualitySettings(finalConfig.quality).sampleRate,
-          bitRate: get().getRecordingQualitySettings(finalConfig.quality).bitRate,
-          createdAt: new Date(),
-          isProcessing: false,
-        };
+        // Start recording using audio service
+        const recording = await audioService.startRecording(finalConfig);
 
         set({
           isRecording: true,
@@ -167,24 +161,29 @@ export const useAudioStore = create<AudioState>()(
           recordingStartTime: new Date(),
           recordingDuration: 0,
           recordingConfig: finalConfig,
+          permissions,
           loadingState: { isLoading: false },
         });
 
-        // Start duration tracking
-        const durationInterval = setInterval(() => {
+        // Start duration tracking with real-time status updates
+        const durationInterval = setInterval(async () => {
           const { isRecording, recordingStartTime, recordingConfig } = get();
           if (!isRecording || !recordingStartTime) {
             clearInterval(durationInterval);
             return;
           }
 
-          const duration = Math.floor((Date.now() - recordingStartTime.getTime()) / 1000);
-          set({ recordingDuration: duration });
+          // Get actual recording status from audio service
+          const status = await audioService.getRecordingStatus();
+          if (status?.isRecording) {
+            const duration = Math.floor((status.durationMillis || 0) / 1000);
+            set({ recordingDuration: duration });
 
-          // Auto-stop if max duration reached
-          if (recordingConfig.autoStop && duration >= recordingConfig.maxDuration) {
-            clearInterval(durationInterval);
-            get().stopRecording();
+            // Auto-stop if max duration reached
+            if (recordingConfig.autoStop && duration >= recordingConfig.maxDuration) {
+              clearInterval(durationInterval);
+              get().stopRecording();
+            }
           }
         }, 1000);
 
@@ -205,40 +204,68 @@ export const useAudioStore = create<AudioState>()(
 
         set({ loadingState: { isLoading: true } });
 
-        // Update recording with final duration
-        const finalRecording: AudioRecording = {
-          ...currentRecording,
-          duration: recordingDuration,
-          isProcessing: true,
-        };
+        // Stop recording using audio service
+        const recordingUri = await audioService.stopRecording();
 
-        set({
-          isRecording: false,
-          currentRecording: null,
-          recordingStartTime: null,
-          recordingDuration: 0,
-          loadingState: { isLoading: false },
-        });
+        if (recordingUri) {
+          // Get file information
+          const fileInfo = await audioService.getAudioFileInfo(recordingUri);
 
-        return finalRecording;
+          // Update recording with final data
+          const finalRecording: AudioRecording = {
+            ...currentRecording,
+            filePath: recordingUri,
+            duration: fileInfo.duration,
+            fileSize: fileInfo.size,
+            isProcessing: false,
+          };
+
+          set({
+            isRecording: false,
+            currentRecording: null,
+            recordingStartTime: null,
+            recordingDuration: 0,
+            loadingState: { isLoading: false },
+          });
+
+          return finalRecording;
+        }
+
+        throw new Error('Failed to get recording file');
       } catch (error) {
         get().setError({
           code: 'RECORDING_STOP_FAILED',
           message: error instanceof Error ? error.message : 'Failed to stop recording',
           timestamp: new Date(),
         });
+        set({ loadingState: { isLoading: false } });
         return null;
       }
     },
 
-    pauseRecording: () => {
-      // Implementation would depend on audio service
-      console.log('Pause recording - to be implemented with audio service');
+    pauseRecording: async () => {
+      try {
+        await audioService.pauseRecording();
+        // Note: The recording state remains true, but we can track pause state separately
+      } catch (error) {
+        get().setError({
+          code: 'RECORDING_PAUSE_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to pause recording',
+          timestamp: new Date(),
+        });
+      }
     },
 
-    resumeRecording: () => {
-      // Implementation would depend on audio service
-      console.log('Resume recording - to be implemented with audio service');
+    resumeRecording: async () => {
+      try {
+        await audioService.resumeRecording();
+      } catch (error) {
+        get().setError({
+          code: 'RECORDING_RESUME_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to resume recording',
+          timestamp: new Date(),
+        });
+      }
     },
 
     cancelRecording: () => {
@@ -342,31 +369,46 @@ export const useAudioStore = create<AudioState>()(
 
     // Permission actions
     requestMicrophonePermission: async () => {
-      // Implementation would use Expo AV
-      // For now, simulate permission grant
-      set({
-        permissions: {
-          ...get().permissions,
-          microphone: 'granted',
-        },
-      });
-      return true;
+      try {
+        const permissions = await audioService.checkPermissions();
+        set({ permissions });
+        return permissions.microphone === 'granted';
+      } catch (error) {
+        get().setError({
+          code: 'PERMISSION_REQUEST_FAILED',
+          message: 'Failed to request microphone permission',
+          timestamp: new Date(),
+        });
+        return false;
+      }
     },
 
     requestMediaLibraryPermission: async () => {
-      // Implementation would use Expo Media Library
-      set({
-        permissions: {
-          ...get().permissions,
-          mediaLibrary: 'granted',
-        },
-      });
-      return true;
+      try {
+        const permissions = await audioService.checkPermissions();
+        set({ permissions });
+        return permissions.mediaLibrary === 'granted';
+      } catch (error) {
+        get().setError({
+          code: 'PERMISSION_REQUEST_FAILED',
+          message: 'Failed to request media library permission',
+          timestamp: new Date(),
+        });
+        return false;
+      }
     },
 
     checkPermissions: async () => {
-      // Would check actual permissions
-      console.log('Check permissions - to be implemented');
+      try {
+        const permissions = await audioService.checkPermissions();
+        set({ permissions });
+      } catch (error) {
+        get().setError({
+          code: 'PERMISSION_CHECK_FAILED',
+          message: 'Failed to check permissions',
+          timestamp: new Date(),
+        });
+      }
     },
 
     // Settings actions
