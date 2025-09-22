@@ -19,6 +19,7 @@ import {
 import { deviceCapabilityService } from '../../services/DeviceCapabilityService';
 import { performanceMonitor } from '../../services/PerformanceMonitor';
 import { memoryManager } from '../../services/MemoryManager';
+import { adaptiveQualityService } from '../../services/AdaptiveQualityService';
 
 export interface MemoryItem {
   id: string;
