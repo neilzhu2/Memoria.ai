@@ -1,45 +1,133 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
+import { EnclaveTabBarBackground } from '@/components/EnclaveTabBarBackground';
+import { FloatingTabOverlay } from '@/components/FloatingTabOverlay';
+import { RecordingProvider, useRecording } from '@/contexts/RecordingContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-export default function TabLayout() {
+function TabLayoutContent() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
+  const { triggerRecording, isRecording } = useRecording();
+
+  const handleRecordPress = () => {
+    // Navigate to the home screen and trigger recording
+    router.push('/');
+    // Trigger the recording flow
+    triggerRecording();
+  };
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
+    <View style={{ flex: 1 }}>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: Colors[colorScheme ?? 'light'].elderlyTabActive,
+          tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].elderlyTabInactive,
+          headerShown: false,
+          tabBarButton: HapticTab,
+          tabBarBackground: EnclaveTabBarBackground,
+          tabBarStyle: Platform.select({
+            ios: {
+              backgroundColor: Colors[colorScheme ?? 'light'].tabBarBackground,
+              height: 88,
+              paddingBottom: 20,
+              paddingTop: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 10,
+              borderTopWidth: 0,
+            },
+            default: {
+              backgroundColor: Colors[colorScheme ?? 'light'].tabBarBackground,
+              height: 80,
+              paddingBottom: 16,
+              paddingTop: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 10,
+              borderTopWidth: 0,
+            },
+          }),
+          tabBarLabelStyle: {
+            fontSize: 14,
+            fontWeight: '600',
+            marginTop: 4,
           },
-          default: {},
-        }),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
+          tabBarIconStyle: {
+            marginTop: 4,
+          },
+        }}>
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Memories',
+            tabBarIcon: ({ color, focused }) => (
+              <IconSymbol
+                size={focused ? 36 : 32}
+                name="book.fill"
+                color={color}
+              />
+            ),
+            tabBarAccessibilityLabel: 'View your saved memories',
+            tabBarTestID: 'memories-tab',
+          }}
+        />
+        <Tabs.Screen
+          name="explore"
+          options={{
+            title: 'Record',
+            href: null, // Hide this tab from the tab bar
+            tabBarIcon: ({ color, focused }) => (
+              <IconSymbol
+                size={focused ? 36 : 32}
+                name="mic.fill"
+                color={color}
+              />
+            ),
+            tabBarAccessibilityLabel: 'Start recording a new memory',
+            tabBarTestID: 'record-tab',
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            tabBarIcon: ({ color, focused }) => (
+              <IconSymbol
+                size={focused ? 36 : 32}
+                name="person.fill"
+                color={color}
+              />
+            ),
+            tabBarAccessibilityLabel: 'View and edit your profile settings',
+            tabBarTestID: 'profile-tab',
+          }}
+        />
+      </Tabs>
+
+      {/* Floating Recording Button Overlay */}
+      <FloatingTabOverlay
+        onRecordPress={handleRecordPress}
+        isRecording={isRecording}
       />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-    </Tabs>
+    </View>
+  );
+}
+
+export default function TabLayout() {
+  return (
+    <RecordingProvider>
+      <TabLayoutContent />
+    </RecordingProvider>
   );
 }

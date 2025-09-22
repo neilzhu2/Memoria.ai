@@ -3,35 +3,153 @@ import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Alert } from 'rea
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
+import { RecordingButton } from '../../components/RecordingButton';
+import { SuggestedTopicCard } from '../../components/SuggestedTopicCard';
+import { RecordingStatus } from '../../components/RecordingStatus';
+import { RecordingPreparationModal } from '../../components/RecordingPreparationModal';
+import { ActiveRecordingModal } from '../../components/ActiveRecordingModal';
+import { RecordingCompletionModal } from '../../components/RecordingCompletionModal';
+import { useRecording } from '../../contexts/RecordingContext';
 
 export default function HomeScreen() {
+  const { recordingTrigger, isRecording: globalIsRecording, setIsRecording: setGlobalIsRecording } = useRecording();
   const [isRecording, setIsRecording] = React.useState(false);
   const [memoryCount, setMemoryCount] = React.useState(0);
+  const [recordingDuration, setRecordingDuration] = React.useState(0);
+  const [currentTopic, setCurrentTopic] = React.useState("Talk about your first job");
+  const [showPreparationModal, setShowPreparationModal] = React.useState(false);
+  const [showCompletionModal, setShowCompletionModal] = React.useState(false);
+  const [lastRecordingDuration, setLastRecordingDuration] = React.useState(0);
+  const durationIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const autoStopTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timers on unmount
+  React.useEffect(() => {
+    return () => {
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
+      }
+      if (autoStopTimeoutRef.current) {
+        clearTimeout(autoStopTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Listen for recording triggers from floating button
+  React.useEffect(() => {
+    if (recordingTrigger > 0) {
+      // Trigger recording preparation modal
+      setShowPreparationModal(true);
+    }
+  }, [recordingTrigger]);
+
+  // Sync local recording state with global state
+  React.useEffect(() => {
+    setGlobalIsRecording(isRecording);
+  }, [isRecording, setGlobalIsRecording]);
 
   const handleRecordPress = async () => {
     try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
       if (!isRecording) {
-        // Start recording simulation
-        setIsRecording(true);
-        Speech.speak("Recording started. Share your memory.", { language: 'en' });
-
-        // Simulate recording for demo
-        setTimeout(() => {
-          setIsRecording(false);
-          setMemoryCount(prev => prev + 1);
-          Speech.speak("Recording saved successfully.", { language: 'en' });
-        }, 3000);
+        // Show preparation modal instead of directly starting recording
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setShowPreparationModal(true);
       } else {
-        // Stop recording
+        // Stop recording manually
+        if (durationIntervalRef.current) {
+          clearInterval(durationIntervalRef.current);
+          durationIntervalRef.current = null;
+        }
+        if (autoStopTimeoutRef.current) {
+          clearTimeout(autoStopTimeoutRef.current);
+          autoStopTimeoutRef.current = null;
+        }
+
         setIsRecording(false);
         setMemoryCount(prev => prev + 1);
+        setRecordingDuration(0);
         Speech.speak("Recording saved successfully.", { language: 'en' });
       }
     } catch (error) {
       Alert.alert("Error", "Unable to start recording. Please check permissions.");
     }
+  };
+
+  const handleStartRecording = async () => {
+    try {
+      // Close the preparation modal
+      setShowPreparationModal(false);
+
+      // Start recording simulation
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      // Start duration counter
+      durationIntervalRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+
+      // Simulate recording for demo (auto-stop after 30 seconds)
+      autoStopTimeoutRef.current = setTimeout(() => {
+        if (durationIntervalRef.current) {
+          clearInterval(durationIntervalRef.current);
+          durationIntervalRef.current = null;
+        }
+
+        // Save the current duration for the completion modal (should be around 30)
+        setLastRecordingDuration(30);
+        setIsRecording(false);
+        setRecordingDuration(0);
+
+        // Show completion modal
+        setShowCompletionModal(true);
+        Speech.speak("Recording complete.", { language: 'en' });
+      }, 30000);
+    } catch (error) {
+      Alert.alert("Error", "Unable to start recording. Please check permissions.");
+    }
+  };
+
+  const handleCancelRecording = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowPreparationModal(false);
+  };
+
+  const handleStopRecording = async () => {
+    try {
+      // Stop recording manually
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
+        durationIntervalRef.current = null;
+      }
+      if (autoStopTimeoutRef.current) {
+        clearTimeout(autoStopTimeoutRef.current);
+        autoStopTimeoutRef.current = null;
+      }
+
+      // Save the duration for the completion modal
+      setLastRecordingDuration(recordingDuration);
+      setIsRecording(false);
+      setRecordingDuration(0);
+
+      // Show completion modal instead of directly saving
+      setShowCompletionModal(true);
+    } catch (error) {
+      Alert.alert("Error", "Unable to stop recording properly.");
+    }
+  };
+
+  const handleSaveMemory = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowCompletionModal(false);
+    setMemoryCount(prev => prev + 1);
+    Alert.alert("Memory Saved!", "Your memory has been saved and shared with your family.");
+  };
+
+  const handleDiscardMemory = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowCompletionModal(false);
+    setLastRecordingDuration(0);
   };
 
   const handleMemoriesPress = async () => {
@@ -44,34 +162,73 @@ export default function HomeScreen() {
     Alert.alert("Settings", "Access accessibility settings, family sharing, and more.");
   };
 
+  const handleExportPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert("Export My Memoir", "Create a beautiful memoir from your memories.");
+  };
+
+  const handleMemoriesTabPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert("Memories", "View all your saved memories.");
+  };
+
+  const handleProfileTabPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert("Profile", "View and edit your profile information.");
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <StatusBar style="auto" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Memoria.ai</Text>
-        <Text style={styles.subtitle}>Preserve Your Voice, Your Story</Text>
+      {/* Top Navigation Bar */}
+      <View style={styles.topNavBar}>
+        <View style={styles.navTabs}>
+          <TouchableOpacity
+            style={[styles.navTab, styles.activeNavTab]}
+            onPress={handleMemoriesTabPress}
+            accessibilityLabel="Memories tab"
+          >
+            <Text style={[styles.navTabText, styles.activeNavTabText]}>Memories</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.navTab}
+            onPress={handleProfileTabPress}
+            accessibilityLabel="Profile tab"
+          >
+            <Text style={styles.navTabText}>Profile</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity
+          style={styles.exportButton}
+          onPress={handleExportPress}
+          accessibilityLabel="Export memoir"
+        >
+          <Text style={styles.exportButtonText}>Export My Memoir</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Main Recording Button */}
       <View style={styles.recordingSection}>
-        <TouchableOpacity
-          style={[styles.recordButton, isRecording && styles.recordButtonActive]}
+        <RecordingButton
+          isRecording={isRecording}
           onPress={handleRecordPress}
-          accessibilityLabel={isRecording ? "Stop recording" : "Start recording"}
-          accessibilityHint="Tap to start or stop recording your memory"
-        >
-          <Text style={styles.recordButtonText}>
-            {isRecording ? "🔴 Recording..." : "🎙️ Record Memory"}
-          </Text>
-        </TouchableOpacity>
+          size="large"
+        />
 
-        {isRecording && (
-          <Text style={styles.recordingStatus}>
-            🟢 Listening... Speak clearly about your memory
-          </Text>
-        )}
+        <RecordingStatus
+          isRecording={isRecording}
+          duration={recordingDuration}
+        />
+      </View>
+
+      {/* Suggested Topic Card */}
+      <View style={styles.suggestedTopicSection}>
+        <SuggestedTopicCard
+          topic={currentTopic}
+          onPress={handleRecordPress}
+          isRecording={isRecording}
+        />
       </View>
 
       {/* Quick Stats */}
@@ -125,6 +282,31 @@ export default function HomeScreen() {
           ✅ Simple, clear interface
         </Text>
       </View>
+
+      {/* Recording Preparation Modal */}
+      <RecordingPreparationModal
+        visible={showPreparationModal}
+        topic={currentTopic}
+        onStartRecording={handleStartRecording}
+        onCancel={handleCancelRecording}
+      />
+
+      {/* Active Recording Modal */}
+      <ActiveRecordingModal
+        visible={isRecording}
+        duration={recordingDuration}
+        topic={currentTopic}
+        onStopRecording={handleStopRecording}
+      />
+
+      {/* Recording Completion Modal */}
+      <RecordingCompletionModal
+        visible={showCompletionModal}
+        duration={lastRecordingDuration}
+        topic={currentTopic}
+        onSaveMemory={handleSaveMemory}
+        onDiscardMemory={handleDiscardMemory}
+      />
     </ScrollView>
   );
 }
@@ -138,55 +320,58 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-  header: {
+  topNavBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
     marginBottom: 30,
-    marginTop: 20,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 8,
+  navTabs: {
+    flexDirection: 'row',
   },
-  subtitle: {
-    fontSize: 18,
+  navTab: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginRight: 10,
+    borderRadius: 8,
+  },
+  activeNavTab: {
+    backgroundColor: '#3498db',
+  },
+  navTabText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#7f8c8d',
+  },
+  activeNavTabText: {
+    color: 'white',
+  },
+  exportButton: {
+    backgroundColor: '#27ae60',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 6,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  exportButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
     textAlign: 'center',
   },
   recordingSection: {
     alignItems: 'center',
     marginBottom: 30,
   },
-  recordButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 20,
-    paddingHorizontal: 40,
-    borderRadius: 15,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    minHeight: 80,
-    minWidth: 250,
-    justifyContent: 'center',
+  suggestedTopicSection: {
     alignItems: 'center',
-  },
-  recordButtonActive: {
-    backgroundColor: '#e74c3c',
-  },
-  recordButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-  },
-  recordingStatus: {
-    marginTop: 15,
-    fontSize: 16,
-    color: '#27ae60',
-    textAlign: 'center',
+    marginBottom: 30,
   },
   statsSection: {
     flexDirection: 'row',
