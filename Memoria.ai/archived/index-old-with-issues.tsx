@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useReducer, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -62,13 +62,113 @@ const DAILY_TOPICS = [
 ];
 
 const { width: screenWidth } = Dimensions.get('window');
-const SWIPE_THRESHOLD = screenWidth * 0.25;
-const VELOCITY_THRESHOLD = 1000;
 
+// Transform constants for Tamagui compatibility - no object literals
+const CARD_ROTATION_LEFT = '-8deg';
+const CARD_ROTATION_RIGHT = '8deg';
+const CARD_SCALE_LEFT = 0.95;
+const CARD_SCALE_RIGHT = 0.98;
+const SWIPE_ROTATION_MULTIPLIER = 30;
+const SWIPE_SCALE_MIN = 0.8;
+const SWIPE_THRESHOLD_RATIO = 0.25;
+const VELOCITY_THRESHOLD = 1000;
+const ANIMATION_DURATION = 300;
+const SWIPE_EXIT_MULTIPLIER = 1.5;
+
+// Animation interpolation constants
+const ROTATION_INPUT_RANGE = [-100, 0, 100];
+const ROTATION_OUTPUT_LEFT = '-15deg';
+const ROTATION_OUTPUT_CENTER = '0deg';
+const ROTATION_OUTPUT_RIGHT = '15deg';
+
+// Navigation state type
 interface NavigationState {
   currentIndex: number;
-  history: number[];
-  historyPosition: number;
+  cardStack: number[];
+  stackPosition: number;
+  isAnimating: boolean;
+}
+
+// Navigation actions
+type NavigationAction =
+  | { type: 'NAVIGATE_FORWARD' }
+  | { type: 'NAVIGATE_BACKWARD' }
+  | { type: 'SET_ANIMATING'; payload: boolean }
+  | { type: 'RESET_TO_INITIAL' };
+
+// Navigation reducer for atomic state updates
+function navigationReducer(state: NavigationState, action: NavigationAction): NavigationState {
+  switch (action.type) {
+    case 'NAVIGATE_FORWARD': {
+      if (state.isAnimating) return state;
+
+      if (state.stackPosition < state.cardStack.length - 1) {
+        // Go forward in history
+        const nextPosition = state.stackPosition + 1;
+        const nextIndex = state.cardStack[nextPosition];
+        return {
+          ...state,
+          stackPosition: nextPosition,
+          currentIndex: nextIndex,
+          isAnimating: true
+        };
+      } else {
+        // Add new card to history
+        const nextIndex = (state.currentIndex + 1) % DAILY_TOPICS.length;
+        const newStack = [...state.cardStack, nextIndex];
+        return {
+          ...state,
+          cardStack: newStack,
+          stackPosition: state.stackPosition + 1,
+          currentIndex: nextIndex,
+          isAnimating: true
+        };
+      }
+    }
+
+    case 'NAVIGATE_BACKWARD': {
+      if (state.isAnimating) return state;
+
+      if (state.stackPosition > 0) {
+        // Go back in history
+        const prevPosition = state.stackPosition - 1;
+        const prevIndex = state.cardStack[prevPosition];
+        return {
+          ...state,
+          stackPosition: prevPosition,
+          currentIndex: prevIndex,
+          isAnimating: true
+        };
+      } else {
+        // Add previous card to beginning of history
+        const prevIndex = (state.currentIndex - 1 + DAILY_TOPICS.length) % DAILY_TOPICS.length;
+        const newStack = [prevIndex, ...state.cardStack];
+        return {
+          ...state,
+          cardStack: newStack,
+          currentIndex: prevIndex,
+          isAnimating: true
+        };
+      }
+    }
+
+    case 'SET_ANIMATING':
+      return {
+        ...state,
+        isAnimating: action.payload
+      };
+
+    case 'RESET_TO_INITIAL':
+      return {
+        currentIndex: 0,
+        cardStack: [0],
+        stackPosition: 0,
+        isAnimating: false
+      };
+
+    default:
+      return state;
+  }
 }
 
 const HomeScreen = React.memo(function HomeScreen() {
@@ -76,143 +176,77 @@ const HomeScreen = React.memo(function HomeScreen() {
   const router = useRouter();
   const { memoryStats, generateSmartExport, isExporting } = useRecording();
 
-  // Simple, reliable navigation state
-  const [navState, setNavState] = useState<NavigationState>({
+  // Unified navigation state with reducer for atomic updates
+  const [navigationState, dispatchNavigation] = useReducer(navigationReducer, {
     currentIndex: 0,
-    history: [0],
-    historyPosition: 0
+    cardStack: [0],
+    stackPosition: 0,
+    isAnimating: false
   });
 
   // Animation values
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
+  const rotate = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
 
-  // Calculate background cards based on navigation logic
-  const getBackgroundCards = useCallback(() => {
-    const { currentIndex, history, historyPosition } = navState;
+  // Transform styles - defined inline to avoid object literal issues
+  const leftCardTransform = [
+    { rotate: CARD_ROTATION_LEFT },
+    { scale: CARD_SCALE_LEFT }
+  ];
 
-    // Left card: where right swipe (backward) will go
-    let leftIndex: number;
-    if (historyPosition > 0) {
-      // Can go back in history
-      leftIndex = history[historyPosition - 1];
+  const rightCardTransform = [
+    { rotate: CARD_ROTATION_RIGHT },
+    { scale: CARD_SCALE_RIGHT }
+  ];
+
+  const activeCardTransform = [
+    { translateX },
+    { translateY },
+    {
+      rotate: rotate.interpolate({
+        inputRange: ROTATION_INPUT_RANGE,
+        outputRange: [ROTATION_OUTPUT_LEFT, ROTATION_OUTPUT_CENTER, ROTATION_OUTPUT_RIGHT],
+        extrapolate: 'clamp',
+      })
+    },
+    { scale },
+  ];
+
+  // Memoized background card calculations - show where swipes will take you
+  const { leftCard, rightCard, currentTopic } = useMemo(() => {
+    const { currentIndex, cardStack, stackPosition } = navigationState;
+
+    // Left card preview: shows where RIGHT swipe (backward navigation) will take you
+    let leftCardIndex: number;
+    if (stackPosition > 0) {
+      // There's history to go back to
+      leftCardIndex = cardStack[stackPosition - 1];
     } else {
-      // Would create new previous card
-      leftIndex = (currentIndex - 1 + DAILY_TOPICS.length) % DAILY_TOPICS.length;
+      // No history, show previous topic in sequence
+      leftCardIndex = (currentIndex - 1 + DAILY_TOPICS.length) % DAILY_TOPICS.length;
     }
 
-    // Right card: where left swipe (forward) will go
-    let rightIndex: number;
-    if (historyPosition < history.length - 1) {
-      // Can go forward in history
-      rightIndex = history[historyPosition + 1];
+    // Right card preview: shows where LEFT swipe (forward navigation) will take you
+    let rightCardIndex: number;
+    if (stackPosition < cardStack.length - 1) {
+      // There's forward history
+      rightCardIndex = cardStack[stackPosition + 1];
     } else {
-      // Would create new next card
-      rightIndex = (currentIndex + 1) % DAILY_TOPICS.length;
+      // No forward history, show next topic in sequence
+      rightCardIndex = (currentIndex + 1) % DAILY_TOPICS.length;
     }
 
     return {
-      left: DAILY_TOPICS[leftIndex],
-      right: DAILY_TOPICS[rightIndex],
-      current: DAILY_TOPICS[currentIndex]
+      leftCard: DAILY_TOPICS[leftCardIndex],
+      rightCard: DAILY_TOPICS[rightCardIndex],
+      currentTopic: DAILY_TOPICS[currentIndex]
     };
-  }, [navState]);
+  }, [navigationState]);
 
-  const backgroundCards = getBackgroundCards();
+  // Memory stats come from the recording context
 
-  // Simple navigation function
-  const navigate = useCallback((direction: 'forward' | 'backward') => {
-    setNavState(prevState => {
-      const { currentIndex, history, historyPosition } = prevState;
-
-      if (direction === 'forward') {
-        // Left swipe - go forward
-        if (historyPosition < history.length - 1) {
-          // Go forward in existing history
-          const newPosition = historyPosition + 1;
-          return {
-            ...prevState,
-            currentIndex: history[newPosition],
-            historyPosition: newPosition
-          };
-        } else {
-          // Create new forward entry
-          const nextIndex = (currentIndex + 1) % DAILY_TOPICS.length;
-          return {
-            ...prevState,
-            currentIndex: nextIndex,
-            history: [...history, nextIndex],
-            historyPosition: historyPosition + 1
-          };
-        }
-      } else {
-        // Right swipe - go backward
-        if (historyPosition > 0) {
-          // Go back in existing history
-          const newPosition = historyPosition - 1;
-          return {
-            ...prevState,
-            currentIndex: history[newPosition],
-            historyPosition: newPosition
-          };
-        } else {
-          // Create new backward entry
-          const prevIndex = (currentIndex - 1 + DAILY_TOPICS.length) % DAILY_TOPICS.length;
-          return {
-            currentIndex: prevIndex,
-            history: [prevIndex, ...history],
-            historyPosition: 0
-          };
-        }
-      }
-    });
-  }, []);
-
-  // Gesture handler
-  const onPanHandlerStateChange = useCallback((event: HandlerStateChangeEvent<PanGestureHandlerEventPayload>) => {
-    if (event.nativeEvent.oldState === State.ACTIVE) {
-      const { translationX, velocityX } = event.nativeEvent;
-
-      // Determine if swipe is strong enough
-      const shouldSwipe = Math.abs(translationX) > SWIPE_THRESHOLD || Math.abs(velocityX) > VELOCITY_THRESHOLD;
-
-      if (shouldSwipe) {
-        // Determine direction and navigate
-        const direction = translationX > 0 ? 'backward' : 'forward';
-
-        // Animate card out
-        const toValue = translationX > 0 ? screenWidth : -screenWidth;
-        Animated.parallel([
-          Animated.timing(translateX, { toValue, duration: 300, useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 0.8, duration: 300, useNativeDriver: true }),
-        ]).start(() => {
-          // Reset animation values
-          translateX.setValue(0);
-          translateY.setValue(0);
-          scale.setValue(1);
-
-          // Navigate to new card
-          navigate(direction);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        });
-      } else {
-        // Snap back to center
-        Animated.parallel([
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }),
-          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }),
-          Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
-        ]).start();
-      }
-    }
-  }, [navigate]);
-
-  const onPanGestureEvent = Animated.event(
-    [{ nativeEvent: { translationX: translateX, translationY: translateY } }],
-    { useNativeDriver: true }
-  );
-
-  // Helper functions
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -269,20 +303,108 @@ const HomeScreen = React.memo(function HomeScreen() {
     router.push('/mylife?section=memories');
   }, [router]);
 
-  const handleSkipPress = useCallback(async () => {
+  const handleProfilePress = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigate('forward');
-  }, [navigate]);
+    router.push('/mylife?section=profile');
+  }, [router]);
 
-  const handleRecordPress = useCallback(async () => {
+  const handleRecordPromptPress = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/');
+    Alert.alert(
+      'Start Recording',
+      'Tap the recording button in the center to start sharing your memories.',
+      [{ text: 'Got it!', style: 'default' }]
+    );
+  }, []);
+
+  // Navigation function with atomic state updates
+  const navigateToTopic = useCallback((direction: 'forward' | 'backward') => {
+    if (navigationState.isAnimating) return;
+
+    // Dispatch atomic navigation action
+    if (direction === 'forward') {
+      dispatchNavigation({ type: 'NAVIGATE_FORWARD' });
+    } else {
+      dispatchNavigation({ type: 'NAVIGATE_BACKWARD' });
+    }
+
+    // Clear animation flag after animation completes
+    setTimeout(() => {
+      dispatchNavigation({ type: 'SET_ANIMATING', payload: false });
+    }, ANIMATION_DURATION);
+  }, [navigationState.isAnimating]);
+
+  const handleTopicSkip = useCallback(async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigateToTopic('forward');
+  }, [navigateToTopic]);
+
+  const handleTopicLike = useCallback(async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Navigate to start recording with this topic
+    router.push('/'); // This will trigger the FAB recording flow
     Alert.alert(
       'Great Choice!',
-      `Ready to record about: ${backgroundCards.current.title}\n\nTap the record button to start sharing your memory.`,
+      `Ready to record about: ${currentTopic.title}\n\nTap the record button to start sharing your memory.`,
       [{ text: 'Let\'s go!', style: 'default' }]
     );
-  }, [router, backgroundCards.current.title]);
+  }, [router, currentTopic.title]);
+
+  // Card swipe gesture handlers
+  const onPanGestureEvent = Animated.event(
+    [{ nativeEvent: { translationX: translateX, translationY: translateY } }],
+    { useNativeDriver: true }
+  );
+
+  const onPanHandlerStateChange = useCallback((event: HandlerStateChangeEvent<PanGestureHandlerEventPayload>) => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      if (navigationState.isAnimating) {
+        // Reset to center if animation in progress
+        Animated.parallel([
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }),
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }),
+          Animated.spring(rotate, { toValue: 0, useNativeDriver: true }),
+          Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
+        ]).start();
+        return;
+      }
+
+      const { translationX, velocityX } = event.nativeEvent;
+      const swipeThreshold = screenWidth * SWIPE_THRESHOLD_RATIO;
+
+      if (Math.abs(translationX) > swipeThreshold || Math.abs(velocityX) > VELOCITY_THRESHOLD) {
+        const direction = translationX > 0 ? 1 : -1;
+        const navigationDirection = translationX > 0 ? 'backward' : 'forward';
+        const toValue = direction * screenWidth * SWIPE_EXIT_MULTIPLIER;
+
+        // Animate card out
+        Animated.parallel([
+          Animated.timing(translateX, { toValue, duration: ANIMATION_DURATION, useNativeDriver: true }),
+          Animated.timing(rotate, { toValue: direction * SWIPE_ROTATION_MULTIPLIER, duration: ANIMATION_DURATION, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: SWIPE_SCALE_MIN, duration: ANIMATION_DURATION, useNativeDriver: true }),
+        ]).start(() => {
+          // Reset position first
+          translateX.setValue(0);
+          translateY.setValue(0);
+          rotate.setValue(0);
+          scale.setValue(1);
+
+          // Then navigate - this ensures animation reset happens before state change
+          navigateToTopic(navigationDirection);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        });
+      } else {
+        // Snap back to center
+        Animated.parallel([
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }),
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }),
+          Animated.spring(rotate, { toValue: 0, useNativeDriver: true }),
+          Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
+        ]).start();
+      }
+    }
+  }, [navigationState.isAnimating, translateX, translateY, rotate, scale, navigateToTopic]);
+
 
   return (
     <View
@@ -328,43 +450,31 @@ const HomeScreen = React.memo(function HomeScreen() {
       {/* Topic Cards - Swipeable Stack */}
       <View style={styles.topicCardsContainer}>
         <View style={styles.cardStack}>
-          {/* Background Cards - Visual Preview */}
-          {/* Left Card - Shows where right swipe will go */}
+          {/* Background Cards - Visual Preview of Adjacent Topics */}
+          {/* Left Card - Previous card in history or previous topic */}
           <View style={[
             styles.topicCard,
             styles.backgroundCard,
             styles.leftCard,
-            { backgroundColor: 'white' }
+            { backgroundColor: 'white', transform: leftCardTransform }
           ]}>
-            <View style={[styles.topicCardInner, {
-              borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
-              opacity: 0.4
-            }]}>
-              <Text style={[styles.topicTitle, {
-                color: Colors[colorScheme ?? 'light'].text,
-                opacity: 0.4
-              }]}>
-                {backgroundCards.left.title}
+            <View style={[styles.topicCardInner, { borderColor: Colors[colorScheme ?? 'light'].tabIconDefault, opacity: 0.4 }]}>
+              <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text, opacity: 0.4 }]}>
+                {leftCard.title}
               </Text>
             </View>
           </View>
 
-          {/* Right Card - Shows where left swipe will go */}
+          {/* Right Card - Next topic in sequence */}
           <View style={[
             styles.topicCard,
             styles.backgroundCard,
             styles.rightCard,
-            { backgroundColor: 'white' }
+            { backgroundColor: 'white', transform: rightCardTransform }
           ]}>
-            <View style={[styles.topicCardInner, {
-              borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
-              opacity: 0.6
-            }]}>
-              <Text style={[styles.topicTitle, {
-                color: Colors[colorScheme ?? 'light'].text,
-                opacity: 0.6
-              }]}>
-                {backgroundCards.right.title}
+            <View style={[styles.topicCardInner, { borderColor: Colors[colorScheme ?? 'light'].tabIconDefault, opacity: 0.6 }]}>
+              <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text, opacity: 0.6 }]}>
+                {rightCard.title}
               </Text>
             </View>
           </View>
@@ -381,33 +491,27 @@ const HomeScreen = React.memo(function HomeScreen() {
                 styles.topicCard,
                 styles.activeCard,
                 { backgroundColor: 'white' },
-                {
-                  transform: [
-                    { translateX },
-                    { translateY },
-                    { scale }
-                  ]
-                },
+                { transform: activeCardTransform },
               ]}
             >
               <View style={[styles.topicCardInner, { borderColor: Colors[colorScheme ?? 'light'].tint }]}>
                 <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-                  {backgroundCards.current.title}
+                  {currentTopic.title}
                 </Text>
                 <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-                  {backgroundCards.current.description}
+                  {currentTopic.description}
                 </Text>
                 <View style={styles.topicActions}>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.skipButton]}
-                    onPress={handleSkipPress}
+                    onPress={handleTopicSkip}
                     accessibilityLabel="Skip this topic"
                   >
                     <IconSymbol name="xmark" size={24} color="#e74c3c" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.recordButton]}
-                    onPress={handleRecordPress}
+                    onPress={handleTopicLike}
                     accessibilityLabel="Record about this topic"
                   >
                     <IconSymbol name="mic.fill" size={24} color="#27ae60" />
@@ -418,6 +522,8 @@ const HomeScreen = React.memo(function HomeScreen() {
           </PanGestureHandler>
         </View>
       </View>
+
+
 
       {/* Recent Activity */}
       {memoryStats.totalMemories > 0 && (
@@ -441,6 +547,7 @@ const HomeScreen = React.memo(function HomeScreen() {
           </View>
         </View>
       )}
+
     </View>
   );
 });
@@ -451,8 +558,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    paddingTop: 60,
-    paddingBottom: 100,
+    paddingTop: 60, // Account for status bar
+    paddingBottom: 100, // Account for tab bar
   },
   header: {
     alignItems: 'center',
@@ -484,6 +591,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 8,
+  },
+  cardBackground: {
+    padding: 2,
   },
   topicCardInner: {
     flex: 1,
@@ -532,6 +642,28 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#27ae60',
   },
+  quickActionsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 32,
+  },
+  quickActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 12,
+    shadowColor: '#000000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
   recentSection: {
     marginBottom: 32,
   },
@@ -556,6 +688,9 @@ const styles = StyleSheet.create({
   recentText: {
     fontSize: 16,
     marginLeft: 12,
+  },
+  bottomSpacing: {
+    height: 100, // Space for tab bar and FAB
   },
   topActionsContainer: {
     flexDirection: 'row',
@@ -587,12 +722,10 @@ const styles = StyleSheet.create({
   leftCard: {
     left: -20,
     zIndex: 1,
-    transform: [{ rotate: '-8deg' }, { scale: 0.95 }],
   },
   rightCard: {
     right: -20,
     zIndex: 2,
-    transform: [{ rotate: '8deg' }, { scale: 0.98 }],
   },
   activeCard: {
     zIndex: 3,
