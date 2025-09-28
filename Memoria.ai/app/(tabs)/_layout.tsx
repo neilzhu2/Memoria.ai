@@ -10,6 +10,7 @@ import { FloatingTabOverlay } from '@/components/FloatingTabOverlay';
 import { RecordingProvider, useRecording } from '@/contexts/RecordingContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { RootTabParamList } from '@/types/navigation';
 
 function TabLayoutContent() {
   const colorScheme = useColorScheme();
@@ -17,7 +18,7 @@ function TabLayoutContent() {
   const { triggerRecording, isRecording } = useRecording();
 
   const handleRecordPress = () => {
-    // Navigate to the home screen and trigger recording
+    // Navigate to the index screen and trigger recording
     router.push('/');
     // Trigger the recording flow
     triggerRecording();
@@ -26,6 +27,7 @@ function TabLayoutContent() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
+        initialRouteName="index"
         screenOptions={{
           tabBarActiveTintColor: Colors[colorScheme ?? 'light'].elderlyTabActive,
           tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].elderlyTabInactive,
@@ -70,7 +72,22 @@ function TabLayoutContent() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Memories',
+            title: 'Home',
+            tabBarIcon: ({ color, focused }) => (
+              <IconSymbol
+                size={focused ? 36 : 32}
+                name="house.fill"
+                color={color}
+              />
+            ),
+            tabBarAccessibilityLabel: 'Home dashboard with memory overview',
+            tabBarTestID: 'home-tab',
+          }}
+        />
+        <Tabs.Screen
+          name="mylife"
+          options={{
+            title: 'My Life',
             tabBarIcon: ({ color, focused }) => (
               <IconSymbol
                 size={focused ? 36 : 32}
@@ -78,39 +95,8 @@ function TabLayoutContent() {
                 color={color}
               />
             ),
-            tabBarAccessibilityLabel: 'View your saved memories',
-            tabBarTestID: 'memories-tab',
-          }}
-        />
-        <Tabs.Screen
-          name="explore"
-          options={{
-            title: 'Record',
-            href: null, // Hide this tab from the tab bar
-            tabBarIcon: ({ color, focused }) => (
-              <IconSymbol
-                size={focused ? 36 : 32}
-                name="mic.fill"
-                color={color}
-              />
-            ),
-            tabBarAccessibilityLabel: 'Start recording a new memory',
-            tabBarTestID: 'record-tab',
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profile',
-            tabBarIcon: ({ color, focused }) => (
-              <IconSymbol
-                size={focused ? 36 : 32}
-                name="person.fill"
-                color={color}
-              />
-            ),
-            tabBarAccessibilityLabel: 'View and edit your profile settings',
-            tabBarTestID: 'profile-tab',
+            tabBarAccessibilityLabel: 'View memories and profile',
+            tabBarTestID: 'mylife-tab',
           }}
         />
       </Tabs>
