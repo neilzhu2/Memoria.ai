@@ -5,10 +5,11 @@ import { MemoryItem, MemoryStats, SmartExportConfig } from '@/types/memory';
 
 interface RecordingContextType {
   // Recording controls
-  triggerRecording: () => void;
+  triggerRecording: (theme?: { id: string; title: string }) => void;
   isRecording: boolean;
   setIsRecording: (recording: boolean) => void;
   recordingTrigger: number;
+  selectedThemeFromTrigger?: { id: string; title: string };
 
   // Memory management
   memoryCount: number;
@@ -36,6 +37,7 @@ const STORAGE_KEYS = {
 export function RecordingProvider({ children }: { children: ReactNode }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTrigger, setRecordingTrigger] = useState(0);
+  const [selectedThemeFromTrigger, setSelectedThemeFromTrigger] = useState<{ id: string; title: string } | undefined>();
   const [memoryCount, setMemoryCount] = useState(0);
   const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [memoryStats, setMemoryStats] = useState<MemoryStats>({
@@ -90,7 +92,9 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const triggerRecording = () => {
+  const triggerRecording = (theme?: { id: string; title: string }) => {
+    // Store the theme if provided
+    setSelectedThemeFromTrigger(theme);
     // Increment trigger to signal a new recording should start
     setRecordingTrigger(prev => prev + 1);
   };
@@ -206,6 +210,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         isRecording,
         setIsRecording,
         recordingTrigger,
+        selectedThemeFromTrigger,
 
         // Memory management
         memoryCount,

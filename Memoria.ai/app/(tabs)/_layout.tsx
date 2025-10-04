@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Platform, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
@@ -7,6 +7,7 @@ import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { EnclaveTabBarBackground } from '@/components/EnclaveTabBarBackground';
 import { FloatingTabOverlay } from '@/components/FloatingTabOverlay';
+import { ThemeSelectionModal } from '@/components/ThemeSelectionModal';
 import { RecordingProvider, useRecording } from '@/contexts/RecordingContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -16,12 +17,20 @@ function TabLayoutContent() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const { triggerRecording, isRecording } = useRecording();
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   const handleRecordPress = () => {
-    // Navigate to the index screen and trigger recording
+    // Show theme selection modal instead of directly recording
+    setShowThemeModal(true);
+  };
+
+  const handleThemeSelect = (theme: any) => {
+    console.log('Tab layout - theme selected:', theme.title);
+    setShowThemeModal(false);
+    // Navigate to the index screen and trigger recording with selected theme
     router.push('/');
-    // Trigger the recording flow
-    triggerRecording();
+    // Trigger the recording flow with the selected theme
+    triggerRecording(theme);
   };
 
   return (
@@ -99,12 +108,31 @@ function TabLayoutContent() {
             tabBarTestID: 'mylife-tab',
           }}
         />
+        <Tabs.Screen
+          name="explore"
+          options={{
+            href: null, // This will hide the tab
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            href: null, // This will hide the tab
+          }}
+        />
       </Tabs>
 
       {/* Floating Recording Button Overlay */}
       <FloatingTabOverlay
         onRecordPress={handleRecordPress}
         isRecording={isRecording}
+      />
+
+      {/* Theme Selection Modal */}
+      <ThemeSelectionModal
+        visible={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
+        onThemeSelect={handleThemeSelect}
       />
     </View>
   );

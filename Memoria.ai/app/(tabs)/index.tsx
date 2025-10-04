@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRecording } from '@/contexts/RecordingContext';
+import { RecordingFlowContainer } from '@/components/RecordingFlowContainer';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -74,7 +75,7 @@ interface NavigationState {
 const HomeScreen = React.memo(function HomeScreen() {
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const { memoryStats, generateSmartExport, isExporting } = useRecording();
+  const { memoryStats, generateSmartExport, isExporting, recordingTrigger, selectedThemeFromTrigger } = useRecording();
 
   // Simple, reliable navigation state
   const [navState, setNavState] = useState<NavigationState>({
@@ -82,6 +83,27 @@ const HomeScreen = React.memo(function HomeScreen() {
     history: [0],
     historyPosition: 0
   });
+
+  // Recording flow state
+  const [showRecordingFlow, setShowRecordingFlow] = useState(false);
+  const [skipThemeSelection, setSkipThemeSelection] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<{id: string; title: string} | undefined>();
+
+  // Listen for recording trigger from tab bar
+  React.useEffect(() => {
+    if (recordingTrigger > 0) {
+      console.log('Index - Recording triggered with theme:', selectedThemeFromTrigger?.title);
+      // If theme was selected from tab bar, use it and skip theme selection
+      if (selectedThemeFromTrigger) {
+        setSelectedTopic(selectedThemeFromTrigger);
+        setSkipThemeSelection(true); // Skip theme selection since we already have one
+      } else {
+        setSelectedTopic(undefined);
+        setSkipThemeSelection(false);
+      }
+      setShowRecordingFlow(true);
+    }
+  }, [recordingTrigger, selectedThemeFromTrigger]);
 
   // Animation values
   const translateX = useRef(new Animated.Value(0)).current;
@@ -276,13 +298,16 @@ const HomeScreen = React.memo(function HomeScreen() {
 
   const handleRecordPress = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/');
-    Alert.alert(
-      'Great Choice!',
-      `Ready to record about: ${backgroundCards.current.title}\n\nTap the record button to start sharing your memory.`,
-      [{ text: 'Let\'s go!', style: 'default' }]
-    );
-  }, [router, backgroundCards.current.title]);
+    // Green button on card should skip theme selection and go straight to recording
+    // Pass the current topic as the selected theme
+    const currentTopic = DAILY_TOPICS[navState.currentIndex];
+    setSelectedTopic({
+      id: currentTopic.id.toString(),
+      title: currentTopic.title
+    });
+    setSkipThemeSelection(true);
+    setShowRecordingFlow(true);
+  }, [navState.currentIndex]);
 
   return (
     <View
@@ -419,28 +444,18 @@ const HomeScreen = React.memo(function HomeScreen() {
         </View>
       </View>
 
-      {/* Recent Activity */}
-      {memoryStats.totalMemories > 0 && (
-        <View style={styles.recentSection}>
-          <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-            This Week
-          </Text>
-          <View style={[styles.recentCard, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-            <View style={styles.recentRow}>
-              <IconSymbol name="calendar" size={20} color={Colors[colorScheme ?? 'light'].tint} />
-              <Text style={[styles.recentText, { color: Colors[colorScheme ?? 'light'].text }]}>
-                {memoryStats.memoriesThisWeek} new memories
-              </Text>
-            </View>
-            <View style={styles.recentRow}>
-              <IconSymbol name="heart.fill" size={20} color="#e91e63" />
-              <Text style={[styles.recentText, { color: Colors[colorScheme ?? 'light'].text }]}>
-                Average: {formatDuration(memoryStats.averageRecordingLength)}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
+
+      {/* Recording Flow */}
+      <RecordingFlowContainer
+        visible={showRecordingFlow}
+        onClose={() => {
+          setShowRecordingFlow(false);
+          setSkipThemeSelection(false); // Reset for next time
+          setSelectedTopic(undefined); // Clear selected topic
+        }}
+        skipThemeSelection={skipThemeSelection}
+        initialTheme={selectedTopic}
+      />
     </View>
   );
 });
