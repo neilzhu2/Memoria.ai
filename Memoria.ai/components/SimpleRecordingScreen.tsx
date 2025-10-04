@@ -59,6 +59,9 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   // Timer ref
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
 
+  // Track if recording has been stopped/unloaded
+  const hasStoppedRecording = useRef(false);
+
   // Colors
   const backgroundColor = Colors[colorScheme ?? 'light'].background;
   const textColor = Colors[colorScheme ?? 'light'].text;
@@ -68,13 +71,16 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     if (!visible) {
       // Clean up when modal closes
       stopTimer();
-      if (recording) {
-        stopRecording();
+      if (recording && recordingState !== 'idle' && !hasStoppedRecording.current) {
+        stopRecording().catch(err => {
+          console.log('Recording cleanup error:', err.message);
+        });
       }
       setRecordingState('idle');
       setDuration(0);
       setWaveformData([]);
       setCurrentRecordingUri(null);
+      hasStoppedRecording.current = false; // Reset for next recording
     }
   }, [visible]);
 
@@ -129,6 +135,9 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+      // Reset stopped flag for new recording
+      hasStoppedRecording.current = false;
+
       // Configure audio mode for recording
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
@@ -181,11 +190,31 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   };
 
   const stopRecording = async () => {
-    if (!recording) return;
+    if (!recording || hasStoppedRecording.current) return;
 
     try {
+      // Check if recording is already done/unloaded
+      try {
+        const status = await recording.getStatusAsync();
+        if (!status.canRecord) {
+          // Recording already stopped, just cleanup state
+          setRecordingState('idle');
+          stopTimer();
+          hasStoppedRecording.current = true;
+          return;
+        }
+      } catch (statusError) {
+        // If we can't get status, recording is probably already unloaded
+        console.log('Recording already stopped:', statusError);
+        setRecordingState('idle');
+        stopTimer();
+        hasStoppedRecording.current = true;
+        return;
+      }
+
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       await recording.stopAndUnloadAsync();
+      hasStoppedRecording.current = true; // Mark as stopped
 
       const uri = recording.getURI();
       setCurrentRecordingUri(uri);
