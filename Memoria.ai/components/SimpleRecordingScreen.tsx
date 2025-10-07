@@ -18,6 +18,9 @@ import { useRecording } from '@/contexts/RecordingContext';
 import { SimpleWaveform } from './SimpleWaveform';
 import { RecordingTimer } from './RecordingTimer';
 import { RecordingsList } from './RecordingsList';
+import { EditMemoryModal } from './EditMemoryModal';
+import { MemoryItem } from '@/types/memory';
+import { getTranscriptionService } from '@/services/transcription/TranscriptionService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -44,7 +47,7 @@ interface RecordingData {
 
 export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: SimpleRecordingScreenProps) {
   const colorScheme = useColorScheme();
-  const { addMemory } = useRecording();
+  const { addMemory, updateMemory } = useRecording();
 
   // Recording state
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
@@ -54,6 +57,8 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
   // UI state
   const [showRecordingsList, setShowRecordingsList] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [savedMemory, setSavedMemory] = useState<MemoryItem | null>(null);
   const [waveformData, setWaveformData] = useState<number[]>([]);
 
   // Timer ref
@@ -235,13 +240,21 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   };
 
   const saveRecording = async () => {
-    if (!currentRecordingUri || !recording) return;
+    console.log('saveRecording called', { currentRecordingUri, hasRecording: !!recording, recordingState });
+
+    if (!currentRecordingUri) {
+      console.error('No recording URI available');
+      Alert.alert('Error', 'No recording found. Please try recording again.');
+      return;
+    }
 
     try {
       const title = selectedTheme?.title || `Recording ${new Date().toLocaleDateString()}`;
 
-      // Save to context
-      await addMemory({
+      console.log('Saving memory with:', { title, audioPath: currentRecordingUri, duration });
+
+      // Save to context and get the memory object
+      const newMemory = await addMemory({
         title,
         description: selectedTheme ? `Recording about: ${selectedTheme.title}` : undefined,
         date: new Date(),
@@ -252,18 +265,56 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         familyMembers: [],
       });
 
+      console.log('Memory saved successfully:', newMemory);
+
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      Alert.alert(
-        'Recording Saved!',
-        'Your memory has been saved successfully.',
-        [{ text: 'Great!', onPress: onClose }]
-      );
+      // Start transcription in the background
+      transcribeRecording(newMemory);
+
+      // Show edit modal to review/edit the memory
+      setSavedMemory(newMemory);
+      setShowEditModal(true);
 
     } catch (error) {
       console.error('Failed to save recording:', error);
       Alert.alert('Error', 'Failed to save recording. Please try again.');
     }
+  };
+
+  const transcribeRecording = async (memory: MemoryItem) => {
+    try {
+      console.log('Starting mock transcription for memory:', memory.id);
+
+      // Simulate processing delay (2 seconds)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Mock transcription text based on recording title
+      const mockTranscript = `This is a mock transcription of your recording about "${memory.title}". In a production environment, this would contain the actual speech-to-text conversion of your audio recording. The transcription feature uses on-device processing to convert your voice into searchable text, making it easy to find and review your memories later.`;
+
+      console.log('Mock transcription generated:', mockTranscript.substring(0, 50) + '...');
+
+      // Update the memory with mock transcription
+      await updateMemory(memory.id, {
+        transcription: mockTranscript,
+      });
+
+      // Update the savedMemory state so the modal shows the transcription
+      setSavedMemory(prev => prev ? { ...prev, transcription: mockTranscript } : null);
+
+      console.log('Mock transcription saved successfully');
+    } catch (error) {
+      console.error('Mock transcription failed:', error);
+      // Don't show error to user - transcription is a nice-to-have feature
+    }
+  };
+
+  const handleSaveMemoryEdits = async (updates: Partial<MemoryItem>) => {
+    if (!savedMemory) return;
+    await updateMemory(savedMemory.id, updates);
+    setShowEditModal(false);
+    setSavedMemory(null);
+    onClose(); // Close the recording screen after editing
   };
 
   const discardRecording = () => {
@@ -431,6 +482,14 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         <RecordingsList
           visible={showRecordingsList}
           onClose={() => setShowRecordingsList(false)}
+        />
+
+        {/* Edit Memory Modal */}
+        <EditMemoryModal
+          visible={showEditModal}
+          memory={savedMemory}
+          onSave={handleSaveMemoryEdits}
+          onClose={() => setShowEditModal(false)}
         />
       </SafeAreaView>
     </Modal>

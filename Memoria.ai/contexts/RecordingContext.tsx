@@ -14,7 +14,7 @@ interface RecordingContextType {
   // Memory management
   memoryCount: number;
   memories: MemoryItem[];
-  addMemory: (memory: Omit<MemoryItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addMemory: (memory: Omit<MemoryItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<MemoryItem>;
   removeMemory: (memoryId: string) => Promise<void>;
   updateMemory: (memoryId: string, updates: Partial<MemoryItem>) => Promise<void>;
 
@@ -99,7 +99,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     setRecordingTrigger(prev => prev + 1);
   };
 
-  const addMemory = async (memoryData: Omit<MemoryItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addMemory = async (memoryData: Omit<MemoryItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<MemoryItem> => {
     const newMemory: MemoryItem = {
       ...memoryData,
       id: `memory-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -111,6 +111,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     setMemories(updatedMemories);
     setMemoryCount(updatedMemories.length);
     await saveMemoriesToStorage(updatedMemories);
+
+    return newMemory;
   };
 
   const removeMemory = async (memoryId: string) => {
