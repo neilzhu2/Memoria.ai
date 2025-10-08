@@ -47,7 +47,7 @@ interface RecordingData {
 
 export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: SimpleRecordingScreenProps) {
   const colorScheme = useColorScheme();
-  const { addMemory, updateMemory } = useRecording();
+  const { addMemory, updateMemory, refreshStats, memories } = useRecording();
 
   // Recording state
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
@@ -266,6 +266,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       });
 
       console.log('Memory saved successfully:', newMemory);
+      console.log('Total memories after save:', memories.length + 1);
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -275,6 +276,8 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       // Show edit modal to review/edit the memory
       setSavedMemory(newMemory);
       setShowEditModal(true);
+
+      console.log('EditMemoryModal should now be visible');
 
     } catch (error) {
       console.error('Failed to save recording:', error);
@@ -311,10 +314,21 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
   const handleSaveMemoryEdits = async (updates: Partial<MemoryItem>) => {
     if (!savedMemory) return;
+
+    console.log('handleSaveMemoryEdits - updating memory:', savedMemory.id);
+    console.log('Current memories count before update:', memories.length);
+
     await updateMemory(savedMemory.id, updates);
+
+    console.log('Memory updated, refreshing stats...');
+    refreshStats();
+
+    console.log('Closing modals and recording screen...');
     setShowEditModal(false);
     setSavedMemory(null);
     onClose(); // Close the recording screen after editing
+
+    console.log('handleSaveMemoryEdits complete. Memories count:', memories.length);
   };
 
   const discardRecording = () => {
@@ -490,6 +504,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
           memory={savedMemory}
           onSave={handleSaveMemoryEdits}
           onClose={() => setShowEditModal(false)}
+          isFirstTimeSave={true}
         />
       </SafeAreaView>
     </Modal>

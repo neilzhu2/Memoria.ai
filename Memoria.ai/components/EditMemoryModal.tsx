@@ -25,9 +25,10 @@ interface EditMemoryModalProps {
   memory: MemoryItem | null;
   onSave: (updates: Partial<MemoryItem>) => Promise<void>;
   onClose: () => void;
+  isFirstTimeSave?: boolean; // If true, enable save button immediately
 }
 
-export function EditMemoryModal({ visible, memory, onSave, onClose }: EditMemoryModalProps) {
+export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeSave = false }: EditMemoryModalProps) {
   const colorScheme = useColorScheme();
 
   const [title, setTitle] = useState('');
@@ -57,9 +58,10 @@ export function EditMemoryModal({ visible, memory, onSave, onClose }: EditMemory
     if (memory) {
       setTitle(memory.title || '');
       setTranscription(memory.transcription || memory.description || '');
-      setHasChanges(false);
+      // If first-time save, enable save button immediately
+      setHasChanges(isFirstTimeSave);
     }
-  }, [memory]);
+  }, [memory, isFirstTimeSave]);
 
   // Cleanup audio when modal closes
   useEffect(() => {
@@ -76,8 +78,10 @@ export function EditMemoryModal({ visible, memory, onSave, onClose }: EditMemory
       title !== memory.title ||
       transcription !== (memory.transcription || memory.description || '');
 
-    setHasChanges(changed);
-  }, [title, transcription, memory]);
+    // For first-time saves, always keep hasChanges true
+    // For editing existing memories, track actual changes
+    setHasChanges(isFirstTimeSave || changed);
+  }, [title, transcription, memory, isFirstTimeSave]);
 
   const formatTime = (milliseconds: number): string => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -394,7 +398,7 @@ const styles = StyleSheet.create({
     minHeight: 60,
   },
   textArea: {
-    minHeight: 120,
+    minHeight: 400,
     paddingTop: 16,
   },
   charCount: {

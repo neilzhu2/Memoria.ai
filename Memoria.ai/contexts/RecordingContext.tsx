@@ -123,13 +123,15 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   };
 
   const updateMemory = async (memoryId: string, updates: Partial<MemoryItem>) => {
-    const updatedMemories = memories.map(memory =>
-      memory.id === memoryId
-        ? { ...memory, ...updates, updatedAt: new Date() }
-        : memory
-    );
-    setMemories(updatedMemories);
-    await saveMemoriesToStorage(updatedMemories);
+    setMemories(currentMemories => {
+      const updatedMemories = currentMemories.map(memory =>
+        memory.id === memoryId
+          ? { ...memory, ...updates, updatedAt: new Date() }
+          : memory
+      );
+      saveMemoriesToStorage(updatedMemories);
+      return updatedMemories;
+    });
   };
 
   const refreshStats = () => {
