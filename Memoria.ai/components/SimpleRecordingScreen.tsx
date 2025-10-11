@@ -323,28 +323,20 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   const handleSaveMemoryEdits = async (updates: Partial<MemoryItem>) => {
     if (!savedMemory) return;
 
-    try {
-      console.log('handleSaveMemoryEdits - updating memory:', savedMemory.id);
-      console.log('Current memories count before update:', memories.length);
+    console.log('handleSaveMemoryEdits - updating memory:', savedMemory.id);
+    console.log('Current memories count before update:', memories.length);
 
-      await updateMemory(savedMemory.id, updates);
+    await updateMemory(savedMemory.id, updates);
 
-      console.log('Memory updated, refreshing stats...');
-      refreshStats();
+    console.log('Memory updated, refreshing stats...');
+    refreshStats();
 
-      // Show success toast
-      toastService.memoryUpdated();
+    console.log('Closing modals and recording screen...');
+    setShowEditModal(false);
+    setSavedMemory(null);
+    onClose(); // Close the recording screen after editing
 
-      console.log('Closing modals and recording screen...');
-      setShowEditModal(false);
-      setSavedMemory(null);
-      onClose(); // Close the recording screen after editing
-
-      console.log('handleSaveMemoryEdits complete. Memories count:', memories.length);
-    } catch (error) {
-      console.error('Failed to update memory:', error);
-      toastService.memoryUpdateFailed();
-    }
+    console.log('handleSaveMemoryEdits complete. Memories count:', memories.length);
   };
 
   const discardRecording = () => {

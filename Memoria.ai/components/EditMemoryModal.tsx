@@ -19,6 +19,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 import { MemoryItem } from '@/types/memory';
+import { toastService } from '@/services/toastService';
 
 interface EditMemoryModalProps {
   visible: boolean;
@@ -95,13 +96,12 @@ export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeS
 
     // Validation
     if (title.trim().length === 0) {
-      Alert.alert('Title Required', 'Please enter a title for your memory.');
+      toastService.warning('Title Required', 'Please enter a title for your memory.');
       return;
     }
 
     try {
       setIsSaving(true);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       const updates: Partial<MemoryItem> = {
         title: title.trim(),
@@ -110,11 +110,22 @@ export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeS
       };
 
       await onSave(updates);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Show success toast based on whether it's first save or edit
+      if (isFirstTimeSave) {
+        toastService.memorySaved();
+      } else {
+        toastService.memoryUpdated();
+      }
+
       onClose();
     } catch (error) {
       console.error('Failed to save memory:', error);
-      Alert.alert('Error', 'Failed to save changes. Please try again.');
+      if (isFirstTimeSave) {
+        toastService.memorySaveFailed(error instanceof Error ? error.message : undefined);
+      } else {
+        toastService.memoryUpdateFailed();
+      }
     } finally {
       setIsSaving(false);
     }
