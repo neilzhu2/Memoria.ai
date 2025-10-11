@@ -21,6 +21,7 @@ import { RecordingsList } from './RecordingsList';
 import { EditMemoryModal } from './EditMemoryModal';
 import { MemoryItem } from '@/types/memory';
 import { getTranscriptionService } from '@/services/transcription/TranscriptionService';
+import { toastService } from '@/services/toastService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -244,7 +245,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
     if (!currentRecordingUri) {
       console.error('No recording URI available');
-      Alert.alert('Error', 'No recording found. Please try recording again.');
+      toastService.recordingFailed();
       return;
     }
 
@@ -268,7 +269,8 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       console.log('Memory saved successfully:', newMemory);
       console.log('Total memories after save:', memories.length + 1);
 
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Show success toast
+      toastService.memorySaved();
 
       // Start transcription in the background
       transcribeRecording(newMemory);
@@ -281,13 +283,16 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
     } catch (error) {
       console.error('Failed to save recording:', error);
-      Alert.alert('Error', 'Failed to save recording. Please try again.');
+      toastService.memorySaveFailed(error instanceof Error ? error.message : undefined);
     }
   };
 
   const transcribeRecording = async (memory: MemoryItem) => {
     try {
       console.log('Starting mock transcription for memory:', memory.id);
+
+      // Show transcription starting toast
+      toastService.transcriptionStarted();
 
       // Simulate processing delay (2 seconds)
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -306,29 +311,40 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       setSavedMemory(prev => prev ? { ...prev, transcription: mockTranscript } : null);
 
       console.log('Mock transcription saved successfully');
+
+      // Show completion toast
+      toastService.transcriptionComplete();
     } catch (error) {
       console.error('Mock transcription failed:', error);
-      // Don't show error to user - transcription is a nice-to-have feature
+      toastService.transcriptionFailed();
     }
   };
 
   const handleSaveMemoryEdits = async (updates: Partial<MemoryItem>) => {
     if (!savedMemory) return;
 
-    console.log('handleSaveMemoryEdits - updating memory:', savedMemory.id);
-    console.log('Current memories count before update:', memories.length);
+    try {
+      console.log('handleSaveMemoryEdits - updating memory:', savedMemory.id);
+      console.log('Current memories count before update:', memories.length);
 
-    await updateMemory(savedMemory.id, updates);
+      await updateMemory(savedMemory.id, updates);
 
-    console.log('Memory updated, refreshing stats...');
-    refreshStats();
+      console.log('Memory updated, refreshing stats...');
+      refreshStats();
 
-    console.log('Closing modals and recording screen...');
-    setShowEditModal(false);
-    setSavedMemory(null);
-    onClose(); // Close the recording screen after editing
+      // Show success toast
+      toastService.memoryUpdated();
 
-    console.log('handleSaveMemoryEdits complete. Memories count:', memories.length);
+      console.log('Closing modals and recording screen...');
+      setShowEditModal(false);
+      setSavedMemory(null);
+      onClose(); // Close the recording screen after editing
+
+      console.log('handleSaveMemoryEdits complete. Memories count:', memories.length);
+    } catch (error) {
+      console.error('Failed to update memory:', error);
+      toastService.memoryUpdateFailed();
+    }
   };
 
   const discardRecording = () => {

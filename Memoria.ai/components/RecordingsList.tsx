@@ -17,6 +17,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRecording } from '@/contexts/RecordingContext';
 import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 import { MemoryItem } from '@/types/memory';
+import { toastService } from '@/services/toastService';
 
 interface RecordingsListProps {
   visible: boolean;
@@ -87,12 +88,17 @@ export function RecordingsList({ visible, onClose }: RecordingsListProps) {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            // Stop playback if this memory is playing
-            if (playingId === memory.id) {
-              await stopPlayback();
+            try {
+              // Stop playback if this memory is playing
+              if (playingId === memory.id) {
+                await stopPlayback();
+              }
+              await removeMemory(memory.id);
+              toastService.memoryDeleted();
+            } catch (error) {
+              console.error('Failed to delete memory:', error);
+              toastService.memoryDeleteFailed();
             }
-            await removeMemory(memory.id);
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }
         }
       ]

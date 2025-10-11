@@ -4,6 +4,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import config from '../tamagui.config'
 import { Slot } from 'expo-router'
 import { useSettings } from '../stores/useSettings'
+import Toast from 'react-native-toast-message'
+import { toastConfig } from '../config/toastConfig'
 
 export default function RootLayout() {
   const theme = useSettings((s) => s.theme)
@@ -13,6 +15,7 @@ export default function RootLayout() {
         <Theme name={theme}>
           <YStack flex={1} backgroundColor="$background">
             <Slot />
+            <Toast config={toastConfig} />
           </YStack>
         </Theme>
       </TamaguiProvider>
