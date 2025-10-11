@@ -51,7 +51,7 @@ class ToastService {
       visibilityTime: duration,
       autoHide: duration > 0,
       topOffset: 60,
-      bottomOffset: 100, // More space from bottom for tab bar
+      bottomOffset: 180, // Extra space to clear large center recording button
     });
   }
 
