@@ -331,7 +331,6 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
             setDuration(0);
             setCurrentRecordingUri(null);
             setWaveformData([]);
-            setRecording(null);
           }
         }
       ]
