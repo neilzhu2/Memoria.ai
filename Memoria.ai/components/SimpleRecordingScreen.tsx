@@ -12,7 +12,8 @@ import {
 import {
   useAudioRecorder,
   AudioModule,
-  RecordingPresets
+  RecordingPresets,
+  requestRecordingPermissionsAsync
 } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -103,7 +104,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
   const requestPermissions = async () => {
     try {
-      const permission = await audioRecorder.requestPermissions();
+      const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(
           'Permission Required',
