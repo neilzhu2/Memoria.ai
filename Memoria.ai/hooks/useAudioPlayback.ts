@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Audio } from 'expo-av';
+import { useAudioPlayer, AudioModule } from 'expo-audio';
 import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 export interface AudioPlaybackState {
-  playingSound: Audio.Sound | null;
+  playingSound: ReturnType<typeof useAudioPlayer> | null;
   playingId: string | null;
   playbackPosition: number;
   playbackDuration: number;
@@ -20,30 +20,41 @@ export interface AudioPlaybackControls {
 }
 
 export function useAudioPlayback() {
-  const [playingSound, setPlayingSound] = useState<Audio.Sound | null>(null);
+  const audioPlayer = useAudioPlayer();
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playbackPosition, setPlaybackPosition] = useState<number>(0);
   const [playbackDuration, setPlaybackDuration] = useState<number>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const positionIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Clean up sound on unmount
+  // Track playback position
   useEffect(() => {
+    if (audioPlayer.playing) {
+      positionIntervalRef.current = setInterval(() => {
+        setPlaybackPosition(audioPlayer.currentTime * 1000); // Convert to ms
+        if (audioPlayer.duration) {
+          setPlaybackDuration(audioPlayer.duration * 1000); // Convert to ms
+        }
+      }, 100);
+    } else {
+      if (positionIntervalRef.current) {
+        clearInterval(positionIntervalRef.current);
+        positionIntervalRef.current = null;
+      }
+    }
+
     return () => {
-      if (playingSound) {
-        playingSound.unloadAsync();
+      if (positionIntervalRef.current) {
+        clearInterval(positionIntervalRef.current);
       }
     };
-  }, []);
+  }, [audioPlayer.playing, audioPlayer.currentTime, audioPlayer.duration]);
 
   const stopPlayback = async () => {
-    if (playingSound) {
-      await playingSound.unloadAsync();
-      setPlayingSound(null);
-      setPlayingId(null);
-      setIsPlaying(false);
-      setPlaybackPosition(0);
-      setPlaybackDuration(0);
-    }
+    audioPlayer.pause();
+    audioPlayer.seekTo(0);
+    setPlayingId(null);
+    setPlaybackPosition(0);
+    setPlaybackDuration(0);
   };
 
   const togglePlayPause = async (id: string, audioPath: string) => {
@@ -51,54 +62,20 @@ export function useAudioPlayback() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // If same audio is playing, toggle pause/play
-      if (playingId === id && playingSound) {
-        if (isPlaying) {
-          await playingSound.pauseAsync();
-          setIsPlaying(false);
+      if (playingId === id) {
+        if (audioPlayer.playing) {
+          audioPlayer.pause();
         } else {
-          await playingSound.playAsync();
-          setIsPlaying(true);
+          audioPlayer.play();
         }
         return;
       }
 
-      // Stop current sound if playing different audio
-      if (playingSound) {
-        await playingSound.unloadAsync();
-        setPlayingSound(null);
-        setPlayingId(null);
-        setIsPlaying(false);
-        setPlaybackPosition(0);
-        setPlaybackDuration(0);
-      }
-
       // Play new sound
       if (audioPath) {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: audioPath },
-          { shouldPlay: true }
-        );
-
-        setPlayingSound(sound);
+        audioPlayer.replace({ uri: audioPath });
+        audioPlayer.play();
         setPlayingId(id);
-        setIsPlaying(true);
-
-        // Set up playback status listener
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded) {
-            setPlaybackPosition(status.positionMillis);
-            setPlaybackDuration(status.durationMillis || 0);
-            setIsPlaying(status.isPlaying);
-
-            if (status.didJustFinish) {
-              setPlayingSound(null);
-              setPlayingId(null);
-              setIsPlaying(false);
-              setPlaybackPosition(0);
-              sound.unloadAsync();
-            }
-          }
-        });
       }
     } catch (error) {
       console.error('Failed to play audio:', error);
@@ -107,40 +84,34 @@ export function useAudioPlayback() {
   };
 
   const skipBackward = async () => {
-    if (!playingSound) return;
+    if (!playingId) return;
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const status = await playingSound.getStatusAsync();
-      if (status.isLoaded) {
-        const newPosition = Math.max(0, status.positionMillis - 15000); // 15 seconds
-        await playingSound.setPositionAsync(newPosition);
-      }
+      const newPosition = Math.max(0, audioPlayer.currentTime - 15); // 15 seconds
+      audioPlayer.seekTo(newPosition);
     } catch (error) {
       console.error('Failed to skip backward:', error);
     }
   };
 
   const skipForward = async () => {
-    if (!playingSound) return;
+    if (!playingId) return;
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const status = await playingSound.getStatusAsync();
-      if (status.isLoaded) {
-        const newPosition = Math.min(
-          status.durationMillis || 0,
-          status.positionMillis + 15000 // 15 seconds
-        );
-        await playingSound.setPositionAsync(newPosition);
-      }
+      const newPosition = Math.min(
+        audioPlayer.duration || 0,
+        audioPlayer.currentTime + 15 // 15 seconds
+      );
+      audioPlayer.seekTo(newPosition);
     } catch (error) {
       console.error('Failed to skip forward:', error);
     }
   };
 
   const seekToPosition = async (position: number) => {
-    if (!playingSound) return;
+    if (!playingId) return;
     try {
-      await playingSound.setPositionAsync(position);
+      audioPlayer.seekTo(position / 1000); // Convert ms to seconds
     } catch (error) {
       console.error('Failed to seek:', error);
     }
@@ -148,11 +119,11 @@ export function useAudioPlayback() {
 
   return {
     // State
-    playingSound,
+    playingSound: audioPlayer,
     playingId,
     playbackPosition,
     playbackDuration,
-    isPlaying,
+    isPlaying: audioPlayer.playing,
 
     // Controls
     togglePlayPause,

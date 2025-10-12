@@ -748,6 +748,82 @@ class OptimizedAudioService {
   }
 
   /**
+   * Delete audio file
+   */
+  async deleteAudioFile(uri: string): Promise<void> {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+
+      if (fileInfo.exists) {
+        await FileSystem.deleteAsync(uri);
+        console.log('Audio file deleted successfully:', uri);
+      }
+
+    } catch (error) {
+      console.error('Failed to delete audio file:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get recording status
+   */
+  async getRecordingStatus(): Promise<{ isRecording: boolean; durationMillis?: number } | null> {
+    try {
+      if (!this.currentRecording) {
+        return null;
+      }
+
+      const status = await this.currentRecording.getStatusAsync();
+
+      return {
+        isRecording: status.isRecording || false,
+        durationMillis: status.durationMillis,
+      };
+
+    } catch (error) {
+      console.error('Failed to get recording status:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Pause recording
+   */
+  async pauseRecording(): Promise<void> {
+    try {
+      if (!this.currentRecording) {
+        throw new Error('No recording in progress');
+      }
+
+      await this.currentRecording.pauseAsync();
+      console.log('Recording paused');
+
+    } catch (error) {
+      console.error('Failed to pause recording:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resume recording
+   */
+  async resumeRecording(): Promise<void> {
+    try {
+      if (!this.currentRecording) {
+        throw new Error('No recording to resume');
+      }
+
+      await this.currentRecording.startAsync();
+      console.log('Recording resumed');
+
+    } catch (error) {
+      console.error('Failed to resume recording:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Default configuration
    */
   private getDefaultConfig(): OptimizedAudioConfig {

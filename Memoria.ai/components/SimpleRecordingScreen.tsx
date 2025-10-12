@@ -9,7 +9,11 @@ import {
   Dimensions,
   Modal,
 } from 'react-native';
-import { Audio } from 'expo-av';
+import {
+  useAudioRecorder,
+  AudioModule,
+  RecordingPresets
+} from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
@@ -52,7 +56,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
   // Recording state
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [duration, setDuration] = useState(0);
   const [currentRecordingUri, setCurrentRecordingUri] = useState<string | null>(null);
 
@@ -145,19 +149,14 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       hasStoppedRecording.current = false;
 
       // Configure audio mode for recording
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
+      await AudioModule.setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
 
-      // Create and start recording
-      const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      // Start recording
+      await audioRecorder.record();
 
-      setRecording(newRecording);
       setRecordingState('recording');
       setDuration(0);
       setWaveformData([]);
@@ -170,11 +169,11 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   };
 
   const pauseRecording = async () => {
-    if (!recording) return;
+    if (!audioRecorder.isRecording) return;
 
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await recording.pauseAsync();
+      await audioRecorder.pause();
       setRecordingState('paused');
       stopTimer();
     } catch (error) {
@@ -183,11 +182,11 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   };
 
   const resumeRecording = async () => {
-    if (!recording) return;
+    if (audioRecorder.isRecording) return;
 
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await recording.startAsync();
+      await audioRecorder.record();
       setRecordingState('recording');
       startTimer();
     } catch (error) {
@@ -196,43 +195,22 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   };
 
   const stopRecording = async () => {
-    if (!recording || hasStoppedRecording.current) return;
+    if (hasStoppedRecording.current) return;
 
     try {
-      // Check if recording is already done/unloaded
-      try {
-        const status = await recording.getStatusAsync();
-        if (!status.canRecord) {
-          // Recording already stopped, just cleanup state
-          setRecordingState('idle');
-          stopTimer();
-          hasStoppedRecording.current = true;
-          return;
-        }
-      } catch (statusError) {
-        // If we can't get status, recording is probably already unloaded
-        console.log('Recording already stopped:', statusError);
-        setRecordingState('idle');
-        stopTimer();
-        hasStoppedRecording.current = true;
-        return;
-      }
-
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      await recording.stopAndUnloadAsync();
+
+      const uri = await audioRecorder.stop();
       hasStoppedRecording.current = true; // Mark as stopped
 
-      const uri = recording.getURI();
       setCurrentRecordingUri(uri);
       setRecordingState('stopped');
       stopTimer();
 
       // Reset audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
+      await AudioModule.setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
       });
 
     } catch (error) {

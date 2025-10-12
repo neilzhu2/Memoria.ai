@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRecording } from '@/contexts/RecordingContext';
 import { useAudioPlayback } from '@/hooks/useAudioPlayback';
+import { EditMemoryModal } from '@/components/EditMemoryModal';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { MyLifeScreenProps } from '@/types/navigation';
@@ -25,7 +26,7 @@ export default function MyLifeScreen() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ section?: string }>();
-  const { memories, memoryStats, removeMemory } = useRecording();
+  const { memories, memoryStats, removeMemory, updateMemory } = useRecording();
 
   // Initialize active section from URL params or default to memories
   const [activeSection, setActiveSection] = useState<SectionType>(
@@ -42,6 +43,10 @@ export default function MyLifeScreen() {
     skipBackward,
     skipForward,
   } = useAudioPlayback();
+
+  // Edit modal state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [selectedMemory, setSelectedMemory] = useState<MemoryItem | null>(null);
 
   // Use memories from context
 
@@ -74,18 +79,10 @@ export default function MyLifeScreen() {
   };
 
   const handleMemoryPress = async (memory: MemoryItem) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // If memory has audio, toggle playback
-    if (memory.audioPath) {
-      await togglePlayPause(memory.id, memory.audioPath);
-    } else {
-      // If no audio, show info dialog
-      Alert.alert(
-        memory.title,
-        `Recorded on ${formatDate(memory.date)}\nDuration: ${formatDuration(memory.duration)}\n\n${memory.description}`
-      );
-    }
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Open edit modal to view/edit memory details (includes audio playback)
+    setSelectedMemory(memory);
+    setEditModalVisible(true);
   };
 
   const handleEditProfile = async () => {
@@ -98,28 +95,39 @@ export default function MyLifeScreen() {
     Alert.alert(setting, `${setting} settings coming soon!`);
   };
 
+  const handleEditMemory = async (memory: MemoryItem) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedMemory(memory);
+    setEditModalVisible(true);
+  };
+
+  const handleSaveMemory = async (updates: Partial<MemoryItem>) => {
+    if (!selectedMemory) return;
+    await updateMemory(selectedMemory.id, updates);
+    setEditModalVisible(false);
+    setSelectedMemory(null);
+  };
+
   const renderMemoryItem = ({ item }: { item: MemoryItem }) => {
-    const isCurrentMemory = playingId === item.id;
-    const showPlaybackControls = isCurrentMemory && item.audioPath;
     const tintColor = Colors[colorScheme ?? 'light'].tint;
-    const borderColor = Colors[colorScheme ?? 'light'].tabIconDefault;
 
     return (
       <TouchableOpacity
         style={[
           styles.memoryCard,
           { backgroundColor: Colors[colorScheme ?? 'light'].background },
-          showPlaybackControls && styles.memoryCardExpanded,
         ]}
         onPress={() => handleMemoryPress(item)}
         accessibilityLabel={`Memory: ${item.title}`}
-        accessibilityHint={item.audioPath ? "Tap to play recording" : "Tap to view memory details"}
+        accessibilityHint="Tap to view and edit memory details"
         activeOpacity={0.7}
       >
         <View style={styles.memoryHeader}>
-          <Text style={[styles.memoryTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-            {item.title}
-          </Text>
+          <View style={styles.memoryTitleContainer}>
+            <Text style={[styles.memoryTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+              {item.title}
+            </Text>
+          </View>
           <Text style={[styles.memoryDate, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
             {formatDate(item.date)}
           </Text>
@@ -128,83 +136,29 @@ export default function MyLifeScreen() {
           {item.description}
         </Text>
 
-        {/* Playback Controls - Expanded View */}
-        {showPlaybackControls ? (
-          <View style={styles.playbackControlsContainer}>
-            {/* Progress Section */}
-            <View style={styles.progressSection}>
-              <Text style={[styles.timeText, { color: borderColor }]}>
-                {formatTime(playbackPosition)} / {formatTime(playbackDuration)}
-              </Text>
-              <View style={[styles.progressBar, { backgroundColor: borderColor + '30' }]}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      backgroundColor: tintColor,
-                      width: `${(playbackPosition / (playbackDuration || 1)) * 100}%`,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-
-            {/* Control Buttons */}
-            <View style={styles.controlButtons}>
-              <TouchableOpacity
-                style={[styles.controlButton, { backgroundColor: tintColor + '20' }]}
-                onPress={skipBackward}
-                accessibilityLabel="Rewind 15 seconds"
-              >
-                <IconSymbol name="gobackward.15" size={24} color={tintColor} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.controlButton, styles.playPauseButton, { backgroundColor: tintColor }]}
-                onPress={() => handleMemoryPress(item)}
-                accessibilityLabel={isPlaying ? "Pause" : "Play"}
-              >
-                <IconSymbol
-                  name={isPlaying ? "pause.fill" : "play.fill"}
-                  size={28}
-                  color="white"
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.controlButton, { backgroundColor: tintColor + '20' }]}
-                onPress={skipForward}
-                accessibilityLabel="Forward 15 seconds"
-              >
-                <IconSymbol name="goforward.15" size={24} color={tintColor} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          /* Compact View */
-          <View style={styles.memoryFooter}>
-            <View style={styles.memoryDuration}>
-              {item.audioPath && (
-                <IconSymbol
-                  name="waveform"
-                  size={16}
-                  color={tintColor}
-                  style={{ marginRight: 4 }}
-                />
-              )}
-              <IconSymbol name="clock" size={16} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
-              <Text style={[styles.durationText, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-                {formatDuration(item.duration)}
-              </Text>
-            </View>
-            {item.isShared && (
-              <View style={styles.sharedIndicator}>
-                <IconSymbol name="person.2.fill" size={16} color="#4caf50" />
-                <Text style={[styles.sharedText, { color: '#4caf50' }]}>Shared</Text>
-              </View>
+        {/* Compact Footer */}
+        <View style={styles.memoryFooter}>
+          <View style={styles.memoryDuration}>
+            {item.audioPath && (
+              <IconSymbol
+                name="waveform"
+                size={16}
+                color={tintColor}
+                style={{ marginRight: 4 }}
+              />
             )}
+            <IconSymbol name="clock" size={16} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
+            <Text style={[styles.durationText, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
+              {formatDuration(item.duration)}
+            </Text>
           </View>
-        )}
+          {item.isShared && (
+            <View style={styles.sharedIndicator}>
+              <IconSymbol name="person.2.fill" size={16} color="#4caf50" />
+              <Text style={[styles.sharedText, { color: '#4caf50' }]}>Shared</Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -383,6 +337,14 @@ export default function MyLifeScreen() {
         {/* Bottom Spacing for Tab Bar */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      {/* Edit Memory Modal */}
+      <EditMemoryModal
+        visible={editModalVisible}
+        memory={selectedMemory}
+        onSave={handleSaveMemory}
+        onClose={() => setEditModalVisible(false)}
+      />
     </View>
   );
 }
@@ -460,11 +422,23 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 8,
   },
+  memoryTitleContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   memoryTitle: {
     fontSize: 16,
     fontWeight: '600',
     flex: 1,
-    marginRight: 8,
+  },
+  editButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
   },
   memoryDate: {
     fontSize: 14,
