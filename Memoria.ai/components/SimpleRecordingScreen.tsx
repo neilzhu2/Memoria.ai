@@ -220,7 +220,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   };
 
   const saveRecording = async () => {
-    console.log('saveRecording called', { currentRecordingUri, hasRecording: !!recording, recordingState });
+    console.log('saveRecording called', { currentRecordingUri, isRecording: audioRecorder.isRecording, recordingState });
 
     if (!currentRecordingUri) {
       console.error('No recording URI available');
