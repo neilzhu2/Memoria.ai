@@ -103,7 +103,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
   const requestPermissions = async () => {
     try {
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await audioRecorder.requestPermissions();
       if (!permission.granted) {
         Alert.alert(
           'Permission Required',
