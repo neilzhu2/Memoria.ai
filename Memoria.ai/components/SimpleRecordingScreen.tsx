@@ -201,10 +201,12 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-      const uri = await audioRecorder.stop();
+      await audioRecorder.stop();
       hasStoppedRecording.current = true; // Mark as stopped
 
-      setCurrentRecordingUri(uri);
+      // URI is available on audioRecorder.uri after stopping
+      const uri = audioRecorder.uri;
+      setCurrentRecordingUri(uri || null);
       setRecordingState('stopped');
       stopTimer();
 
