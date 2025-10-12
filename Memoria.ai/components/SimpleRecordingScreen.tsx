@@ -81,7 +81,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     if (!visible) {
       // Clean up when modal closes
       stopTimer();
-      if (recording && recordingState !== 'idle' && !hasStoppedRecording.current) {
+      if (audioRecorder.isRecording && recordingState !== 'idle' && !hasStoppedRecording.current) {
         stopRecording().catch(err => {
           console.log('Recording cleanup error:', err.message);
         });
