@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useAudioPlayer, AudioModule } from 'expo-audio';
+import { useAudioPlayer, useAudioPlayerStatus, AudioModule } from 'expo-audio';
 import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -21,6 +21,7 @@ export interface AudioPlaybackControls {
 
 export function useAudioPlayback() {
   const audioPlayer = useAudioPlayer();
+  const playerStatus = useAudioPlayerStatus(audioPlayer);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playbackPosition, setPlaybackPosition] = useState<number>(0);
   const [playbackDuration, setPlaybackDuration] = useState<number>(0);
@@ -73,13 +74,59 @@ export function useAudioPlayback() {
 
       // Play new sound
       if (audioPath) {
+        console.log('Playing audio from:', audioPath);
+        console.log('Current audioPlayer state:', {
+          playing: audioPlayer.playing,
+          currentTime: audioPlayer.currentTime,
+          duration: audioPlayer.duration,
+        });
+
+        // Configure audio mode for playback
+        await AudioModule.setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
+        });
+
+        // Try resetting the player first
+        audioPlayer.pause();
+        audioPlayer.seekTo(0);
+
+        console.log('Replacing audio source with:', audioPath);
+        // Replace audio source
         audioPlayer.replace({ uri: audioPath });
+
+        // Give it a moment to process
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        console.log('After replace, player state:', {
+          playing: audioPlayer.playing,
+          currentTime: audioPlayer.currentTime,
+          duration: audioPlayer.duration,
+          volume: audioPlayer.volume,
+        });
+
+        // Try to play
+        console.log('Calling play()...');
         audioPlayer.play();
         setPlayingId(id);
+
+        // Check status after a moment
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log('After play(), player state:', {
+          playing: audioPlayer.playing,
+          currentTime: audioPlayer.currentTime,
+          duration: audioPlayer.duration,
+          isLoaded: playerStatus.isLoaded,
+        });
+
+        if (!audioPlayer.playing && audioPlayer.duration === 0) {
+          console.error('Audio failed to start playing');
+          Alert.alert('Playback Error', 'Audio file failed to load. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Failed to play audio:', error);
-      Alert.alert('Error', 'Failed to play audio.');
+      Alert.alert('Playback Error', 'Failed to play audio. Please try again.');
     }
   };
 

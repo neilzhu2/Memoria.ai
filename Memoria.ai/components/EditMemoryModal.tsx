@@ -214,7 +214,7 @@ export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeS
                 {/* Progress and Time */}
                 <View style={styles.progressSection}>
                   <Text style={[styles.timeText, { color: textColor }]}>
-                    {formatTime(playbackPosition)} / {formatTime(playbackDuration)}
+                    {formatTime(playbackPosition)} / {formatTime(playbackDuration || memory.duration * 1000)}
                   </Text>
                   <View style={[styles.progressBar, { backgroundColor: borderColor + '30' }]}>
                     <View
@@ -222,7 +222,7 @@ export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeS
                         styles.progressFill,
                         {
                           backgroundColor: tintColor,
-                          width: `${(playbackPosition / (playbackDuration || 1)) * 100}%`,
+                          width: `${(playbackPosition / ((playbackDuration || memory.duration * 1000) || 1)) * 100}%`,
                         },
                       ]}
                     />

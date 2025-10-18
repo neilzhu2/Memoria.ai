@@ -438,13 +438,8 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
             Voice Memo
           </Text>
 
-          <TouchableOpacity
-            style={styles.listButton}
-            onPress={() => setShowRecordingsList(true)}
-            accessibilityLabel="View recordings"
-          >
-            <IconSymbol name="list.bullet" size={24} color={tintColor} />
-          </TouchableOpacity>
+          {/* Spacer to maintain header alignment */}
+          <View style={styles.listButton} />
         </View>
 
         {/* Theme indicator */}
