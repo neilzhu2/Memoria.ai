@@ -13,8 +13,11 @@ import {
   useAudioRecorder,
   AudioModule,
   RecordingPresets,
-  requestRecordingPermissionsAsync
+  requestRecordingPermissionsAsync,
+  IOSOutputFormat,
+  AudioQuality,
 } from 'expo-audio';
+import { File, Paths } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
@@ -29,6 +32,21 @@ import { getTranscriptionService } from '@/services/transcription/TranscriptionS
 import { toastService } from '@/services/toastService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Custom CAF recording preset for better expo-av compatibility
+const CAF_RECORDING_PRESET = {
+  extension: '.caf',
+  sampleRate: 44100,
+  numberOfChannels: 2,
+  bitRate: 128000,
+  ios: {
+    outputFormat: IOSOutputFormat.LINEARPCM,
+    audioQuality: AudioQuality.MAX,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+};
 
 interface MemoryTheme {
   id: string;
@@ -57,7 +75,8 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
   // Recording state
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  // Use CAF/LINEARPCM format instead of HIGH_QUALITY m4a for expo-av compatibility
+  const audioRecorder = useAudioRecorder(CAF_RECORDING_PRESET);
   const [duration, setDuration] = useState(0);
   const [currentRecordingUri, setCurrentRecordingUri] = useState<string | null>(null);
 
@@ -233,7 +252,25 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     try {
       const title = selectedTheme?.title || `Recording ${new Date().toLocaleDateString()}`;
 
-      console.log('Saving memory with:', { title, audioPath: currentRecordingUri, duration });
+      // Copy recording from ExpoAudio cache to Documents directory
+      // This is needed because expo-av cannot access expo-audio's cache directory
+      const fileName = currentRecordingUri.split('/').pop() || `recording-${Date.now()}.m4a`;
+
+      // Create File instances for source and destination
+      const sourceFile = new File(currentRecordingUri);
+      const destFile = new File(Paths.document, fileName);
+
+      console.log('Copying recording from cache to Documents:', {
+        from: sourceFile.uri,
+        to: destFile.uri
+      });
+
+      // Copy the file
+      sourceFile.copy(destFile);
+
+      console.log('Recording copied successfully to:', destFile.uri);
+
+      console.log('Saving memory with:', { title, audioPath: destFile.uri, duration });
 
       // Save to context and get the memory object
       const newMemory = await addMemory({
@@ -241,7 +278,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         description: selectedTheme ? `Recording about: ${selectedTheme.title}` : undefined,
         date: new Date(),
         duration,
-        audioPath: currentRecordingUri,
+        audioPath: destFile.uri, // Use the new copied URI
         tags: selectedTheme ? [selectedTheme.id] : [],
         isShared: false,
         familyMembers: [],

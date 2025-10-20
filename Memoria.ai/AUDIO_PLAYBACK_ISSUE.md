@@ -538,3 +538,275 @@ Given the confirmed bug and the need to ship working software:
 **Attempts Made:** 10 different approaches
 **Final Status:** Bug confirmed, workaround identified
 **Action:** Implement expo-av fallback for playback
+
+---
+
+## October 19, 2025 (Evening) - expo-av Fallback Attempt & File System Issues
+
+### Attempt 11: expo-av for Playback (expo-audio Recording + expo-av Playback)
+
+**Strategy:**
+- Keep expo-audio for recording (works perfectly)
+- Use expo-av for playback (known to work with file:// URIs)
+- Hybrid approach to work around expo-audio playback bug
+
+**Implementation:**
+- Installed `expo-av` package
+- Refactored `hooks/useAudioPlayback.ts` to use `Audio.Sound.createAsync()`
+- Kept expo-audio for recording in `SimpleRecordingScreen.tsx`
+
+**Result:** ❌ **AVFoundation error -11800 "cannot play file"**
+
+```
+ERROR  [Playback] Failed to play audio:
+[Error: An unknown error occurred (-17913) - The AVPlayerItem instance has failed
+with the error code -11800 and domain "AVFoundationErrorDomain".]
+```
+
+**Root Cause:** expo-av cannot access files in expo-audio's cache directory
+- expo-audio saves to: `/Library/Caches/.../ExpoAudio/`
+- expo-av's AVPlayer cannot read from that directory on iOS
+
+---
+
+### Attempt 12: Copy Recording to Documents Directory
+
+**Strategy:**
+- Copy recording from ExpoAudio cache to Documents directory
+- Use expo-file-system to move file to accessible location
+- Then play from Documents with expo-av
+
+**Implementation Steps:**
+
+1. **First try:** Used deprecated `FileSystem.copyAsync()`
+   ```typescript
+   await FileSystem.copyAsync({
+     from: currentRecordingUri,
+     to: newUri,
+   });
+   ```
+   **Result:** ❌ Deprecation error, method doesn't work in SDK 54
+
+2. **Second try:** Migrated to new File API
+   ```typescript
+   import { File, Paths } from 'expo-file-system';
+
+   const sourceFile = new File(currentRecordingUri);
+   const destFile = new File(Paths.document, fileName);
+   sourceFile.copy(destFile);
+   ```
+   **Result:** ❌ `UnexpectedException: The file "recording-XXX.caf" couldn't be opened because there is no such file.`
+
+**Problem:** New File API cannot access the source file from expo-audio's cache directory
+
+**Logs:**
+```
+LOG  Copying recording from cache to Documents: {
+  "from": "file:///.../ExpoAudio/recording-3FDC53DC-4F67-4A74-A332-69299A9F80F7.caf",
+  "to": "file:///.../Documents/.../recording-3FDC53DC-4F67-4A74-A332-69299A9F80F7.caf"
+}
+ERROR  Failed to save recording: [Error: UnexpectedException: The file "recording-XXX.caf" couldn't be opened]
+```
+
+---
+
+### Attempt 13: CAF/LINEARPCM Recording Format
+
+**Strategy:**
+- Change recording format from m4a (MPEG4AAC) to CAF (LINEARPCM)
+- Hypothesis: Uncompressed PCM audio might be more compatible with expo-av
+- Apple's native Core Audio Format should work with AVPlayer
+
+**Implementation:**
+```typescript
+import { IOSOutputFormat, AudioQuality } from 'expo-audio';
+
+const CAF_RECORDING_PRESET = {
+  extension: '.caf',
+  sampleRate: 44100,
+  numberOfChannels: 2,
+  bitRate: 128000,
+  ios: {
+    outputFormat: IOSOutputFormat.LINEARPCM,
+    audioQuality: AudioQuality.MAX,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+};
+
+const audioRecorder = useAudioRecorder(CAF_RECORDING_PRESET);
+```
+
+**Result:** ❌ Same file copy error - can't access ExpoAudio cache
+
+**Recording worked** - Created .caf file successfully
+**File copy failed** - Still can't move file out of ExpoAudio cache
+
+---
+
+## Current Situation: Multiple Blocking Issues
+
+### Problem 1: expo-audio Playback Bug (CONFIRMED)
+- expo-audio cannot play file:// URIs on iOS
+- Affects both Expo Go and Dev Build
+- No workaround within expo-audio API
+
+### Problem 2: expo-av File Access (NEW)
+- expo-av cannot access expo-audio's cache directory
+- AVFoundation error -11800 when trying to play
+- Directory permission/isolation issue
+
+### Problem 3: File System API Migration (NEW)
+- Old `FileSystem.copyAsync()` deprecated in SDK 54
+- New `File.copy()` API cannot access source files
+- Cannot move recordings out of ExpoAudio cache
+
+### The Impossible Triangle
+
+```
+┌─────────────────┐
+│  expo-audio     │ ──┐
+│  (Recording)    │   │ Files saved to
+└─────────────────┘   │ ExpoAudio cache
+                      │
+                      ▼
+         ╔════════════════════════╗
+         ║   ExpoAudio Cache      ║
+         ║   (Isolated storage)   ║
+         ╚════════════════════════╝
+                      │
+                      │ Cannot access
+                      ▼
+         ┌────────────────────────┐
+         │    expo-av Playback    │ ❌ Error -11800
+         │    File.copy()         │ ❌ File not found
+         └────────────────────────┘
+```
+
+---
+
+## Research Conducted
+
+### Options Analysis
+
+**Option 4: Different Recording Format** (Attempted)
+- ✅ Changed to CAF/LINEARPCM
+- ❌ Recording works but still can't copy file
+- ❌ Doesn't solve file access problem
+
+**Option 5: react-native-nitro-sound** (Rejected)
+- ❌ Requires Development Build (not Expo Go)
+- ❌ User tests on iPhone with Expo Go
+- ❌ Would break "easily test on phone" workflow
+- ✅ Would work but defeats user's purpose
+
+### Key Findings from Research
+
+1. **expo-av deprecation:** Removed in SDK 55, still works in SDK 54
+2. **react-native-audio-recorder-player:** Deprecated, replaced by react-native-nitro-sound
+3. **react-native-nitro-sound:** Requires native build, incompatible with Expo Go
+4. **expo-file-system migration:** New File/Directory API replacing legacy APIs
+
+---
+
+## Tomorrow's Options
+
+### Option A: Deep Dive File System Access
+**Investigate:**
+- Can we use legacy FileSystem API with `--legacy-peer-deps`?
+- Can we read file bytes directly and write to new location?
+- Is there a different directory expo-audio can save to?
+
+### Option B: Custom Recording Directory
+**Try:**
+- Configure expo-audio to save to Documents directory directly
+- Check if `audioRecorder` has output directory option
+- Avoid ExpoAudio cache entirely
+
+### Option C: Downgrade to SDK 53
+**Pros:**
+- expo-av still fully supported
+- Proven working solution
+- No file access issues
+
+**Cons:**
+- Going backwards on SDK version
+- Miss out on SDK 54 improvements
+- User's philosophy: "future-proof"
+
+### Option D: Development Build for Testing
+**Accept:**
+- Use Dev Build on iPhone for playback testing
+- Keep Expo Go for other features
+- Install react-native-nitro-sound (full solution)
+
+**Impact:**
+- One-time 5-10min rebuild
+- Loses instant Fast Refresh for native changes
+- But playback testing works reliably
+
+### Option E: Wait for expo-audio Fix
+**Monitor:**
+- GitHub issues for expo-audio file playback
+- Expo SDK 54.x patch releases
+- Community reports of same issue
+
+**Meanwhile:**
+- Disable playback feature
+- Focus on other app features
+- Revisit when fixed
+
+---
+
+## Files Modified Today (October 19 Evening)
+
+1. **hooks/useAudioPlayback.ts**
+   - Migrated from expo-audio to expo-av
+   - Changed from createAudioPlayer to Audio.Sound.createAsync
+   - Added status callback for position tracking
+   - TODO: Temporary solution, migrate back when expo-audio fixed
+
+2. **components/SimpleRecordingScreen.tsx**
+   - Added `import { File, Paths } from 'expo-file-system'`
+   - Added CAF_RECORDING_PRESET constant
+   - Changed from HIGH_QUALITY to CAF/LINEARPCM format
+   - Attempted file copy logic (currently broken)
+   - Imports: IOSOutputFormat, AudioQuality
+
+3. **package.json**
+   - Added: `expo-av` (installed with --legacy-peer-deps)
+
+---
+
+## Current Code State: Partially Implemented, Not Working
+
+**Recording:** ✅ Works (CAF format)
+**File Copy:** ❌ Broken (can't access ExpoAudio cache)
+**Playback:** ❌ Blocked (no file to play)
+**User Testing:** ❌ Cannot test playback feature
+
+---
+
+## Decision Required Tomorrow
+
+User needs to decide between:
+1. **Pragmatic:** Use Dev Build on iPhone (works now, breaks Expo Go workflow)
+2. **Patient:** Wait for expo-audio fix (timeline unknown)
+3. **Regressive:** Downgrade to SDK 53 (works but backwards)
+4. **Investigative:** More debugging on file system (may hit wall again)
+
+**User's stated priority:** "I just want to easily test on my phone"
+→ This points toward either fixing file copy OR accepting Dev Build
+
+**Session ended:** User tired, will resume tomorrow
+**Status:** Playback feature still blocked
+
+---
+
+**Session Date:** October 19, 2025 (Evening)
+**Time Invested:** ~2 hours additional debugging
+**New Attempts:** 3 (expo-av fallback, file copy, CAF format)
+**Blockers Found:** 3 (file access, API deprecation, directory isolation)
+**Final Status:** Multiple blocking issues, needs strategic decision
+**Next Session:** Tomorrow - decide on approach forward

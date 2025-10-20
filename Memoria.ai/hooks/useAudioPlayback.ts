@@ -1,10 +1,15 @@
+// TODO: Temporary expo-av fallback due to expo-audio SDK 54 bug
+// expo-audio 1.0.13 cannot play file:// URIs on iOS (duration: NaN, playing: false)
+// Switch back to expo-audio when bug is fixed
+// See: AUDIO_PLAYBACK_ISSUE.md for details
+
 import { useState, useEffect, useRef } from 'react';
-import { useAudioPlayer, useAudioPlayerStatus, AudioModule } from 'expo-audio';
+import { Audio } from 'expo-av';
 import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 export interface AudioPlaybackState {
-  playingSound: ReturnType<typeof useAudioPlayer> | null;
+  playingSound: Audio.Sound | null;
   playingId: string | null;
   playbackPosition: number;
   playbackDuration: number;
@@ -20,42 +25,36 @@ export interface AudioPlaybackControls {
 }
 
 export function useAudioPlayback() {
-  const audioPlayer = useAudioPlayer();
-  const playerStatus = useAudioPlayerStatus(audioPlayer);
+  const soundRef = useRef<Audio.Sound | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playbackPosition, setPlaybackPosition] = useState<number>(0);
   const [playbackDuration, setPlaybackDuration] = useState<number>(0);
-  const positionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
-  // Track playback position
+  // Cleanup on unmount
   useEffect(() => {
-    if (audioPlayer.playing) {
-      positionIntervalRef.current = setInterval(() => {
-        setPlaybackPosition(audioPlayer.currentTime * 1000); // Convert to ms
-        if (audioPlayer.duration) {
-          setPlaybackDuration(audioPlayer.duration * 1000); // Convert to ms
-        }
-      }, 100);
-    } else {
-      if (positionIntervalRef.current) {
-        clearInterval(positionIntervalRef.current);
-        positionIntervalRef.current = null;
-      }
-    }
-
     return () => {
-      if (positionIntervalRef.current) {
-        clearInterval(positionIntervalRef.current);
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch(error => {
+          console.error('[Playback] Error unloading sound:', error);
+        });
       }
     };
-  }, [audioPlayer.playing, audioPlayer.currentTime, audioPlayer.duration]);
+  }, []);
 
   const stopPlayback = async () => {
-    audioPlayer.pause();
-    audioPlayer.seekTo(0);
-    setPlayingId(null);
-    setPlaybackPosition(0);
-    setPlaybackDuration(0);
+    try {
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.setPositionAsync(0);
+      }
+      setPlayingId(null);
+      setIsPlaying(false);
+      setPlaybackPosition(0);
+      setPlaybackDuration(0);
+    } catch (error) {
+      console.error('[Playback] Error stopping playback:', error);
+    }
   };
 
   const togglePlayPause = async (id: string, audioPath: string) => {
@@ -63,102 +62,118 @@ export function useAudioPlayback() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // If same audio is playing, toggle pause/play
-      if (playingId === id) {
-        if (audioPlayer.playing) {
-          audioPlayer.pause();
-        } else {
-          audioPlayer.play();
+      if (playingId === id && soundRef.current) {
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          if (status.isPlaying) {
+            console.log('[Playback] Pausing audio');
+            await soundRef.current.pauseAsync();
+            setIsPlaying(false);
+          } else {
+            console.log('[Playback] Resuming audio');
+            await soundRef.current.playAsync();
+            setIsPlaying(true);
+          }
         }
         return;
       }
 
-      // Play new sound
+      // Load and play new audio
       if (audioPath) {
-        console.log('Playing audio from:', audioPath);
-        console.log('Current audioPlayer state:', {
-          playing: audioPlayer.playing,
-          currentTime: audioPlayer.currentTime,
-          duration: audioPlayer.duration,
-        });
+        console.log('[Playback] Loading new audio:', audioPath);
 
         // Configure audio mode for playback
-        await AudioModule.setAudioModeAsync({
-          allowsRecording: false,
-          playsInSilentMode: true,
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
         });
 
-        // Try resetting the player first
-        audioPlayer.pause();
-        audioPlayer.seekTo(0);
+        // Stop and unload old sound if exists
+        if (soundRef.current) {
+          try {
+            await soundRef.current.stopAsync();
+            await soundRef.current.unloadAsync();
+          } catch (error) {
+            console.error('[Playback] Error unloading old sound:', error);
+          }
+          soundRef.current = null;
+        }
 
-        console.log('Replacing audio source with:', audioPath);
-        // Replace audio source
-        audioPlayer.replace({ uri: audioPath });
+        // Create and load new sound
+        console.log('[Playback] Creating new sound with URI:', audioPath);
+        const { sound, status } = await Audio.Sound.createAsync(
+          { uri: audioPath },
+          { shouldPlay: true },
+          (status) => {
+            // Update playback position and duration via status updates
+            if (status.isLoaded) {
+              setPlaybackPosition(status.positionMillis);
+              setPlaybackDuration(status.durationMillis || 0);
+              setIsPlaying(status.isPlaying);
 
-        // Give it a moment to process
-        await new Promise(resolve => setTimeout(resolve, 200));
+              // Handle playback completion
+              if (status.didJustFinish && !status.isLooping) {
+                console.log('[Playback] Playback finished');
+                setIsPlaying(false);
+                setPlaybackPosition(0);
+              }
+            }
+          }
+        );
 
-        console.log('After replace, player state:', {
-          playing: audioPlayer.playing,
-          currentTime: audioPlayer.currentTime,
-          duration: audioPlayer.duration,
-          volume: audioPlayer.volume,
-        });
-
-        // Try to play
-        console.log('Calling play()...');
-        audioPlayer.play();
+        soundRef.current = sound;
         setPlayingId(id);
+        setIsPlaying(true);
 
-        // Check status after a moment
-        await new Promise(resolve => setTimeout(resolve, 500));
-        console.log('After play(), player state:', {
-          playing: audioPlayer.playing,
-          currentTime: audioPlayer.currentTime,
-          duration: audioPlayer.duration,
-          isLoaded: playerStatus.isLoaded,
-        });
-
-        if (!audioPlayer.playing && audioPlayer.duration === 0) {
-          console.error('Audio failed to start playing');
-          Alert.alert('Playback Error', 'Audio file failed to load. Please try again.');
+        if (status.isLoaded) {
+          console.log('[Playback] Sound loaded successfully:', {
+            duration: status.durationMillis,
+            isPlaying: status.isPlaying,
+          });
         }
       }
     } catch (error) {
-      console.error('Failed to play audio:', error);
-      Alert.alert('Playback Error', 'Failed to play audio. Please try again.');
+      console.error('[Playback] Failed to play audio:', error);
+      Alert.alert('Playback Error', 'Failed to load audio file. Please try again.');
     }
   };
 
   const skipBackward = async () => {
-    if (!playingId) return;
+    if (!playingId || !soundRef.current) return;
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const newPosition = Math.max(0, audioPlayer.currentTime - 15); // 15 seconds
-      audioPlayer.seekTo(newPosition);
+      const status = await soundRef.current.getStatusAsync();
+      if (status.isLoaded) {
+        const newPosition = Math.max(0, status.positionMillis - 15000); // 15 seconds
+        await soundRef.current.setPositionAsync(newPosition);
+      }
     } catch (error) {
       console.error('Failed to skip backward:', error);
     }
   };
 
   const skipForward = async () => {
-    if (!playingId) return;
+    if (!playingId || !soundRef.current) return;
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const newPosition = Math.min(
-        audioPlayer.duration || 0,
-        audioPlayer.currentTime + 15 // 15 seconds
-      );
-      audioPlayer.seekTo(newPosition);
+      const status = await soundRef.current.getStatusAsync();
+      if (status.isLoaded) {
+        const newPosition = Math.min(
+          status.durationMillis || 0,
+          status.positionMillis + 15000 // 15 seconds
+        );
+        await soundRef.current.setPositionAsync(newPosition);
+      }
     } catch (error) {
       console.error('Failed to skip forward:', error);
     }
   };
 
   const seekToPosition = async (position: number) => {
-    if (!playingId) return;
+    if (!playingId || !soundRef.current) return;
     try {
-      audioPlayer.seekTo(position / 1000); // Convert ms to seconds
+      await soundRef.current.setPositionAsync(position);
     } catch (error) {
       console.error('Failed to seek:', error);
     }
@@ -166,11 +181,11 @@ export function useAudioPlayback() {
 
   return {
     // State
-    playingSound: audioPlayer,
+    playingSound: soundRef.current,
     playingId,
     playbackPosition,
     playbackDuration,
-    isPlaying: audioPlayer.playing,
+    isPlaying,
 
     // Controls
     togglePlayPause,
