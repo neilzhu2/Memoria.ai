@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "memoria-ai",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {

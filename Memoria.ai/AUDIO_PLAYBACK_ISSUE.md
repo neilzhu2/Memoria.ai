@@ -1,8 +1,9 @@
 # Audio Playback Issue - expo-audio SDK 54
 
-**Date:** October 18, 2025
-**Status:** ❌ BLOCKED - Audio playback not working
-**Environment:** iOS (Expo Go), SDK 54, expo-audio ~1.0.13
+**Date:** October 18-19, 2025
+**Status:** 🐛 CONFIRMED BUG - expo-audio cannot play file:// URIs on iOS
+**Resolution:** Temporary fallback to expo-av for playback
+**Environment:** iOS (Expo Go & Dev Build), SDK 54, expo-audio ~1.0.13
 
 ---
 
@@ -406,8 +407,134 @@ Audio playback will be considered working when:
 
 ---
 
-**Next Session Plan:**
-1. Research community solutions for this exact issue
-2. Test playback in development build (most likely solution)
-3. If Expo Go limitation confirmed, document workaround strategy
-4. Consider expo-av fallback if needed for Expo Go testing
+---
+
+## October 19, 2025 - Exhaustive Testing & Root Cause Confirmed
+
+### Additional Attempts (October 19)
+
+### Attempt 7: Reactive Source with useAudioPlayer Hook
+- Changed from empty `useAudioPlayer()` to `useAudioPlayer(source)` with reactive state
+- Used `setCurrentAudioSource(audioPath)` to trigger player recreation
+- Added autoplay flag with useEffect to handle playback after source change
+- **Result:** Same failure - `duration: NaN`, `playing: false`
+
+### Attempt 8: Event-Based Loading with playbackStatusUpdate
+- Implemented event listener: `audioPlayer.addListener('playbackStatusUpdate', callback)`
+- Waited for `status.isLoaded` event before calling `play()`
+- Added 5-second timeout safety
+- **Result:** Events NEVER fired, timeout occurred every time
+
+### Attempt 9: createAudioPlayer (Imperative API) with Object URI
+- Switched from `useAudioPlayer` hook to `createAudioPlayer()` function
+- Passed source as object: `createAudioPlayer({ uri: audioPath })`
+- Manual lifecycle management with `.remove()` cleanup
+- **Result:** Identical failure - `duration: NaN`, `playing: false`
+
+### Attempt 10: createAudioPlayer with String URI
+- Changed to pass URI as string directly: `createAudioPlayer(audioPath)`
+- Per documentation, string URIs are supported format
+- **Result:** Same failure - confirms object vs string format doesn't matter
+
+### Test Environment Confirmation
+- ✅ Tested on **iPhone (Expo Go)** - Failed
+- ✅ Tested on **Mac Simulator (Dev Build)** - Failed (per user confirmation)
+- ✅ Both environments show identical behavior
+- ✅ Rules out Expo Go as the cause - this is an expo-audio bug
+
+### Final Diagnostic Logs (October 19)
+```
+LOG  [Playback] Creating new audio player with source: file:///var/mobile/.../recording-XXX.m4a
+LOG  [Playback] Player created, state: {"currentTime": 0, "duration": 0, "playing": false}
+LOG  [Playback] After wait (300ms), state: {"currentTime": 0, "duration": NaN, "playing": false}
+LOG  [Playback] Starting playback...
+LOG  [Playback] Play called, state: {"currentTime": 0, "duration": NaN, "playing": false}
+```
+
+**Pattern:** Duration changes from `0` → `NaN` after 300ms, indicating:
+- Player attempts to load the file
+- Loading fails (no metadata retrieved)
+- `play()` call has no effect on failed load
+
+---
+
+## Root Cause: Confirmed Bug in expo-audio SDK 54
+
+### Evidence Summary
+
+1. **Both APIs Fail Identically**
+   - `useAudioPlayer` hook: ❌ Failed
+   - `createAudioPlayer` function: ❌ Failed
+   - Confirms not a hook lifecycle issue
+
+2. **All Source Formats Fail**
+   - Object format `{ uri: "file://..." }`: ❌ Failed
+   - String format `"file://..."`: ❌ Failed
+   - Confirms not a parameter format issue
+
+3. **Cross-Environment Failure**
+   - Expo Go (iPhone): ❌ Failed
+   - Dev Build (Simulator): ❌ Failed
+   - Confirms not an Expo Go limitation
+
+4. **Events Don't Fire**
+   - `playbackStatusUpdate` events never emit
+   - Suggests native layer file loading is broken
+   - iOS-specific issue with file:// URI handling
+
+5. **Recording Works Perfectly**
+   - Same file URIs work for recording
+   - Files exist and are valid
+   - Confirms file system access works
+   - Only **playback** of file:// URIs is broken
+
+### Conclusion
+
+**expo-audio 1.0.13 (SDK 54) has a fundamental bug preventing playback of locally recorded files on iOS.**
+
+The bug exists at the native iOS layer - the JavaScript API calls complete successfully, but the underlying AVFoundation player never loads the audio metadata from file:// URIs.
+
+---
+
+## Resolution: Temporary Fallback to expo-av
+
+### Decision Rationale
+
+Given the confirmed bug and the need to ship working software:
+
+**✅ Use expo-av for playback** (temporary)
+**✅ Keep expo-audio for recording** (works perfectly)
+**✅ Monitor expo-audio GitHub for fixes**
+**✅ Migrate back when bug is resolved**
+
+### Why This Is The Right Choice
+
+1. **Works Today** - expo-av is proven to work with file:// URIs
+2. **Still Available** - expo-av deprecated but not removed until SDK 55
+3. **Minimal Change** - Only affects `hooks/useAudioPlayback.ts`
+4. **Easy Migration** - One file to swap when bug fixed
+5. **User's Philosophy** - "Cleaner and easier to maintain" = ship working code now
+
+### Migration Timeline
+
+- **Now (SDK 54):** Use expo-av for playback
+- **Monitor:** Watch https://github.com/expo/expo/issues for expo-audio fixes
+- **Future (SDK 55+):** Migrate back to expo-audio when fixed
+- **File to change:** `hooks/useAudioPlayback.ts` only
+
+---
+
+## Lessons Learned
+
+1. **Trust The Data** - After 10 attempts with identical results, it's a confirmed bug
+2. **Cross-Platform Testing** - Testing both Expo Go and Dev Build ruled out environment issues
+3. **API Documentation Gaps** - expo-audio docs lack file:// URI playback examples
+4. **Pragmatic Solutions** - Using working deprecated API > being blocked on broken new API
+
+---
+
+**Session Dates:** October 18-19, 2025
+**Time Invested:** ~4 hours debugging
+**Attempts Made:** 10 different approaches
+**Final Status:** Bug confirmed, workaround identified
+**Action:** Implement expo-av fallback for playback
