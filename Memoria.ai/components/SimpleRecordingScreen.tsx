@@ -189,28 +189,36 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   };
 
   const pauseRecording = async () => {
-    if (!audioRecorder.isRecording) return;
+    // Don't check audioRecorder.isRecording - trust our state instead
+    if (recordingState !== 'recording') return;
 
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      console.log('[Pause] Attempting to pause recording');
       await audioRecorder.pause();
+      console.log('[Pause] Successfully paused');
       setRecordingState('paused');
       stopTimer();
     } catch (error) {
       console.error('Failed to pause recording:', error);
+      Alert.alert('Error', 'Failed to pause recording. Please try again.');
     }
   };
 
   const resumeRecording = async () => {
-    if (audioRecorder.isRecording) return;
+    // Don't check audioRecorder.isRecording - trust our state instead
+    if (recordingState !== 'paused') return;
 
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      console.log('[Resume] Attempting to resume recording');
       await audioRecorder.record();
+      console.log('[Resume] Successfully resumed');
       setRecordingState('recording');
       startTimer();
     } catch (error) {
       console.error('Failed to resume recording:', error);
+      Alert.alert('Error', 'Failed to resume recording. Please try again.');
     }
   };
 
@@ -234,6 +242,11 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         allowsRecording: false,
         playsInSilentMode: true,
       });
+
+      // Auto-save the recording immediately (simplified flow per wireframe)
+      if (uri) {
+        await saveRecording();
+      }
 
     } catch (error) {
       console.error('Failed to stop recording:', error);
@@ -357,30 +370,18 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     console.log('handleSaveMemoryEdits complete. Memories count:', memories.length);
   };
 
-  const discardRecording = () => {
-    Alert.alert(
-      'Discard Recording?',
-      'Are you sure you want to discard this recording?',
-      [
-        { text: 'Keep Recording', style: 'cancel' },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => {
-            setRecordingState('idle');
-            setDuration(0);
-            setCurrentRecordingUri(null);
-            setWaveformData([]);
-          }
-        }
-      ]
-    );
-  };
+  // Removed discardRecording - auto-save flow per wireframe
 
   const renderRecordingButton = () => {
     const isRecording = recordingState === 'recording';
     const isPaused = recordingState === 'paused';
     const isIdle = recordingState === 'idle';
+    const isStopped = recordingState === 'stopped';
+
+    // Hide button when stopped (auto-saving)
+    if (isStopped) {
+      return null;
+    }
 
     if (isIdle) {
       return (
@@ -394,64 +395,23 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       );
     }
 
+    // Single pause/resume button when recording or paused
     return (
-      <View style={styles.recordingControls}>
-        <TouchableOpacity
-          style={[styles.controlButton, styles.pauseButton]}
-          onPress={isPaused ? resumeRecording : pauseRecording}
-          accessibilityLabel={isPaused ? "Resume recording" : "Pause recording"}
-        >
-          <IconSymbol
-            name={isPaused ? "play.fill" : "pause.fill"}
-            size={28}
-            color="white"
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.controlButton, styles.stopButton]}
-          onPress={stopRecording}
-          accessibilityLabel="Stop recording"
-        >
-          <IconSymbol name="stop.fill" size={28} color="white" />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={[styles.recordButton, isPaused ? styles.recordButtonIdle : styles.pauseButton]}
+        onPress={isPaused ? resumeRecording : pauseRecording}
+        accessibilityLabel={isPaused ? "Resume recording" : "Pause recording"}
+      >
+        <IconSymbol
+          name={isPaused ? "play.fill" : "pause.fill"}
+          size={40}
+          color="white"
+        />
+      </TouchableOpacity>
     );
   };
 
-  const renderDoneSection = () => {
-    if (recordingState !== 'stopped') return null;
-
-    return (
-      <View style={styles.doneSection}>
-        <Text style={[styles.doneTitle, { color: textColor }]}>
-          Recording Complete
-        </Text>
-
-        <View style={styles.doneButtons}>
-          <TouchableOpacity
-            style={[styles.doneButton, styles.discardButton]}
-            onPress={discardRecording}
-          >
-            <IconSymbol name="trash" size={20} color="#e74c3c" />
-            <Text style={[styles.doneButtonText, { color: '#e74c3c' }]}>
-              Discard
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.doneButton, styles.saveButton]}
-            onPress={saveRecording}
-          >
-            <IconSymbol name="checkmark" size={20} color="#27ae60" />
-            <Text style={[styles.doneButtonText, { color: '#27ae60' }]}>
-              Save
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
+  // Removed renderDoneSection - auto-save flow per wireframe
 
   return (
     <Modal
@@ -472,21 +432,25 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
           </TouchableOpacity>
 
           <Text style={[styles.headerTitle, { color: textColor }]}>
-            Voice Memo
+            {recordingState === 'stopped' ? 'Saving...' : 'New Recording'}
           </Text>
 
-          {/* Spacer to maintain header alignment */}
-          <View style={styles.listButton} />
+          {/* Done button - visible when recording or paused */}
+          {(recordingState === 'recording' || recordingState === 'paused') && (
+            <TouchableOpacity
+              style={styles.doneHeaderButton}
+              onPress={stopRecording}
+              accessibilityLabel="Stop and save recording"
+            >
+              <Text style={[styles.doneHeaderText, { color: tintColor }]}>Done</Text>
+            </TouchableOpacity>
+          )}
+          {recordingState === 'idle' || recordingState === 'stopped' ? (
+            <View style={styles.listButton} />
+          ) : null}
         </View>
 
-        {/* Theme indicator */}
-        {selectedTheme && (
-          <View style={[styles.themeIndicator, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-            <Text style={[styles.themeText, { color: textColor }]}>
-              {selectedTheme.title}
-            </Text>
-          </View>
-        )}
+        {/* Theme indicator removed - simplified design per wireframe */}
 
         {/* Main recording area */}
         <View style={styles.recordingArea}>
@@ -507,9 +471,6 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
           <View style={styles.buttonContainer}>
             {renderRecordingButton()}
           </View>
-
-          {/* Done Section */}
-          {renderDoneSection()}
         </View>
 
         {/* Recordings List Modal */}
@@ -562,6 +523,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 22,
   },
+  doneHeaderButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    justifyContent: 'center',
+  },
+  doneHeaderText: {
+    fontSize: 17,
+    fontWeight: '600',
+  },
   themeIndicator: {
     marginHorizontal: 16,
     marginTop: 16,
@@ -607,27 +577,19 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     backgroundColor: '#c0392b',
   },
-  recordingControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 24,
-  },
-  controlButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  // Simplified button layout - single pause/record toggle
+  pauseButton: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f39c12',
+    shadowColor: '#f39c12',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  pauseButton: {
-    backgroundColor: '#f39c12',
-  },
-  stopButton: {
-    backgroundColor: '#7f8c8d',
   },
   doneSection: {
     alignItems: 'center',
