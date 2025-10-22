@@ -265,33 +265,17 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     try {
       const title = selectedTheme?.title || `Recording ${new Date().toLocaleDateString()}`;
 
-      // Copy recording from ExpoAudio cache to Documents directory
-      // This is needed because expo-av cannot access expo-audio's cache directory
-      const fileName = currentRecordingUri.split('/').pop() || `recording-${Date.now()}.m4a`;
-
-      // Create File instances for source and destination
-      const sourceFile = new File(currentRecordingUri);
-      const destFile = new File(Paths.document, fileName);
-
-      console.log('Copying recording from cache to Documents:', {
-        from: sourceFile.uri,
-        to: destFile.uri
-      });
-
-      // Copy the file
-      sourceFile.copy(destFile);
-
-      console.log('Recording copied successfully to:', destFile.uri);
-
-      console.log('Saving memory with:', { title, audioPath: destFile.uri, duration });
+      console.log('Saving memory with:', { title, audioPath: currentRecordingUri, duration });
 
       // Save to context and get the memory object
+      // NOTE: Using recording URI directly - file copy not needed for Expo Go
+      // For production, we'll implement proper file management in Dev Build
       const newMemory = await addMemory({
         title,
         description: selectedTheme ? `Recording about: ${selectedTheme.title}` : undefined,
         date: new Date(),
         duration,
-        audioPath: destFile.uri, // Use the new copied URI
+        audioPath: currentRecordingUri, // Use the recording URI directly
         tags: selectedTheme ? [selectedTheme.id] : [],
         isShared: false,
         familyMembers: [],
