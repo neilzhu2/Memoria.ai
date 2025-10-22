@@ -359,7 +359,7 @@ const HomeScreen = React.memo(function HomeScreen() {
             styles.topicCard,
             styles.backgroundCard,
             styles.leftCard,
-            { backgroundColor: 'white' }
+            { backgroundColor: Colors[colorScheme ?? 'light'].background }
           ]}>
             <View style={[styles.topicCardInner, {
               borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
@@ -379,7 +379,7 @@ const HomeScreen = React.memo(function HomeScreen() {
             styles.topicCard,
             styles.backgroundCard,
             styles.rightCard,
-            { backgroundColor: 'white' }
+            { backgroundColor: Colors[colorScheme ?? 'light'].background }
           ]}>
             <View style={[styles.topicCardInner, {
               borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
@@ -405,7 +405,7 @@ const HomeScreen = React.memo(function HomeScreen() {
               style={[
                 styles.topicCard,
                 styles.activeCard,
-                { backgroundColor: 'white' },
+                { backgroundColor: Colors[colorScheme ?? 'light'].background },
                 {
                   transform: [
                     { translateX },
@@ -424,18 +424,18 @@ const HomeScreen = React.memo(function HomeScreen() {
                 </Text>
                 <View style={styles.topicActions}>
                   <TouchableOpacity
-                    style={[styles.topicActionButton, styles.skipButton]}
+                    style={[styles.topicActionButton, styles.skipButton, { borderColor: Colors[colorScheme ?? 'light'].elderlyError, backgroundColor: Colors[colorScheme ?? 'light'].background }]}
                     onPress={handleSkipPress}
                     accessibilityLabel="Skip this topic"
                   >
-                    <IconSymbol name="xmark" size={24} color="#e74c3c" />
+                    <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].elderlyError} />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.topicActionButton, styles.recordButton]}
+                    style={[styles.topicActionButton, styles.recordButton, { borderColor: Colors[colorScheme ?? 'light'].elderlySuccess, backgroundColor: Colors[colorScheme ?? 'light'].background }]}
                     onPress={handleRecordPress}
                     accessibilityLabel="Record about this topic"
                   >
-                    <IconSymbol name="mic.fill" size={24} color="#27ae60" />
+                    <IconSymbol name="mic.fill" size={24} color={Colors[colorScheme ?? 'light'].elderlySuccess} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -538,14 +538,10 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   skipButton: {
-    backgroundColor: '#fff',
     borderWidth: 2,
-    borderColor: '#e74c3c',
   },
   recordButton: {
-    backgroundColor: '#fff',
     borderWidth: 2,
-    borderColor: '#27ae60',
   },
   recentSection: {
     marginBottom: 32,

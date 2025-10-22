@@ -96,6 +96,10 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   const backgroundColor = Colors[colorScheme ?? 'light'].background;
   const textColor = Colors[colorScheme ?? 'light'].text;
   const tintColor = Colors[colorScheme ?? 'light'].tint;
+  const borderColor = Colors[colorScheme ?? 'light'].tabIconDefault;
+  const errorColor = Colors[colorScheme ?? 'light'].elderlyError;
+  const warningColor = Colors[colorScheme ?? 'light'].elderlyWarning;
+  const successColor = Colors[colorScheme ?? 'light'].elderlySuccess;
 
   useEffect(() => {
     if (!visible) {
@@ -377,11 +381,15 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     if (isIdle) {
       return (
         <TouchableOpacity
-          style={[styles.recordButton, styles.recordButtonIdle]}
+          style={[
+            styles.recordButton,
+            styles.recordButtonIdle,
+            { backgroundColor: errorColor, shadowColor: errorColor }
+          ]}
           onPress={startRecording}
           accessibilityLabel="Start recording"
         >
-          <View style={styles.recordButtonInner} />
+          <View style={[styles.recordButtonInner, { backgroundColor: Colors[colorScheme ?? 'light'].elderlyHighContrast, opacity: 0.1 }]} />
         </TouchableOpacity>
       );
     }
@@ -389,7 +397,13 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     // Single pause/resume button when recording or paused
     return (
       <TouchableOpacity
-        style={[styles.recordButton, isPaused ? styles.recordButtonIdle : styles.pauseButton]}
+        style={[
+          styles.recordButton,
+          isPaused ? styles.recordButtonIdle : styles.pauseButton,
+          isPaused
+            ? { backgroundColor: errorColor, shadowColor: errorColor }
+            : { backgroundColor: warningColor, shadowColor: warningColor }
+        ]}
         onPress={isPaused ? resumeRecording : pauseRecording}
         accessibilityLabel={isPaused ? "Resume recording" : "Pause recording"}
       >
@@ -413,7 +427,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     >
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { borderBottomColor: borderColor + '40' }]}>
           <TouchableOpacity
             style={styles.closeButton}
             onPress={onClose}
@@ -494,7 +508,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
   },
   closeButton: {
     width: 44,
@@ -530,7 +543,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   themeText: {
     fontSize: 16,
@@ -555,8 +567,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#e74c3c',
-    shadowColor: '#e74c3c',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -566,15 +576,12 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#c0392b',
   },
   // Simplified button layout - single pause/record toggle
   pauseButton: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#f39c12',
-    shadowColor: '#f39c12',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -607,11 +614,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   discardButton: {
-    borderColor: '#e74c3c',
     backgroundColor: 'transparent',
   },
   saveButton: {
-    borderColor: '#27ae60',
     backgroundColor: 'transparent',
   },
   doneButtonText: {
