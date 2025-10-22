@@ -4,8 +4,11 @@ import {
   StyleSheet,
   Platform
 } from 'react-native';
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 export function EnclaveTabBarBackground() {
+  const colorScheme = useColorScheme();
   const tabBarHeight = Platform.select({
     ios: 88,
     default: 80,
@@ -14,7 +17,13 @@ export function EnclaveTabBarBackground() {
   return (
     <View style={[styles.container, { height: tabBarHeight }]}>
       {/* Flat background without decorative elements */}
-      <View style={[styles.shadowOverlay, { height: tabBarHeight }]} />
+      <View style={[
+        styles.shadowOverlay,
+        {
+          height: tabBarHeight,
+          backgroundColor: Colors[colorScheme ?? 'light'].tabBarBackground
+        }
+      ]} />
     </View>
   );
 }
@@ -32,7 +41,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,

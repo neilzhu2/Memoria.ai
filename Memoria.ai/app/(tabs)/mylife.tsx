@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -47,6 +47,13 @@ export default function MyLifeScreen() {
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<MemoryItem | null>(null);
+
+  // Watch for URL param changes and update section
+  useEffect(() => {
+    if (params.section) {
+      setActiveSection(params.section as SectionType);
+    }
+  }, [params.section]);
 
   // Use memories from context
 
@@ -203,7 +210,7 @@ export default function MyLifeScreen() {
       {/* Profile Info */}
       <View style={[styles.profileCard, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
         <View style={styles.profileHeader}>
-          <View style={[styles.avatarPlaceholder, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}>
+          <View style={[styles.avatarPlaceholder, { backgroundColor: Colors[colorScheme ?? 'light'].elderlyTabActive }]}>
             <IconSymbol name="person.fill" size={32} color="white" />
           </View>
           <View style={styles.profileInfo}>
@@ -215,7 +222,7 @@ export default function MyLifeScreen() {
             </Text>
           </View>
           <TouchableOpacity
-            style={[styles.editButton, { backgroundColor: Colors[colorScheme ?? 'light'].tint }]}
+            style={[styles.editButton, { backgroundColor: Colors[colorScheme ?? 'light'].elderlyTabActive }]}
             onPress={handleEditProfile}
             accessibilityLabel="Edit profile"
           >
@@ -290,9 +297,13 @@ export default function MyLifeScreen() {
         <TouchableOpacity
           style={[
             styles.sectionTab,
-            { backgroundColor: activeSection === 'memories'
-                ? Colors[colorScheme ?? 'light'].tint
-                : Colors[colorScheme ?? 'light'].background },
+            activeSection === 'memories' ? {
+              backgroundColor: Colors[colorScheme ?? 'light'].elderlyTabActive,
+            } : {
+              backgroundColor: 'transparent',
+              borderWidth: 1,
+              borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
+            },
             activeSection === 'memories' && styles.activeSectionTab,
           ]}
           onPress={() => handleSectionChange('memories')}
@@ -302,9 +313,7 @@ export default function MyLifeScreen() {
           <Text
             style={[
               styles.sectionTabText,
-              activeSection === 'memories'
-                ? { color: 'white' }
-                : { color: Colors[colorScheme ?? 'light'].tabIconDefault },
+              { color: activeSection === 'memories' ? 'white' : Colors[colorScheme ?? 'light'].text },
             ]}
           >
             Memories
@@ -314,9 +323,13 @@ export default function MyLifeScreen() {
         <TouchableOpacity
           style={[
             styles.sectionTab,
-            { backgroundColor: activeSection === 'profile'
-                ? Colors[colorScheme ?? 'light'].tint
-                : Colors[colorScheme ?? 'light'].background },
+            activeSection === 'profile' ? {
+              backgroundColor: Colors[colorScheme ?? 'light'].elderlyTabActive,
+            } : {
+              backgroundColor: 'transparent',
+              borderWidth: 1,
+              borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
+            },
             activeSection === 'profile' && styles.activeSectionTab,
           ]}
           onPress={() => handleSectionChange('profile')}
@@ -326,9 +339,7 @@ export default function MyLifeScreen() {
           <Text
             style={[
               styles.sectionTabText,
-              activeSection === 'profile'
-                ? { color: 'white' }
-                : { color: Colors[colorScheme ?? 'light'].tabIconDefault },
+              { color: activeSection === 'profile' ? 'white' : Colors[colorScheme ?? 'light'].text },
             ]}
           >
             Profile

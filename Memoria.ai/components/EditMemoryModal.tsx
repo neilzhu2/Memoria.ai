@@ -51,7 +51,7 @@ export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeS
 
   const backgroundColor = Colors[colorScheme ?? 'light'].background;
   const textColor = Colors[colorScheme ?? 'light'].text;
-  const tintColor = Colors[colorScheme ?? 'light'].tint;
+  const tintColor = Colors[colorScheme ?? 'light'].elderlyTabActive;
   const borderColor = Colors[colorScheme ?? 'light'].tabIconDefault;
 
   // Initialize form when memory changes
@@ -186,7 +186,8 @@ export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeS
               style={[
                 styles.saveButton,
                 {
-                  backgroundColor: hasChanges && !isSaving ? tintColor : borderColor + '50',
+                  backgroundColor: hasChanges && !isSaving ? tintColor : borderColor + '40',
+                  opacity: hasChanges && !isSaving ? 1 : 0.5,
                 },
               ]}
               onPress={handleSave}
