@@ -154,8 +154,8 @@ export default function MyLifeScreen() {
           </View>
           {item.isShared && (
             <View style={styles.sharedIndicator}>
-              <IconSymbol name="person.2.fill" size={16} color="#4caf50" />
-              <Text style={[styles.sharedText, { color: '#4caf50' }]}>Shared</Text>
+              <IconSymbol name="person.2.fill" size={16} color={Colors[colorScheme ?? 'light'].elderlySuccess} />
+              <Text style={[styles.sharedText, { color: Colors[colorScheme ?? 'light'].elderlySuccess }]}>Shared</Text>
             </View>
           )}
         </View>
@@ -290,7 +290,10 @@ export default function MyLifeScreen() {
         <TouchableOpacity
           style={[
             styles.sectionTab,
-            activeSection === 'memories' && [styles.activeSectionTab, { backgroundColor: Colors[colorScheme ?? 'light'].tint }],
+            { backgroundColor: activeSection === 'memories'
+                ? Colors[colorScheme ?? 'light'].tint
+                : Colors[colorScheme ?? 'light'].background },
+            activeSection === 'memories' && styles.activeSectionTab,
           ]}
           onPress={() => handleSectionChange('memories')}
           accessibilityLabel="Memories section"
@@ -311,7 +314,10 @@ export default function MyLifeScreen() {
         <TouchableOpacity
           style={[
             styles.sectionTab,
-            activeSection === 'profile' && [styles.activeSectionTab, { backgroundColor: Colors[colorScheme ?? 'light'].tint }],
+            { backgroundColor: activeSection === 'profile'
+                ? Colors[colorScheme ?? 'light'].tint
+                : Colors[colorScheme ?? 'light'].background },
+            activeSection === 'profile' && styles.activeSectionTab,
           ]}
           onPress={() => handleSectionChange('profile')}
           accessibilityLabel="Profile section"
@@ -567,7 +573,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#e0e0e0',
+    // borderTopColor applied dynamically in component
   },
   progressSection: {
     marginBottom: 16,
