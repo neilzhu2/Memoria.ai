@@ -244,8 +244,12 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       });
 
       // Auto-save the recording immediately (simplified flow per wireframe)
+      // Pass URI directly to avoid React state timing issues
       if (uri) {
-        await saveRecording();
+        await saveRecording(uri);
+      } else {
+        console.error('No URI available from audioRecorder');
+        toastService.recordingFailed();
       }
 
     } catch (error) {
@@ -253,10 +257,13 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     }
   };
 
-  const saveRecording = async () => {
-    console.log('saveRecording called', { currentRecordingUri, isRecording: audioRecorder.isRecording, recordingState });
+  const saveRecording = async (recordingUri?: string) => {
+    // Use passed URI or fall back to state (for potential future direct calls)
+    const uri = recordingUri || currentRecordingUri;
 
-    if (!currentRecordingUri) {
+    console.log('saveRecording called', { uri, isRecording: audioRecorder.isRecording, recordingState });
+
+    if (!uri) {
       console.error('No recording URI available');
       toastService.recordingFailed();
       return;
@@ -265,7 +272,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     try {
       const title = selectedTheme?.title || `Recording ${new Date().toLocaleDateString()}`;
 
-      console.log('Saving memory with:', { title, audioPath: currentRecordingUri, duration });
+      console.log('Saving memory with:', { title, audioPath: uri, duration });
 
       // Save to context and get the memory object
       // NOTE: Using recording URI directly - file copy not needed for Expo Go
@@ -275,7 +282,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         description: selectedTheme ? `Recording about: ${selectedTheme.title}` : undefined,
         date: new Date(),
         duration,
-        audioPath: currentRecordingUri, // Use the recording URI directly
+        audioPath: uri, // Use the recording URI directly
         tags: selectedTheme ? [selectedTheme.id] : [],
         isShared: false,
         familyMembers: [],
