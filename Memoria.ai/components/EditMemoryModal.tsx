@@ -25,11 +25,12 @@ interface EditMemoryModalProps {
   visible: boolean;
   memory: MemoryItem | null;
   onSave: (updates: Partial<MemoryItem>) => Promise<void>;
+  onDelete?: () => Promise<void>; // Optional delete handler
   onClose: () => void;
   isFirstTimeSave?: boolean; // If true, enable save button immediately
 }
 
-export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeSave = false }: EditMemoryModalProps) {
+export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, isFirstTimeSave = false }: EditMemoryModalProps) {
   const colorScheme = useColorScheme();
 
   const [title, setTitle] = useState('');
@@ -53,6 +54,7 @@ export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeS
   const textColor = Colors[colorScheme ?? 'light'].text;
   const tintColor = Colors[colorScheme ?? 'light'].elderlyTabActive;
   const borderColor = Colors[colorScheme ?? 'light'].tabIconDefault;
+  const errorColor = Colors[colorScheme ?? 'light'].elderlyError;
 
   // Initialize form when memory changes
   useEffect(() => {
@@ -151,6 +153,34 @@ export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeS
     } else {
       onClose();
     }
+  };
+
+  const handleDelete = async () => {
+    if (!memory || !onDelete) return;
+
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    Alert.alert(
+      'Delete Memory?',
+      `Are you sure you want to delete "${memory.title}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              await onDelete();
+              onClose();
+            } catch (error) {
+              console.error('Failed to delete memory:', error);
+              toastService.memoryDeleteFailed();
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (!memory) return null;
@@ -332,6 +362,20 @@ export function EditMemoryModal({ visible, memory, onSave, onClose, isFirstTimeS
                 </Text>
               </View>
             </View>
+
+            {/* Delete Button */}
+            {onDelete && !isFirstTimeSave && (
+              <TouchableOpacity
+                style={[styles.deleteButton, { backgroundColor: errorColor + '20', borderColor: errorColor }]}
+                onPress={handleDelete}
+                accessibilityLabel="Delete memory"
+                accessibilityRole="button"
+                accessibilityHint="Permanently delete this memory"
+              >
+                <IconSymbol name="trash" size={24} color={errorColor} />
+                <Text style={[styles.deleteButtonText, { color: errorColor }]}>Delete Memory</Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -474,5 +518,19 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    marginTop: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    gap: 12,
+  },
+  deleteButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
   },
 });

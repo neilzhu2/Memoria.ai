@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   ScrollView,
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   Alert,
 } from 'react-native';
@@ -15,10 +16,12 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRecording } from '@/contexts/RecordingContext';
 import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 import { EditMemoryModal } from '@/components/EditMemoryModal';
+import { MemoryPreviewModal } from '@/components/MemoryPreviewModal';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { MyLifeScreenProps } from '@/types/navigation';
 import { MemoryItem } from '@/types/memory';
+import { toastService } from '@/services/toastService';
 
 type SectionType = 'memories' | 'profile';
 
@@ -48,12 +51,53 @@ export default function MyLifeScreen() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<MemoryItem | null>(null);
 
+  // Preview modal state
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewMemory, setPreviewMemory] = useState<MemoryItem | null>(null);
+
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'a-z' | 'z-a'>('newest');
+  const [showFilters, setShowFilters] = useState(false);
+
   // Watch for URL param changes and update section
   useEffect(() => {
     if (params.section) {
       setActiveSection(params.section as SectionType);
     }
   }, [params.section]);
+
+  // Filter and sort memories
+  const filteredMemories = useMemo(() => {
+    let filtered = [...memories];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(memory =>
+        memory.title.toLowerCase().includes(query) ||
+        (memory.transcription || memory.description || '').toLowerCase().includes(query)
+      );
+    }
+
+    // Apply sort order
+    switch (sortOrder) {
+      case 'newest':
+        filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
+        break;
+      case 'oldest':
+        filtered.sort((a, b) => a.date.getTime() - b.date.getTime());
+        break;
+      case 'a-z':
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'z-a':
+        filtered.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+    }
+
+    return filtered;
+  }, [memories, searchQuery, sortOrder]);
 
   // Use memories from context
 
@@ -115,6 +159,74 @@ export default function MyLifeScreen() {
     setSelectedMemory(null);
   };
 
+  const handleClearSearch = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSearchQuery('');
+  };
+
+  const handleToggleFilters = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowFilters(!showFilters);
+  };
+
+  const handleSortChange = async (newSort: 'newest' | 'oldest' | 'a-z' | 'z-a') => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSortOrder(newSort);
+  };
+
+  const handleLongPressMemory = async (memory: MemoryItem) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPreviewMemory(memory);
+    setPreviewModalVisible(true);
+  };
+
+  const handleViewDetailsFromPreview = () => {
+    if (previewMemory) {
+      setSelectedMemory(previewMemory);
+      setPreviewModalVisible(false);
+      // Small delay to let preview modal start closing, then open edit modal
+      setTimeout(() => {
+        setEditModalVisible(true);
+      }, 50);
+    }
+  };
+
+  const handleDeleteFromPreview = async () => {
+    if (!previewMemory) return;
+
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    Alert.alert(
+      'Delete Memory?',
+      `Are you sure you want to delete "${previewMemory.title}"? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            // Do nothing, stay on preview modal
+          }
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setPreviewModalVisible(false);
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              await removeMemory(previewMemory.id);
+              toastService.memoryDeleted();
+              setPreviewMemory(null);
+            } catch (error) {
+              console.error('Failed to delete memory:', error);
+              toastService.memoryDeleteFailed();
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderMemoryItem = ({ item }: { item: MemoryItem }) => {
     const tintColor = Colors[colorScheme ?? 'light'].tint;
 
@@ -125,13 +237,18 @@ export default function MyLifeScreen() {
           { backgroundColor: Colors[colorScheme ?? 'light'].background },
         ]}
         onPress={() => handleMemoryPress(item)}
+        onLongPress={() => handleLongPressMemory(item)}
         accessibilityLabel={`Memory: ${item.title}`}
-        accessibilityHint="Tap to view and edit memory details"
+        accessibilityHint="Tap to view and edit memory details, long press for quick actions"
         activeOpacity={0.7}
       >
         <View style={styles.memoryHeader}>
           <View style={styles.memoryTitleContainer}>
-            <Text style={[styles.memoryTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+            <Text
+              style={[styles.memoryTitle, { color: Colors[colorScheme ?? 'light'].text }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
               {item.title}
             </Text>
           </View>
@@ -139,8 +256,12 @@ export default function MyLifeScreen() {
             {formatDate(item.date)}
           </Text>
         </View>
-        <Text style={[styles.memoryDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-          {item.description}
+        <Text
+          style={[styles.memoryDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
+          {item.transcription || item.description || 'No transcription available'}
         </Text>
 
         {/* Compact Footer */}
@@ -188,18 +309,129 @@ export default function MyLifeScreen() {
         </View>
       ) : (
         <>
-          <View style={styles.memoriesHeader}>
-            <Text style={[styles.memoriesCount, { color: Colors[colorScheme ?? 'light'].text }]}>
-              {memories.length} {memories.length === 1 ? 'Memory' : 'Memories'}
+          {/* Search Bar */}
+          <View style={[styles.searchContainer, { backgroundColor: Colors[colorScheme ?? 'light'].tabIconDefault + '20' }]}>
+            <IconSymbol name="magnifyingglass" size={24} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
+            <TextInput
+              style={[styles.searchInput, { color: Colors[colorScheme ?? 'light'].text }]}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search memories..."
+              placeholderTextColor={Colors[colorScheme ?? 'light'].tabIconDefault}
+              accessibilityLabel="Search memories"
+              accessibilityHint="Type to search by title or content"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={handleClearSearch}
+                style={styles.clearButton}
+                accessibilityLabel="Clear search"
+                accessibilityRole="button"
+              >
+                <IconSymbol name="xmark.circle.fill" size={24} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Filter Toggle */}
+          <View style={styles.filterRow}>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                showFilters && { backgroundColor: Colors[colorScheme ?? 'light'].elderlyTabActive + '20' }
+              ]}
+              onPress={handleToggleFilters}
+              accessibilityLabel="Toggle filters"
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showFilters }}
+            >
+              <IconSymbol
+                name="line.3.horizontal.decrease.circle"
+                size={20}
+                color={showFilters ? Colors[colorScheme ?? 'light'].elderlyTabActive : Colors[colorScheme ?? 'light'].tabIconDefault}
+              />
+              <Text style={[
+                styles.filterButtonText,
+                { color: showFilters ? Colors[colorScheme ?? 'light'].elderlyTabActive : Colors[colorScheme ?? 'light'].text }
+              ]}>
+                Filters
+              </Text>
+            </TouchableOpacity>
+
+            {/* Results Count */}
+            <Text style={[styles.resultsCount, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
+              {filteredMemories.length} {filteredMemories.length === 1 ? 'result' : 'results'}
             </Text>
           </View>
-          <View style={styles.memoriesList}>
-            {memories.map((memory) => (
-              <React.Fragment key={memory.id}>
-                {renderMemoryItem({ item: memory })}
-              </React.Fragment>
-            ))}
-          </View>
+
+          {/* Filter Options */}
+          {showFilters && (
+            <View style={[styles.filterOptions, { backgroundColor: Colors[colorScheme ?? 'light'].tabIconDefault + '10' }]}>
+              <Text style={[styles.filterLabel, { color: Colors[colorScheme ?? 'light'].text }]}>Sort by:</Text>
+              <View style={styles.sortButtons}>
+                {[
+                  { value: 'newest' as const, label: 'Newest', icon: 'arrow.down' },
+                  { value: 'oldest' as const, label: 'Oldest', icon: 'arrow.up' },
+                  { value: 'a-z' as const, label: 'A-Z', icon: 'textformat' },
+                  { value: 'z-a' as const, label: 'Z-A', icon: 'textformat' },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.sortButton,
+                      {
+                        backgroundColor: sortOrder === option.value
+                          ? Colors[colorScheme ?? 'light'].elderlyTabActive
+                          : Colors[colorScheme ?? 'light'].background,
+                        borderColor: Colors[colorScheme ?? 'light'].tabIconDefault + '40',
+                      }
+                    ]}
+                    onPress={() => handleSortChange(option.value)}
+                    accessibilityLabel={`Sort by ${option.label}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: sortOrder === option.value }}
+                  >
+                    <IconSymbol
+                      name={option.icon}
+                      size={16}
+                      color={sortOrder === option.value ? 'white' : Colors[colorScheme ?? 'light'].text}
+                    />
+                    <Text style={[
+                      styles.sortButtonText,
+                      { color: sortOrder === option.value ? 'white' : Colors[colorScheme ?? 'light'].text }
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Memories List or Empty Results */}
+          {filteredMemories.length === 0 ? (
+            <View style={styles.emptyResults}>
+              <IconSymbol
+                name="magnifyingglass"
+                size={48}
+                color={Colors[colorScheme ?? 'light'].tabIconDefault}
+              />
+              <Text style={[styles.emptyResultsTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                No matches found
+              </Text>
+              <Text style={[styles.emptyResultsText, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
+                Try adjusting your search or filters
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.memoriesList}>
+              {filteredMemories.map((memory) => (
+                <React.Fragment key={memory.id}>
+                  {renderMemoryItem({ item: memory })}
+                </React.Fragment>
+              ))}
+            </View>
+          )}
         </>
       )}
     </View>
@@ -360,7 +592,20 @@ export default function MyLifeScreen() {
         visible={editModalVisible}
         memory={selectedMemory}
         onSave={handleSaveMemory}
+        onDelete={selectedMemory ? async () => {
+          await removeMemory(selectedMemory.id);
+          toastService.memoryDeleted();
+        } : undefined}
         onClose={() => setEditModalVisible(false)}
+      />
+
+      {/* Memory Preview Modal */}
+      <MemoryPreviewModal
+        visible={previewModalVisible}
+        memory={previewMemory}
+        onViewDetails={handleViewDetailsFromPreview}
+        onDelete={handleDeleteFromPreview}
+        onClose={() => setPreviewModalVisible(false)}
       />
     </View>
   );
@@ -621,5 +866,92 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
+  },
+  // Search and Filter Styles
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    minHeight: 60,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 18,
+    marginLeft: 12,
+    minHeight: 36,
+  },
+  clearButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 8,
+  },
+  filterButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  resultsCount: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  filterOptions: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  filterLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  sortButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+    minHeight: 52,
+  },
+  sortButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  emptyResults: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyResultsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyResultsText: {
+    fontSize: 16,
+    textAlign: 'center',
+    opacity: 0.8,
   },
 });
