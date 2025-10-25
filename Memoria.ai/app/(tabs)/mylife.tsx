@@ -17,6 +17,10 @@ import { useRecording } from '@/contexts/RecordingContext';
 import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 import { EditMemoryModal } from '@/components/EditMemoryModal';
 import { MemoryPreviewModal } from '@/components/MemoryPreviewModal';
+import { AccessibilitySettingsModal } from '@/components/settings/AccessibilitySettingsModal';
+import { VoiceSettingsModal } from '@/components/settings/VoiceSettingsModal';
+import { BackupSettingsModal } from '@/components/settings/BackupSettingsModal';
+import { FamilySharingModal } from '@/components/settings/FamilySharingModal';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { MyLifeScreenProps } from '@/types/navigation';
@@ -54,6 +58,12 @@ export default function MyLifeScreen() {
   // Preview modal state
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [previewMemory, setPreviewMemory] = useState<MemoryItem | null>(null);
+
+  // Settings modal states
+  const [accessibilityModalVisible, setAccessibilityModalVisible] = useState(false);
+  const [voiceModalVisible, setVoiceModalVisible] = useState(false);
+  const [backupModalVisible, setBackupModalVisible] = useState(false);
+  const [familySharingModalVisible, setFamilySharingModalVisible] = useState(false);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -144,6 +154,26 @@ export default function MyLifeScreen() {
   const handleSettingsPress = async (setting: string) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(setting, `${setting} settings coming soon!`);
+  };
+
+  const handleAccessibilityPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setAccessibilityModalVisible(true);
+  };
+
+  const handleVoicePress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setVoiceModalVisible(true);
+  };
+
+  const handleBackupPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setBackupModalVisible(true);
+  };
+
+  const handleFamilySharingPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setFamilySharingModalVisible(true);
   };
 
   const handleEditMemory = async (memory: MemoryItem) => {
@@ -471,7 +501,7 @@ export default function MyLifeScreen() {
 
         <TouchableOpacity
           style={[styles.settingItem, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-          onPress={() => handleSettingsPress('Voice Settings')}
+          onPress={handleVoicePress}
           accessibilityLabel="Voice settings"
         >
           <IconSymbol name="speaker.wave.3.fill" size={24} color={Colors[colorScheme ?? 'light'].tint} />
@@ -483,7 +513,7 @@ export default function MyLifeScreen() {
 
         <TouchableOpacity
           style={[styles.settingItem, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-          onPress={() => handleSettingsPress('Family Sharing')}
+          onPress={handleFamilySharingPress}
           accessibilityLabel="Family sharing settings"
         >
           <IconSymbol name="person.2.fill" size={24} color={Colors[colorScheme ?? 'light'].tint} />
@@ -495,7 +525,7 @@ export default function MyLifeScreen() {
 
         <TouchableOpacity
           style={[styles.settingItem, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-          onPress={() => handleSettingsPress('Accessibility')}
+          onPress={handleAccessibilityPress}
           accessibilityLabel="Accessibility settings"
         >
           <IconSymbol name="accessibility" size={24} color={Colors[colorScheme ?? 'light'].tint} />
@@ -507,7 +537,7 @@ export default function MyLifeScreen() {
 
         <TouchableOpacity
           style={[styles.settingItem, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-          onPress={() => handleSettingsPress('Backup & Sync')}
+          onPress={handleBackupPress}
           accessibilityLabel="Backup and sync settings"
         >
           <IconSymbol name="cloud.fill" size={24} color={Colors[colorScheme ?? 'light'].tint} />
@@ -606,6 +636,30 @@ export default function MyLifeScreen() {
         onViewDetails={handleViewDetailsFromPreview}
         onDelete={handleDeleteFromPreview}
         onClose={() => setPreviewModalVisible(false)}
+      />
+
+      {/* Accessibility Settings Modal */}
+      <AccessibilitySettingsModal
+        visible={accessibilityModalVisible}
+        onClose={() => setAccessibilityModalVisible(false)}
+      />
+
+      {/* Voice Settings Modal */}
+      <VoiceSettingsModal
+        visible={voiceModalVisible}
+        onClose={() => setVoiceModalVisible(false)}
+      />
+
+      {/* Backup Settings Modal */}
+      <BackupSettingsModal
+        visible={backupModalVisible}
+        onClose={() => setBackupModalVisible(false)}
+      />
+
+      {/* Family Sharing Modal */}
+      <FamilySharingModal
+        visible={familySharingModalVisible}
+        onClose={() => setFamilySharingModalVisible(false)}
       />
     </View>
   );

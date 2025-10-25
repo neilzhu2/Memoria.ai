@@ -9,6 +9,7 @@ import { EnclaveTabBarBackground } from '@/components/EnclaveTabBarBackground';
 import { FloatingTabOverlay } from '@/components/FloatingTabOverlay';
 import { ThemeSelectionModal } from '@/components/ThemeSelectionModal';
 import { RecordingProvider, useRecording } from '@/contexts/RecordingContext';
+import { SettingsProvider } from '@/contexts/SettingsContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { RootTabParamList } from '@/types/navigation';
@@ -140,8 +141,10 @@ function TabLayoutContent() {
 
 export default function TabLayout() {
   return (
-    <RecordingProvider>
-      <TabLayoutContent />
-    </RecordingProvider>
+    <SettingsProvider>
+      <RecordingProvider>
+        <TabLayoutContent />
+      </RecordingProvider>
+    </SettingsProvider>
   );
 }
