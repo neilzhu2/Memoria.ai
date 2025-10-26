@@ -1678,3 +1678,206 @@ All changes committed and pushed to GitHub main branch.
 - ⏳ Cloud sync implementation (next session)
 
 **Ready for Next Session:** Yes! All authentication infrastructure is complete and tested. Next session can focus entirely on implementing cloud sync for memories and audio files.
+
+---
+
+# Work Log - October 27, 2025: Auth Flow Integration & UX Planning
+
+## Session Summary
+Completed Supabase storage bucket setup and planned authentication user experience flow. Made critical decisions about session persistence and biometric authentication timing.
+
+## Supabase Storage Bucket Setup
+
+**✅ Completed by User:**
+- Created `audio-recordings` storage bucket (private)
+- Added 4 RLS policies:
+  1. Users can upload own audio (INSERT)
+  2. Users can view own audio (SELECT)
+  3. Users can update own audio (UPDATE)
+  4. Users can delete own audio (DELETE)
+
+**Policy Definition:**
+```sql
+bucket_id = 'audio-recordings' AND auth.uid()::text = (storage.foldername(name))[1]
+```
+
+**Result:** All backend infrastructure now complete and ready for cloud sync implementation.
+
+## Authentication UX Decision: Session Persistence Strategy
+
+### Decision Made: Option 1 - Session Persistence (Auto-Login)
+
+**Chosen Approach:**
+- Users sign in once with email/password
+- Session persists across app restarts (30-day expiration)
+- No re-authentication required until manual sign out
+- Supabase handles all session management automatically
+
+**Rationale:**
+1. **Information Architecture Logic:**
+   - Auth must come before recording functionality
+   - Need working auth before implementing cloud sync
+   - Proper user journey: Welcome → Auth → Main App
+
+2. **Developer Experience:**
+   - Sign in once on simulator/device
+   - Test all day without repeated logins
+   - Faster development iteration
+   - Standard app behavior
+
+3. **User Experience:**
+   - Matches user expectations (Instagram, Twitter pattern)
+   - Elderly-friendly (no repeated authentication)
+   - Manual sign out available in Profile tab
+   - Session expires after 30 days of inactivity
+
+**Alternative Considered (Deferred):**
+- Biometric authentication (Face ID/Touch ID)
+- Will be added as Settings feature post-MVP
+- Allows users to opt-in for additional security
+- Requires `expo-local-authentication` package
+
+### Implementation Plan
+
+**Phase 1: Auth Flow Integration (Current)**
+Build the authentication gate and routing logic:
+
+1. **Welcome/Landing Screen**
+   - First screen new users see
+   - Clean, simple introduction to Memoria
+   - "Get Started" button → Sign Up
+   - "Already have account?" → Login
+
+2. **Auth Check Logic**
+   - Check for existing session on app launch
+   - If session exists → Navigate to main app (tabs)
+   - If no session → Show welcome screen
+   - Smooth transition animations
+
+3. **Navigation Structure**
+```
+App Launch
+  ↓
+AuthContext Checks Session
+  ↓
+  ├─ Session Found → Main App (Tabs: Record, My Life, Profile)
+  ↓
+  └─ No Session → Welcome Screen
+                    ↓
+                    ├─ Get Started → Sign Up Screen → Login Screen → Main App
+                    └─ Login → Login Screen → Main App
+```
+
+**Phase 2: Biometric Auth (Post-MVP)**
+Add as optional security enhancement:
+- Settings toggle: "Require Face ID on Launch"
+- Uses expo-local-authentication
+- Prompts for biometric on app resume (if enabled)
+- Falls back to session if biometric fails/unavailable
+
+### Technical Implementation
+
+**Session Management (Already Built):**
+```typescript
+// AuthContext.tsx - Already implemented
+useEffect(() => {
+  // Check for existing session on app start
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setSession(session);
+    setUser(session?.user ?? null);
+    setLoading(false);
+  });
+
+  // Listen for auth state changes
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session);
+    setUser(session?.user ?? null);
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+```
+
+**Session Expiration:**
+- Supabase default: 30 days of inactivity
+- Automatic token refresh while app is active
+- Manual sign out clears session immediately
+- New sign in required after expiration
+
+### Testing Flow
+
+**For Development:**
+1. First launch: Sign up/sign in once
+2. Subsequent launches: Instant access to tabs
+3. Test auth screens: Tap "Sign Out" in Profile tab
+4. Test new user flow: Sign out → Welcome → Sign Up
+
+**For Users:**
+1. Install app → Welcome screen
+2. Sign up → Main app
+3. Close app, reopen → Main app (no login required)
+4. After 30 days inactive → Login screen
+
+## Revised Development Roadmap
+
+### Immediate Next Steps (Correct Sequence)
+
+**Step 1: Auth Flow & Routing ← WE ARE HERE**
+- Build welcome/landing screen
+- Implement auth check logic
+- Create navigation based on auth state
+- Test session persistence
+- **Time:** ~45-60 minutes
+
+**Step 2: Test Recording Functionality**
+- Verify recording works with current Expo SDK
+- Test local save and playback
+- Check transcription still functions
+- Fix any issues discovered
+- **Time:** ~30 minutes test, 1-2 hours fix if needed
+
+**Step 3: Cloud Sync Implementation**
+- Upload audio to Supabase Storage
+- Create memory records in database
+- Sync on app start
+- Handle offline scenarios
+- **Time:** ~2-3 hours
+
+## Files to Create (Next)
+
+1. `app/index.tsx` - App entry point with auth check
+2. `app/welcome.tsx` - Welcome/landing screen for new users
+3. Update navigation to respect auth state
+
+## Architecture Benefits
+
+**Clear Separation:**
+- Authentication layer (Supabase + AuthContext)
+- Application layer (Main tabs)
+- Entry point routes between them
+
+**Scalability:**
+- Easy to add biometric auth later
+- Session management already robust
+- Can add social login without refactoring
+- Multi-device sync ready
+
+**User Privacy:**
+- Data access requires authentication
+- RLS ensures user isolation
+- Secure token storage
+- Manual control over session
+
+## Next Session Start Point
+
+**Ready to build:**
+1. Welcome screen (simple, clean, elderly-friendly)
+2. Auth routing logic (check session → route accordingly)
+3. Smooth transition animations
+4. Test complete auth flow end-to-end
+
+**Expected outcome:**
+- First-time users: Welcome → Sign Up → Main App
+- Returning users: Instant access to Main App
+- Manual sign out: Returns to Welcome screen
+- Session persistence working correctly
