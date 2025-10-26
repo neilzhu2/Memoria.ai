@@ -1110,3 +1110,170 @@ The entire settings system is now ready to be tested on the device. User can:
 3. Adjust settings with immediate feedback
 4. Settings persist across app restarts
 5. Export/import settings as needed
+
+---
+
+# Work Log - October 26, 2025: Supabase + Authentication Setup
+
+## Session Summary
+Setting up Supabase backend for cloud sync and user authentication. Moving from local-only storage to cloud-enabled multi-device sync.
+
+## Supabase Project Created
+
+**Project Details:**
+- **Project Name:** memoria-ai (Production)
+- **Project URL:** https://tnjwogrzvnzxdvlqmqsq.supabase.co
+- **Region:** [US/Europe - to be confirmed]
+- **Created:** October 26, 2025
+- **Free Tier:** 500MB database, 1GB storage, 2GB bandwidth, 50K MAU
+
+**Database Password:** $#uad46NbTdd*RW
+- ⚠️ **CRITICAL**: Stored securely in `.env.local` (NOT committed to git)
+- Password manager backup recommended
+
+**API Keys:**
+- **Project URL:** https://tnjwogrzvnzxdvlqmqsq.supabase.co
+- **Anon/Public Key:** eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRuandvZ3J6dm56eGR2bHFtcXNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0NDU2NjgsImV4cCI6MjA3NzAyMTY2OH0.2Sl9Nuv9V9dciQg7lvhyBbcjurWhIHkLo8gCdqeVxjo
+- ✅ Safe to store in app code (designed for client-side use)
+
+## Dependencies Installed
+
+```bash
+npm install @supabase/supabase-js expo-secure-store --legacy-peer-deps
+```
+
+**Packages Added:**
+- `@supabase/supabase-js`: Supabase client for JavaScript/TypeScript
+- `expo-secure-store`: Secure storage for auth tokens (encrypted)
+
+## Security Configuration
+
+**Environment Variables (.env.local):**
+- Created `.env.local` with Supabase credentials
+- Added to `.gitignore` to prevent accidental commits
+- Uses `EXPO_PUBLIC_` prefix for Expo compatibility
+
+**Files Modified:**
+- `.gitignore`: Added `.env*.local` and `.env` patterns
+- Ensures sensitive credentials never committed to git
+
+## Next Steps (In Progress)
+
+### Phase 1: Backend Setup ⏳
+1. ✅ Create Supabase project
+2. ✅ Install dependencies
+3. ⏳ Create database schema (SQL)
+4. ⏳ Set up Row-Level Security (RLS) policies
+5. ⏳ Configure storage buckets for audio files
+
+### Phase 2: Client Integration
+6. ⏳ Create Supabase service (`lib/supabase.ts`)
+7. ⏳ Create AuthContext (`contexts/AuthContext.tsx`)
+8. ⏳ Build login/signup screens
+9. ⏳ Add cloud sync to RecordingContext
+10. ⏳ Test auth flow and data sync
+
+## Architecture Plan
+
+**Database Schema:**
+```sql
+-- Users table (managed by Supabase Auth)
+-- Extended with custom fields
+
+CREATE TABLE user_profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id),
+  display_name TEXT,
+  avatar_url TEXT,
+  settings JSONB, -- Synced from SettingsContext
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Memories table
+CREATE TABLE memories (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  transcription TEXT,
+  audio_url TEXT, -- URL to file in Supabase Storage
+  duration INTEGER, -- seconds
+  date TIMESTAMP NOT NULL,
+  theme TEXT,
+  is_shared BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Enable Row-Level Security
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE memories ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies (users can only access their own data)
+CREATE POLICY "Users can view own profile" ON user_profiles
+  FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile" ON user_profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can view own memories" ON memories
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own memories" ON memories
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own memories" ON memories
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own memories" ON memories
+  FOR DELETE USING (auth.uid() = user_id);
+```
+
+**Storage Buckets:**
+```sql
+-- Audio files bucket
+CREATE BUCKET audio_files;
+
+-- Storage RLS policies
+CREATE POLICY "Users can upload own audio" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'audio_files' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can read own audio" ON storage.objects
+  FOR SELECT USING (
+    bucket_id = 'audio_files' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can delete own audio" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'audio_files' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+```
+
+## Implementation Status
+
+**✅ Completed:**
+- Supabase project created
+- Dependencies installed
+- Environment variables configured
+- Security setup (.gitignore, .env.local)
+
+**⏳ In Progress:**
+- Database schema creation
+- RLS policies setup
+- Supabase client configuration
+
+**📋 Pending:**
+- AuthContext implementation
+- Login/signup screens
+- Cloud sync integration
+- Testing
+1. Navigate to Profile tab in My Life screen
+2. Tap any of the four settings options
+3. Adjust settings with immediate feedback
+4. Settings persist across app restarts
+5. Export/import settings as needed
