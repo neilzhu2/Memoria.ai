@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Platform, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
@@ -10,6 +10,7 @@ import { FloatingTabOverlay } from '@/components/FloatingTabOverlay';
 import { ThemeSelectionModal } from '@/components/ThemeSelectionModal';
 import { RecordingProvider, useRecording } from '@/contexts/RecordingContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { RootTabParamList } from '@/types/navigation';
@@ -18,7 +19,16 @@ function TabLayoutContent() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const { triggerRecording, isRecording } = useRecording();
+  const { user } = useAuth();
   const [showThemeModal, setShowThemeModal] = useState(false);
+
+  // Redirect to welcome if user is not authenticated
+  useEffect(() => {
+    if (!user) {
+      console.log('TabLayout: No user, redirecting to welcome');
+      router.replace('/welcome');
+    }
+  }, [user]);
 
   const handleRecordPress = () => {
     // Show theme selection modal instead of directly recording

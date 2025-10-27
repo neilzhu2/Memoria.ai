@@ -40,12 +40,18 @@ export default function LoginScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
 
-    const { error } = await signIn(email, password);
+    // Add timeout to prevent infinite loading
+    const timeout = new Promise<{ error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ error: { message: 'Request timed out. Please check your connection.' } }), 10000)
+    );
+
+    const signInPromise = signIn(email, password);
+    const result = await Promise.race([signInPromise, timeout]);
 
     setLoading(false);
 
-    if (error) {
-      Alert.alert('Login Failed', error.message);
+    if (result.error) {
+      Alert.alert('Login Failed', result.error.message);
     } else {
       // Navigation will be handled automatically by auth state change
       router.replace('/(tabs)');

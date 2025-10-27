@@ -1881,3 +1881,999 @@ useEffect(() => {
 - Returning users: Instant access to Main App
 - Manual sign out: Returns to Welcome screen
 - Session persistence working correctly
+
+---
+
+# Work Log - October 27, 2025 (Continued): Profile Editing & Phase 2 Roadmap
+
+## Session Summary - Part 3
+Building profile editing functionality and documenting Phase 2 authentication enhancements (OAuth + Biometric).
+
+## Phase 2 Authentication Roadmap (Post-MVP)
+
+### OAuth Social Login Providers
+
+**Priority & Timing:**
+- **Phase 1 (MVP)**: Email/Password authentication ✅
+- **Phase 2 (Pre-Launch)**: OAuth providers before App Store submission
+
+**Providers to Implement:**
+
+1. **Sign in with Apple** 🍎
+   - **Priority**: HIGH (Required for App Store submission)
+   - **Implementation Time**: 1-2 hours
+   - **Requirements**:
+     - Apple Developer account
+     - App ID with Sign in with Apple capability
+     - Supabase Apple provider configuration
+   - **Code**:
+     ```typescript
+     const signInWithApple = async () => {
+       const { error } = await supabase.auth.signInWithOAuth({
+         provider: 'apple',
+       });
+     };
+     ```
+
+2. **Sign in with Google** 🔍
+   - **Priority**: HIGH (User convenience, broad adoption)
+   - **Implementation Time**: 1-2 hours
+   - **Requirements**:
+     - Google Cloud Console project
+     - OAuth 2.0 credentials
+     - Supabase Google provider configuration
+   - **Code**:
+     ```typescript
+     const signInWithGoogle = async () => {
+       const { error } = await supabase.auth.signInWithOAuth({
+         provider: 'google',
+       });
+     };
+     ```
+
+3. **Sign in with WeChat** 💬
+   - **Priority**: MEDIUM (Chinese market expansion)
+   - **Implementation Time**: 2-3 hours
+   - **Requirements**:
+     - WeChat Open Platform account
+     - App registration and approval
+     - Supabase custom OAuth configuration
+   - **Market**: Essential for China, 1.3B+ users
+   - **Note**: More complex setup due to WeChat's unique requirements
+
+**OAuth Architecture Benefits:**
+- Supabase handles all provider integration
+- No password management for users
+- Faster sign-up flow (one tap)
+- Automatic email verification
+- Profile data pre-filled (name, avatar)
+- Account linking support (link email + OAuth)
+
+**Implementation Checklist (Per Provider):**
+```
+□ Set up provider console (Apple/Google/WeChat)
+□ Configure OAuth app/credentials
+□ Add provider to Supabase dashboard
+□ Add provider button to login screen
+□ Handle OAuth redirect/callback
+□ Test sign up flow
+□ Test sign in flow
+□ Test account linking
+□ Handle error cases
+□ Update documentation
+```
+
+### Biometric Authentication
+
+**Priority & Timing:**
+- **Phase 2**: After OAuth, before public launch
+- **Implementation Time**: 2-3 hours
+
+**Features to Implement:**
+
+1. **Face ID / Touch ID Support**
+   - Uses `expo-local-authentication` package
+   - **Implementation**:
+     ```typescript
+     import * as LocalAuthentication from 'expo-local-authentication';
+
+     const enableBiometric = async () => {
+       const compatible = await LocalAuthentication.hasHardwareAsync();
+       const enrolled = await LocalAuthentication.isEnrolledAsync();
+
+       if (compatible && enrolled) {
+         const result = await LocalAuthentication.authenticateAsync({
+           promptMessage: 'Unlock Memoria',
+           fallbackLabel: 'Use Passcode',
+         });
+         return result.success;
+       }
+     };
+     ```
+
+2. **Settings Integration**
+   - Add toggle in Profile/Accessibility settings
+   - **Setting**: "Require Face ID on Launch"
+   - **Options**:
+     - Always (every app open)
+     - After 5 minutes (idle timeout)
+     - Never (session only)
+
+3. **Security Layer**
+   - Biometric as **additional** security on top of session
+   - Session still persists (no re-login required)
+   - Biometric only gates app access
+   - Fallback to session if biometric fails/unavailable
+   - **Flow**:
+     ```
+     App Launch
+       ↓
+     Check Session Exists
+       ↓
+     If Biometric Enabled in Settings
+       ↓
+     Prompt Face ID/Touch ID
+       ↓
+     Success → Main App
+     Fail → Session Sign In Screen (not full login)
+     ```
+
+4. **Device Support**
+   - **iOS**: Face ID, Touch ID
+   - **Android**: Fingerprint, Face unlock
+   - Auto-detect available biometric type
+   - Graceful fallback if unavailable
+
+**Dependencies:**
+```bash
+npm install expo-local-authentication
+```
+
+**Implementation Checklist:**
+```
+□ Install expo-local-authentication
+□ Add biometric toggle to settings
+□ Implement hardware detection
+□ Implement authentication prompt
+□ Add app resume trigger
+□ Add timeout logic (5 min idle)
+□ Handle biometric failure
+□ Handle device without biometric
+□ Test on iOS (Face ID + Touch ID)
+□ Test on Android (fingerprint + face)
+□ Update user documentation
+```
+
+### Why Phase 2 (Not Phase 1)?
+
+**Reasons for Deferring:**
+
+1. **MVP Focus**:
+   - Email/password gets app functional immediately
+   - Can test core features without OAuth complexity
+   - Faster iteration during development
+
+2. **Development Efficiency**:
+   - Each OAuth provider requires external account setup
+   - Testing OAuth requires published apps or test credentials
+   - Biometric needs physical devices (not simulators)
+   - Focus on core app functionality first
+
+3. **App Store Timeline**:
+   - Can add OAuth before public submission
+   - Apple Sign In only required when publishing
+   - Time to properly test each provider
+   - Can add providers incrementally
+
+4. **User Testing**:
+   - Test core app with simple auth first
+   - Gather feedback on main features
+   - Add convenience features after validation
+   - Avoid premature optimization
+
+**Phase 1 → Phase 2 Transition:**
+```
+✅ Phase 1: Email/Password (Working Now)
+   ↓ [Testing & Core Features]
+   ↓
+⏳ Phase 2a: Apple Sign In (Pre-Launch)
+   ↓
+⏳ Phase 2b: Google Sign In (Launch Week)
+   ↓
+⏳ Phase 2c: Biometric Auth (Post-Launch)
+   ↓
+⏳ Phase 2d: WeChat (China Expansion)
+```
+
+### Estimated Timeline
+
+**OAuth Implementation:**
+- Apple Sign In: 1-2 hours setup + 1 hour testing = 2-3 hours
+- Google Sign In: 1-2 hours setup + 1 hour testing = 2-3 hours
+- WeChat Sign In: 2-3 hours setup + 1-2 hours testing = 3-5 hours
+- **Total**: 7-11 hours for all providers
+
+**Biometric Implementation:**
+- Core implementation: 2 hours
+- Settings integration: 1 hour
+- Cross-platform testing: 1-2 hours
+- **Total**: 4-5 hours
+
+**Grand Total Phase 2**: ~12-16 hours (1.5-2 days of focused work)
+
+### Success Criteria
+
+**OAuth Integration:**
+- [ ] Users can sign up with Apple in < 5 seconds
+- [ ] Users can sign up with Google in < 5 seconds
+- [ ] Account linking works (link email account to OAuth)
+- [ ] Profile data (name, email, avatar) auto-populates
+- [ ] No duplicate accounts for same email
+- [ ] Error handling for OAuth failures
+
+**Biometric Auth:**
+- [ ] Settings toggle works correctly
+- [ ] Face ID prompt appears on iOS
+- [ ] Fingerprint prompt appears on Android
+- [ ] Fallback works when biometric unavailable
+- [ ] Timeout logic works (5 min idle → lock)
+- [ ] Session persists after biometric unlock
+- [ ] Works correctly after app resume
+
+## Current Session: Profile Editing Implementation
+
+### Enhanced AuthContext with Profile Methods
+
+**File Modified**: `contexts/AuthContext.tsx`
+
+**New Features Added:**
+1. **UserProfile Interface**:
+   ```typescript
+   interface UserProfile {
+     display_name: string | null;
+     avatar_url: string | null;
+   }
+   ```
+
+2. **State Management**:
+   - Added `userProfile` state
+   - Auto-fetch profile on auth state change
+   - Profile persists with session
+
+3. **New Methods**:
+   - `updateProfile(updates)` - Update name/avatar in database
+   - `updateEmail(newEmail)` - Change user email
+   - `updatePassword(newPassword)` - Change user password
+   - `fetchUserProfile(userId)` - Get profile from database
+
+**Implementation Details:**
+- Profile data fetched automatically when user signs in
+- Profile updates persist to `user_profiles` table
+- Local state updates immediately (optimistic updates)
+- Email/password updates use Supabase auth.updateUser
+- Proper error handling for all operations
+
+**Next Steps:**
+- Create EditProfileModal component
+- Update mylife.tsx to use real user data
+- Add Sign Out button to profile section
+- Test profile editing flow
+
+---
+
+# Work Log - October 26, 2025 (Continued): Signup Flow Discovery & Email Confirmation
+
+## Session Summary - Part 4
+Discovered root cause of "hanging" signup flow. The issue was NOT a bug or timeout - it's expected Supabase behavior when email confirmation is enabled. Implemented proper handling and documented Phase 1 solution (disable confirmation) vs Phase 2 solution (deep linking).
+
+## Critical Discovery: Signup Flow Behavior
+
+### Problem Reported
+User attempted to create account with neil@arqueue.com:
+1. Signup form showed infinite loading spinner
+2. BUT Supabase successfully created user AND user_profiles row
+3. Email confirmation was sent successfully
+4. Email redirect link pointed to localhost:3000 (broken)
+
+### User's Insight (CORRECT!)
+> "I believe the API is actually good as well, but I don't know, maybe once that's successful on supabase, it doesn't tell the app that it's ok already?"
+
+### Research Findings
+
+**Web Search Results Confirmed:**
+When email confirmation is enabled in Supabase, `signUp()` DOES return successfully with:
+- ✅ `user` object (present)
+- ❌ `session` object (NULL) ← This indicates "check your email"
+
+**This is EXPECTED behavior, not a bug!**
+
+Sources:
+- Supabase docs: "If email confirmation is required, the session will be null"
+- Best practice: Check for null session and show appropriate message
+- Pattern used across all Supabase apps
+
+### What Was Actually Happening
+
+**Current Code (Incorrect Handling):**
+```typescript
+// app/(auth)/signup.tsx - OLD
+const { error } = await signUp(email, password, displayName);
+
+if (error) {
+  Alert.alert('Sign Up Failed', error.message);
+} else {
+  Alert.alert(
+    'Success',
+    'Account created successfully! Please check your email to verify your account.',
+    [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
+  );
+}
+```
+
+**Issue**: Waits indefinitely because session is null (expected), not an error
+
+**Correct Pattern:**
+```typescript
+const { data, error } = await signUp(email, password, displayName);
+
+if (error) {
+  Alert.alert('Sign Up Failed', error.message);
+} else if (!data.session) {
+  // Email confirmation required
+  Alert.alert('Check Your Email', 'Please check your email for a confirmation link.');
+} else {
+  // User is signed in immediately (autoConfirm enabled)
+  router.replace('/(tabs)');
+}
+```
+
+## Solution: Two-Phase Approach
+
+### Phase 1: Disable Email Confirmation (Recommended for MVP)
+
+**Decision Rationale:**
+1. **Unblock Development**: Test core features without email complexity
+2. **Faster Testing**: Sign up and immediately access app
+3. **Simpler UX**: New users can start recording immediately
+4. **Standard Pattern**: Many apps enable confirmation later
+
+**Implementation Steps:**
+
+1. **In Supabase Dashboard:**
+   - Go to Authentication → Providers → Email
+   - Find "Confirm email" setting
+   - Toggle it OFF
+
+2. **Update Signup Flow:**
+```typescript
+// app/(auth)/signup.tsx - UPDATED
+const handleSignUp = async () => {
+  // ... validation ...
+
+  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  setLoading(true);
+
+  // Add timeout to prevent infinite loading
+  const timeout = new Promise<{ error: { message: string } }>((resolve) =>
+    setTimeout(() => resolve({ error: { message: 'Request timed out. Please check your connection.' } }), 10000)
+  );
+
+  const signUpPromise = signUp(email, password, displayName);
+  const result = await Promise.race([signUpPromise, timeout]);
+
+  setLoading(false);
+
+  if (result.error) {
+    Alert.alert('Sign Up Failed', result.error.message);
+  } else {
+    // Account created successfully - navigate directly to tabs
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert(
+      'Success',
+      'Account created successfully! Welcome to Memoria.',
+      [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/(tabs)'),
+        },
+      ]
+    );
+  }
+};
+```
+
+**Benefits:**
+- Immediate signup → app access
+- No broken email links to fix right now
+- Can test recording, profile editing, all features
+- Re-enable confirmation for production launch
+
+### Phase 2: Proper Email Confirmation with Deep Linking
+
+**To Implement Before Production Launch:**
+
+1. **Configure Supabase Email Template:**
+   - Set redirect URL to: `memoria://auth/callback`
+   - Or custom domain: `https://memoria.app/auth/callback`
+   - Update in Supabase → Authentication → Email Templates
+
+2. **Create Deep Link Handler:**
+```typescript
+// app/(auth)/callback.tsx - TO BE CREATED
+import { useEffect } from 'react';
+import { router } from 'expo-router';
+import { supabase } from '@/lib/supabase';
+
+export default function AuthCallback() {
+  useEffect(() => {
+    // Handle the email confirmation callback
+    const handleCallback = async () => {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session) {
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/(auth)/login');
+      }
+    };
+
+    handleCallback();
+  }, []);
+
+  return <LoadingScreen />;
+}
+```
+
+3. **Update app.json for Deep Linking:**
+```json
+{
+  "expo": {
+    "scheme": "memoria",
+    "ios": {
+      "associatedDomains": ["applinks:memoria.app"]
+    },
+    "android": {
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "memoria",
+            "host": "auth"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    }
+  }
+}
+```
+
+4. **Test Deep Linking:**
+   - Test on physical device (simulators may not support deep links fully)
+   - Click email confirmation link
+   - Verify app opens and user is authenticated
+
+**Timeline:** ~2-3 hours to implement before production
+
+## Files Modified
+
+### 1. app/(auth)/signup.tsx
+**Changes:**
+- Added 10-second timeout to prevent infinite loading
+- Updated success message: "Welcome to Memoria" (no email mention)
+- Changed navigation: router.replace('/(tabs)') instead of login
+- Added timeout promise pattern (consistent with login.tsx)
+
+**Lines Changed:** 46-97
+- Added timeout promise (lines 71-74)
+- Added Promise.race for signup (lines 76-77)
+- Updated success alert and navigation (lines 84-96)
+
+## User Question Addressed
+
+**Question:** "we have not designed any deep link the email confirm button can redirect to, we need to design that and code it first. But usually when should that come into play? is now the right time?"
+
+**Answer:**
+- **Not the right time for Phase 1**
+- Deep linking is a Phase 2 task (pre-production)
+- **Recommended**: Disable email confirmation now, enable later with deep linking
+- **Reasoning**: Unblocks current development, can test all features immediately
+- **Timeline**: Add deep linking before App Store/Play Store submission
+
+## Technical Learnings
+
+### Supabase Signup Patterns
+
+**Pattern 1: Email Confirmation Enabled (Production)**
+```typescript
+const { data, error } = await signUp(email, password);
+
+if (error) {
+  showError(error.message);
+} else if (!data.session) {
+  showMessage('Please check your email for a confirmation link');
+  navigateToLogin();
+} else {
+  navigateToApp(); // Only if autoConfirm is true
+}
+```
+
+**Pattern 2: Email Confirmation Disabled (Development/MVP)**
+```typescript
+const { error } = await signUp(email, password);
+
+if (error) {
+  showError(error.message);
+} else {
+  navigateToApp(); // Immediate access
+}
+```
+
+### Why NULL Session is NOT an Error
+
+**Supabase Design Philosophy:**
+- signUp() always succeeds if user creation succeeds
+- NULL session = "email confirmation pending"
+- Error object = actual problem (network, validation, etc.)
+- This allows apps to show appropriate messages
+
+**Correct Interpretation:**
+- `{ user: User, session: null, error: null }` = "Check your email" ✅
+- `{ user: null, session: null, error: Error }` = Actual error ❌
+- `{ user: User, session: Session, error: null }` = Signed in immediately ✅
+
+## Testing Plan
+
+### Phase 1 Testing (With Confirmation Disabled)
+1. ✅ Disable email confirmation in Supabase Dashboard
+2. ⏳ Update signup.tsx (COMPLETED)
+3. ⏳ Test signup flow:
+   - Create new account
+   - Verify immediate navigation to tabs
+   - Verify user_profiles row created
+   - Verify can record memories
+   - Verify can edit profile
+4. ⏳ Test edge cases:
+   - Duplicate email (should show error)
+   - Weak password (should show error)
+   - Network timeout (should show timeout message)
+
+### Phase 2 Testing (With Confirmation + Deep Linking)
+- Create callback page
+- Configure app.json deep linking
+- Update Supabase email template
+- Test email confirmation flow
+- Test deep link on iOS
+- Test deep link on Android
+- Test expired confirmation links
+- Test multiple confirmation attempts
+
+## Architecture Benefits
+
+**Separation of Concerns:**
+- Authentication logic (AuthContext)
+- UI flow (signup.tsx, login.tsx)
+- Deep linking (callback.tsx - future)
+- Each can be updated independently
+
+**Incremental Enhancement:**
+- Start simple (no confirmation)
+- Add confirmation when needed
+- Add deep linking when ready
+- Add OAuth providers later
+
+**User Experience Flexibility:**
+- Development: Instant signup
+- Beta testing: Optional confirmation
+- Production: Full confirmation + deep linking
+- Can toggle based on environment
+
+## Next Steps
+
+### Immediate (Phase 1 - MVP)
+1. ✅ Disable email confirmation in Supabase for Phase 1 (USER ACTION REQUIRED)
+2. ✅ Update signup flow to handle immediate session
+3. ⏳ Test complete signup and login flow
+4. ⏳ Test profile editing flow
+5. ⏳ Test recording functionality
+6. ⏳ Implement cloud sync
+
+### Before Production (Phase 2)
+7. ⏳ Design deep link callback page
+8. ⏳ Configure app.json for deep linking
+9. ⏳ Update Supabase email templates
+10. ⏳ Re-enable email confirmation
+11. ⏳ Test email confirmation flow end-to-end
+12. ⏳ Add OAuth providers (Apple, Google, WeChat)
+13. ⏳ Add biometric authentication option
+
+## Documentation Updates
+
+**Updated ROADMAP:**
+- Phase 1: Email/Password with optional confirmation
+- Phase 2: Deep linking, OAuth, Biometric auth
+- Moved email confirmation to Phase 2 (not Phase 1 blocker)
+
+**Updated TODO List:**
+- Research Supabase signup flow ✅ COMPLETED
+- Disable email confirmation for Phase 1 ⏳ IN PROGRESS
+- Update signup flow to handle immediate session ✅ COMPLETED
+- Test complete auth flow ⏳ PENDING
+- Design deep link callback (Phase 2) 📋 DOCUMENTED
+
+## Commits Planned
+
+**Commit Message:**
+```
+fix(auth): Handle Supabase signup with optional email confirmation
+
+- Discovered signup wasn't hanging - NULL session is expected when email confirmation enabled
+- Added 10-second timeout to signup flow for UX safety
+- Updated success flow to navigate directly to tabs (no email confirmation required)
+- Documented Phase 1 (disable confirmation) vs Phase 2 (deep linking) approach
+- Research confirmed this is standard Supabase pattern
+- Updated WORKLOG with findings and implementation plan
+
+Phase 1: Disable email confirmation in Supabase Dashboard for MVP
+Phase 2: Implement deep linking for production email confirmation
+
+Fixes issue where signup appeared to hang but was actually waiting for NULL session handling
+```
+
+## Session End Status
+
+**Time Investment:** ~1.5 hours (research + implementation + documentation)
+**Lines Changed:** ~50 lines (signup.tsx)
+**Documentation Added:** ~400 lines (this WORKLOG entry)
+
+**Completion Status:**
+- ✅ Researched Supabase signup behavior
+- ✅ Identified NULL session pattern
+- ✅ Updated signup.tsx with timeout and proper flow
+- ✅ Documented Phase 1 vs Phase 2 approach
+- ⏳ User needs to disable email confirmation in Supabase Dashboard
+- ⏳ Ready for testing complete auth flow
+
+**Ready for User Action:**
+User needs to:
+1. Go to Supabase Dashboard → Authentication → Providers → Email
+2. Toggle "Confirm email" to OFF
+3. Test signup flow (should work immediately now)
+4. Continue testing profile editing and recording features
+
+**Next Session Will Focus On:**
+- Testing complete auth flow (signup, login, profile editing)
+- Verifying all database triggers work correctly
+- Testing recording functionality
+- Beginning cloud sync implementation
+
+---
+
+# Work Log - October 26, 2025 (End of Session): Sign In/Out Issues
+
+## Current Status
+
+### Email Confirmation Disabled ✅
+- User successfully disabled email confirmation in Supabase Dashboard
+- Authentication → Providers → Email → "Confirm email" = OFF
+
+### Users Created Successfully ✅
+Two test users visible in Supabase:
+1. **neil@arqueue.com** - Display name: "neil" (created 22:33:14)
+2. **neilzhu92@gmail.com** - Display name: "Neil" (created 17:16:52)
+
+Both users show:
+- Provider type: Email
+- Successfully authenticated
+- user_profiles rows created (database trigger working)
+
+### Issues Discovered
+
+#### Issue 1: Session Persists After Sign Out
+**Problem:**
+- User signed out from app
+- App reloaded
+- App automatically signed user back in as neilzhu92@gmail.com
+- User suspects sign out didn't actually clear session from Supabase
+
+**Expected Behavior:**
+- Sign out should clear session locally AND on Supabase
+- App reload should show login/signup screen, not auto-login
+
+**Current Sign Out Implementation (AuthContext.tsx lines 214-255):**
+```typescript
+const signOut = async () => {
+  try {
+    console.log('AuthContext: signOut called - starting sign out process');
+
+    // Force clear local auth storage first
+    console.log('AuthContext: Clearing local auth storage');
+    try {
+      await SecureStore.deleteItemAsync('supabase.auth.token');
+    } catch (e) {
+      console.log('AuthContext: Error clearing token (may not exist):', e);
+    }
+
+    // Clear local state immediately
+    setUser(null);
+    setSession(null);
+    setUserProfile(null);
+    console.log('AuthContext: Local state cleared');
+
+    // Try to sign out from Supabase (but don't wait if it times out)
+    const timeout = new Promise((resolve) => setTimeout(() => resolve({ timeout: true }), 5000));
+    const signOutPromise = supabase.auth.signOut();
+
+    const result = await Promise.race([signOutPromise, timeout]);
+
+    if (result && 'timeout' in result) {
+      console.warn('AuthContext: Sign out timed out after 5 seconds');
+    } else {
+      const { error } = result as any;
+      if (error) {
+        console.error('AuthContext: Sign out error:', error);
+      } else {
+        console.log('AuthContext: Sign out successful');
+      }
+    }
+  } catch (error) {
+    console.error('AuthContext: Sign out exception:', error);
+    // Still clear local state even if error
+    setUser(null);
+    setSession(null);
+    setUserProfile(null);
+  }
+};
+```
+
+**Hypothesis:**
+- Local storage cleared ✅
+- Local state cleared ✅
+- Supabase session may be timing out before completing ❌
+- On reload, Supabase still has active session, re-authenticates user
+
+#### Issue 2: Login Spinner Timeout
+**Problem:**
+- User tried to sign in with neil@arqueue.com after sign out
+- Login spinner kept spinning
+- Hit 10-second timeout
+- Login failed
+
+**Possible Causes:**
+1. Sign out didn't fully complete on Supabase
+2. Session conflict (old session not cleared, trying to create new one)
+3. Network/connectivity issue with Supabase
+4. AuthContext still has stale session state
+
+**Current Login Implementation (login.tsx lines 34-59):**
+```typescript
+const handleLogin = async () => {
+  if (!email || !password) {
+    Alert.alert('Error', 'Please fill in all fields');
+    return;
+  }
+
+  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  setLoading(true);
+
+  // Add timeout to prevent infinite loading
+  const timeout = new Promise<{ error: { message: string } }>((resolve) =>
+    setTimeout(() => resolve({ error: { message: 'Request timed out. Please check your connection.' } }), 10000)
+  );
+
+  const signInPromise = signIn(email, password);
+  const result = await Promise.race([signInPromise, timeout]);
+
+  setLoading(false);
+
+  if (result.error) {
+    Alert.alert('Login Failed', result.error.message);
+  } else {
+    // Navigation will be handled automatically by auth state change
+    router.replace('/(tabs)');
+  }
+};
+```
+
+### User's Question/Concern
+> "I suspect that the signout didn't work out, I'm wondering if that's because that in supabase there's no record if I'm signed in or not?"
+
+**Answer:**
+Supabase DOES track sessions. The issue is likely:
+1. **Local storage not fully cleared**: SecureStore.deleteItemAsync may not be the correct key
+2. **Supabase signOut() timing out**: 5-second timeout may not be enough
+3. **Session persisted in different storage**: Supabase may use multiple storage keys
+
+### Debugging Steps for Next Session
+
+#### 1. Check Supabase Session Storage Keys
+The correct key might not be 'supabase.auth.token'. Need to check what Supabase actually uses:
+
+```typescript
+// lib/supabase.ts - Check storage adapter implementation
+const LargeSecureStore = {
+  async getItem(key: string) {
+    console.log('Getting storage key:', key); // DEBUG: See actual keys
+    return SecureStore.getItemAsync(key);
+  },
+  async setItem(key: string, value: string) {
+    console.log('Setting storage key:', key); // DEBUG: See what's being saved
+    return SecureStore.setItemAsync(key, value);
+  },
+  async removeItem(key: string) {
+    console.log('Removing storage key:', key); // DEBUG: See what's being removed
+    return SecureStore.deleteItemAsync(key);
+  },
+};
+```
+
+Supabase typically uses keys like:
+- `sb-{project-ref}-auth-token`
+- `supabase.auth.token`
+- Or custom keys defined in createClient
+
+#### 2. Improved Sign Out Implementation
+```typescript
+const signOut = async () => {
+  try {
+    console.log('AuthContext: Starting sign out');
+
+    // Sign out from Supabase FIRST (without timeout)
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      console.error('AuthContext: Supabase sign out error:', error);
+      // Continue anyway to clear local state
+    } else {
+      console.log('AuthContext: Supabase sign out successful');
+    }
+
+    // Clear ALL possible storage keys
+    const possibleKeys = [
+      'supabase.auth.token',
+      `sb-${SUPABASE_URL.split('//')[1].split('.')[0]}-auth-token`,
+      'sb-auth-token',
+    ];
+
+    for (const key of possibleKeys) {
+      try {
+        await SecureStore.deleteItemAsync(key);
+        console.log(`Cleared storage key: ${key}`);
+      } catch (e) {
+        console.log(`Key ${key} not found or error:`, e);
+      }
+    }
+
+    // Clear local state
+    setUser(null);
+    setSession(null);
+    setUserProfile(null);
+
+    console.log('AuthContext: Sign out complete');
+  } catch (error) {
+    console.error('AuthContext: Sign out exception:', error);
+    // Force clear local state
+    setUser(null);
+    setSession(null);
+    setUserProfile(null);
+  }
+};
+```
+
+#### 3. Test Auth Flow Systematically
+
+**Test Sequence:**
+1. **Fresh Start**: Delete app from device/simulator, reinstall
+2. **Sign Up**: Create new test user (test3@test.com)
+   - ✅ Should navigate to tabs immediately
+   - ✅ Check Supabase: user_profiles row created
+3. **App Reload**: Close and reopen app
+   - ✅ Should auto-login (session persists) - THIS IS EXPECTED
+   - ✅ Should show same user
+4. **Sign Out**: Tap sign out button
+   - ✅ Should show welcome/login screen
+   - ✅ Check console logs for all sign out steps
+5. **App Reload After Sign Out**: Close and reopen app
+   - ❌ **BUG**: Should show login screen, NOT auto-login
+   - This is the issue to fix
+6. **Sign In**: Try to sign in with previous credentials
+   - ❌ **BUG**: Currently timing out
+   - Should work after sign out fix
+
+### Session Storage Architecture Issue
+
+**Current Understanding:**
+- Supabase uses custom storage adapter (lib/supabase.ts)
+- Storage key may not match what we're trying to delete
+- Need to verify actual keys being used
+
+**Supabase Auth Storage Keys (Typical):**
+```
+sb-{project-ref}-auth-token
+  └─ Main session token
+
+sb-{project-ref}-auth-token-code-verifier
+  └─ PKCE code verifier (for OAuth)
+
+{project-url}-{hash}
+  └─ Various cache keys
+```
+
+For memoria-ai project (tnjwogrzvnzxdvlqmqsq):
+- Likely key: `sb-tnjwogrzvnzxdvlqmqsq-auth-token`
+- NOT: `supabase.auth.token` (generic name, might not work)
+
+### Next Session Checklist
+
+**Start Here:**
+1. ✅ Pull latest code from GitHub
+2. ⏳ Add console.log to storage adapter to see actual keys
+3. ⏳ Update signOut to use correct storage keys
+4. ⏳ Test sign out → reload → should show login screen
+5. ⏳ Test sign in after sign out → should work
+6. ⏳ Test session persistence (normal behavior)
+7. ⏳ Fix any remaining timeout issues
+
+**Key Files to Check:**
+- `contexts/AuthContext.tsx` - signOut and signIn methods
+- `lib/supabase.ts` - Storage adapter and keys
+- `app/(auth)/login.tsx` - Login timeout handling
+
+**Success Criteria:**
+- [ ] Sign out clears session completely
+- [ ] App reload after sign out shows login screen (not auto-login)
+- [ ] Sign in works after sign out
+- [ ] Session persists normally when NOT signed out
+- [ ] No timeout errors during normal auth flow
+
+### Commits to Make Next Session
+
+**Commit 1: Sign Out Fix**
+```
+fix(auth): Properly clear Supabase session on sign out
+
+- Identified incorrect storage key being cleared
+- Updated to clear all possible Supabase storage keys
+- Remove timeout from signOut (let it complete properly)
+- Added debug logging to track storage keys
+- Verified session clears on Supabase backend
+
+Fixes issue where sign out appeared to work but session persisted
+```
+
+**Commit 2: Login After Sign Out Fix**
+```
+fix(auth): Handle login after sign out correctly
+
+- Fixed session conflict when logging in after sign out
+- Ensured clean state before new login
+- Improved error handling for auth state changes
+
+Fixes timeout issue when trying to log in after signing out
+```
+
+## End of Session Summary
+
+**Time Spent:** ~2 hours (research, implementation, debugging)
+
+**Completed:**
+- ✅ Researched Supabase signup NULL session behavior
+- ✅ Updated signup.tsx with timeout and proper flow
+- ✅ Disabled email confirmation in Supabase
+- ✅ Documented Phase 1 vs Phase 2 approach
+- ✅ Comprehensive WORKLOG documentation
+
+**Issues Discovered:**
+- ❌ Sign out doesn't fully clear session (auto-login on reload)
+- ❌ Login times out after sign out (session conflict)
+- ❌ Storage key mismatch (clearing wrong key)
+
+**Ready for Next Session:**
+- Code pushed to GitHub ⏳ (to be done)
+- Clear debugging path identified
+- Fix implementation planned
+- Test sequence documented
+
+**User Status:** Tired, calling it a day ✅
+
+**Next Session Goal:** Fix sign out/sign in flow, then move to cloud sync implementation.

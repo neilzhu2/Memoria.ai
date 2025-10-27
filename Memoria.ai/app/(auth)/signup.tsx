@@ -68,20 +68,28 @@ export default function SignUpScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
 
-    const { error } = await signUp(email, password, displayName);
+    // Add timeout to prevent infinite loading
+    const timeout = new Promise<{ error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ error: { message: 'Request timed out. Please check your connection.' } }), 10000)
+    );
+
+    const signUpPromise = signUp(email, password, displayName);
+    const result = await Promise.race([signUpPromise, timeout]);
 
     setLoading(false);
 
-    if (error) {
-      Alert.alert('Sign Up Failed', error.message);
+    if (result.error) {
+      Alert.alert('Sign Up Failed', result.error.message);
     } else {
+      // Account created successfully - navigate directly to tabs
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
         'Success',
-        'Account created successfully! Please check your email to verify your account.',
+        'Account created successfully! Welcome to Memoria.',
         [
           {
             text: 'OK',
-            onPress: () => router.replace('/(auth)/login'),
+            onPress: () => router.replace('/(tabs)'),
           },
         ]
       );

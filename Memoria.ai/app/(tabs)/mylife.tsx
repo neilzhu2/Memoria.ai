@@ -14,8 +14,10 @@ import * as Haptics from 'expo-haptics';
 
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRecording } from '@/contexts/RecordingContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 import { EditMemoryModal } from '@/components/EditMemoryModal';
+import { EditProfileModal } from '@/components/EditProfileModal';
 import { MemoryPreviewModal } from '@/components/MemoryPreviewModal';
 import { AccessibilitySettingsModal } from '@/components/settings/AccessibilitySettingsModal';
 import { VoiceSettingsModal } from '@/components/settings/VoiceSettingsModal';
@@ -34,6 +36,7 @@ export default function MyLifeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ section?: string }>();
   const { memories, memoryStats, removeMemory, updateMemory } = useRecording();
+  const { user, userProfile } = useAuth();
 
   // Initialize active section from URL params or default to memories
   const [activeSection, setActiveSection] = useState<SectionType>(
@@ -60,6 +63,7 @@ export default function MyLifeScreen() {
   const [previewMemory, setPreviewMemory] = useState<MemoryItem | null>(null);
 
   // Settings modal states
+  const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
   const [accessibilityModalVisible, setAccessibilityModalVisible] = useState(false);
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
@@ -148,7 +152,7 @@ export default function MyLifeScreen() {
 
   const handleEditProfile = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Edit Profile', 'Profile editing functionality coming soon!');
+    setEditProfileModalVisible(true);
   };
 
   const handleSettingsPress = async (setting: string) => {
@@ -477,10 +481,10 @@ export default function MyLifeScreen() {
           </View>
           <View style={styles.profileInfo}>
             <Text style={[styles.profileName, { color: Colors[colorScheme ?? 'light'].text }]}>
-              Memoria User
+              {userProfile?.display_name || user?.email?.split('@')[0] || 'User'}
             </Text>
             <Text style={[styles.profileEmail, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-              user@memoria.ai
+              {user?.email || ''}
             </Text>
           </View>
           <TouchableOpacity
@@ -660,6 +664,12 @@ export default function MyLifeScreen() {
       <FamilySharingModal
         visible={familySharingModalVisible}
         onClose={() => setFamilySharingModalVisible(false)}
+      />
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        visible={editProfileModalVisible}
+        onClose={() => setEditProfileModalVisible(false)}
       />
     </View>
   );

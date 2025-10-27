@@ -88,6 +88,28 @@ CREATE POLICY "Users can delete own memories" ON memories
   FOR DELETE
   USING (auth.uid() = user_id);
 
+-- Function to automatically create user profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.user_profiles (id, display_name, avatar_url, settings)
+  VALUES (
+    NEW.id,
+    NEW.raw_user_meta_data->>'display_name',
+    NULL,
+    '{"autoBackupEnabled": false, "lastBackupDate": null, "theme": "auto"}'::jsonb
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to create profile when new user signs up
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
+
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
