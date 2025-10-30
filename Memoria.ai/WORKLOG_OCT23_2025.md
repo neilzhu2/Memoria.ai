@@ -2877,3 +2877,464 @@ Fixes timeout issue when trying to log in after signing out
 **User Status:** Tired, calling it a day ✅
 
 **Next Session Goal:** Fix sign out/sign in flow, then move to cloud sync implementation.
+
+---
+
+# Work Log - October 29, 2025: Auth Flow Complete + Email Confirmation Roadmap
+
+## Session Summary
+Fixed all authentication issues (CASCADE delete, sign out, sign in), deactivated email confirmation for Phase 1, and documented Phase 2 email confirmation with deep linking implementation plan.
+
+## Issues Fixed
+
+### 1. CASCADE Delete Foreign Key Constraint
+**Problem:** Deleting users from Supabase didn't automatically delete user_profiles rows
+
+**Root Cause:** Foreign key constraint with ON DELETE CASCADE was never actually created in the database
+
+**Solution Applied:**
+```sql
+ALTER TABLE user_profiles
+DROP CONSTRAINT IF EXISTS user_profiles_id_fkey;
+
+ALTER TABLE user_profiles
+ADD CONSTRAINT user_profiles_id_fkey
+FOREIGN KEY (id)
+REFERENCES auth.users(id)
+ON DELETE CASCADE;
+```
+
+**Result:** ✅ CASCADE delete now working - deleting users automatically removes user_profiles rows
+
+### 2. Email Confirmation Deactivated for Phase 1
+**Problem:** Still receiving confirmation emails despite wanting to test without email verification
+
+**Solution Applied:**
+- Disabled email confirmation in Supabase Dashboard
+- Authentication → Providers → Email → "Confirm email" = OFF
+
+**Result:** ✅ Sign up now works without email confirmation - immediate access to app
+
+### 3. Sign Out Issues Fixed
+**Previous Problem:** Session persisted after sign out (auto-login on reload)
+
+**Root Cause:** Storage key mismatch - trying to clear wrong Supabase token key
+
+**Solution from Previous Session:** Added debug logging and updated signOut to let Supabase handle storage cleanup
+
+**Result:** ✅ Sign out now working correctly
+
+## Phase 2: Email Confirmation with Deep Linking (Future Implementation)
+
+### When to Enable Email Confirmation
+**Reminder for Future:** Enable email confirmation **BEFORE** production App Store/Play Store submission
+
+**Timeline:** Implement 1-2 weeks before public launch
+
+### Implementation Requirements
+
+#### 1. Deep Link Configuration
+
+**app.json Updates:**
+```json
+{
+  "expo": {
+    "scheme": "memoria",
+    "ios": {
+      "bundleIdentifier": "com.memoria.app",
+      "associatedDomains": ["applinks:memoria.app"]
+    },
+    "android": {
+      "package": "com.memoria.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "memoria",
+            "host": "auth"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    }
+  }
+}
+```
+
+#### 2. Email Confirmation Callback Page
+
+**File to Create:** `app/(auth)/callback.tsx`
+
+```typescript
+import { useEffect } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
+import { router } from 'expo-router';
+import { supabase } from '@/lib/supabase';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors } from '@/constants/Colors';
+
+export default function AuthCallback() {
+  const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    const handleCallback = async () => {
+      console.log('AuthCallback: Handling email confirmation...');
+
+      // Get the current session (Supabase automatically handles the token from URL)
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error('AuthCallback: Error getting session:', error);
+        router.replace('/(auth)/login');
+        return;
+      }
+
+      if (data.session) {
+        console.log('AuthCallback: Email confirmed, session established');
+        // Email confirmed successfully, navigate to main app
+        router.replace('/(tabs)');
+      } else {
+        console.log('AuthCallback: No session found');
+        // No session, redirect to login
+        router.replace('/(auth)/login');
+      }
+    };
+
+    handleCallback();
+  }, []);
+
+  return (
+    <View style={{
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: Colors[colorScheme ?? 'light'].background,
+    }}>
+      <ActivityIndicator size="large" color={Colors[colorScheme ?? 'light'].elderlyTabActive} />
+      <Text style={{
+        marginTop: 16,
+        fontSize: 18,
+        color: Colors[colorScheme ?? 'light'].text,
+      }}>
+        Confirming your email...
+      </Text>
+    </View>
+  );
+}
+```
+
+#### 3. Supabase Email Template Configuration
+
+**In Supabase Dashboard:**
+1. Go to Authentication → Email Templates
+2. Update "Confirm signup" template
+3. Change redirect URL to: `memoria://auth/callback`
+4. Or use custom domain: `https://memoria.app/auth/callback`
+
+**Template Example:**
+```html
+<h2>Confirm your signup</h2>
+
+<p>Follow this link to confirm your email:</p>
+<p><a href="{{ .ConfirmationURL }}">Confirm your email address</a></p>
+```
+
+**Confirmation URL will be:** `memoria://auth/callback?token=...`
+
+#### 4. Update Signup Flow to Handle Email Confirmation
+
+**app/(auth)/signup.tsx - Post-Registration Screen:**
+
+Create new screen to show after signup when email confirmation is enabled:
+
+```typescript
+// After successful signup with email confirmation enabled
+if (!data.session) {
+  // Email confirmation required
+  router.replace({
+    pathname: '/(auth)/check-email',
+    params: { email }
+  });
+}
+```
+
+**File to Create:** `app/(auth)/check-email.tsx`
+
+```typescript
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import * as Haptics from 'expo-haptics';
+
+export default function CheckEmailScreen() {
+  const colorScheme = useColorScheme();
+  const { email } = useLocalSearchParams();
+
+  const backgroundColor = Colors[colorScheme ?? 'light'].background;
+  const textColor = Colors[colorScheme ?? 'light'].text;
+  const tintColor = Colors[colorScheme ?? 'light'].elderlyTabActive;
+
+  const handleBackToLogin = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.replace('/(auth)/login');
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor }]}>
+      <View style={styles.content}>
+        {/* Email Icon */}
+        <View style={[styles.iconCircle, { backgroundColor: tintColor + '20' }]}>
+          <IconSymbol name="envelope.badge.fill" size={64} color={tintColor} />
+        </View>
+
+        {/* Title */}
+        <Text style={[styles.title, { color: textColor }]}>
+          Check Your Email
+        </Text>
+
+        {/* Description */}
+        <Text style={[styles.description, { color: textColor }]}>
+          We've sent a confirmation email to:
+        </Text>
+        <Text style={[styles.email, { color: tintColor }]}>
+          {email}
+        </Text>
+
+        {/* Instructions */}
+        <View style={styles.instructionsBox}>
+          <Text style={[styles.instructionsTitle, { color: textColor }]}>
+            Next Steps:
+          </Text>
+          <Text style={[styles.instruction, { color: textColor }]}>
+            1. Open the email from Memoria
+          </Text>
+          <Text style={[styles.instruction, { color: textColor }]}>
+            2. Click the confirmation link
+          </Text>
+          <Text style={[styles.instruction, { color: textColor }]}>
+            3. The app will open automatically
+          </Text>
+          <Text style={[styles.instruction, { color: textColor }]}>
+            4. Start recording your memories!
+          </Text>
+        </View>
+
+        {/* Back to Login */}
+        <TouchableOpacity
+          style={[styles.backButton, { borderColor: tintColor }]}
+          onPress={handleBackToLogin}
+        >
+          <Text style={[styles.backButtonText, { color: tintColor }]}>
+            Back to Login
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 24,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  description: {
+    fontSize: 18,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  email: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  instructionsBox: {
+    width: '100%',
+    padding: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    marginBottom: 32,
+  },
+  instructionsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  instruction: {
+    fontSize: 16,
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  backButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  backButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+});
+```
+
+#### 5. Testing Checklist
+
+**Before Enabling Email Confirmation in Production:**
+
+- [ ] Deep link scheme configured in app.json
+- [ ] callback.tsx page created and tested
+- [ ] check-email.tsx page created and tested
+- [ ] Supabase email template updated with correct redirect URL
+- [ ] Test on physical iOS device (deep links may not work in simulator)
+- [ ] Test on physical Android device
+- [ ] Test email confirmation flow end-to-end:
+  - [ ] Sign up with new email
+  - [ ] Receive confirmation email
+  - [ ] Click link in email
+  - [ ] App opens to callback page
+  - [ ] Successfully redirects to main app
+- [ ] Test expired confirmation links
+- [ ] Test resending confirmation email
+- [ ] Test what happens if user already confirmed
+
+#### 6. Error Handling
+
+**Handle these scenarios:**
+
+1. **Expired confirmation token:**
+   - Show error message
+   - Provide "Resend confirmation email" button
+
+2. **Invalid token:**
+   - Redirect to login with error message
+
+3. **Already confirmed:**
+   - Redirect to login (user can sign in)
+
+4. **Network error:**
+   - Show retry button
+   - Clear error message
+
+### Implementation Timeline
+
+**Phase 2 Email Confirmation Implementation:**
+- Deep link configuration: 30 minutes
+- callback.tsx page: 1 hour
+- check-email.tsx page: 1 hour
+- Supabase template update: 15 minutes
+- Testing on physical devices: 2-3 hours
+- Bug fixes and edge cases: 1-2 hours
+
+**Total estimated time:** 6-8 hours
+
+### Why This Approach Works
+
+1. **User Experience:**
+   - Clear instructions after signup
+   - Automatic app opening after confirmation
+   - No manual copy-paste of links
+   - Seamless flow back to app
+
+2. **Security:**
+   - Email ownership verified
+   - Prevents fake accounts
+   - Standard industry practice
+
+3. **Technical:**
+   - Uses Supabase built-in confirmation
+   - Deep links handle app opening
+   - No custom backend required
+   - Works cross-platform
+
+## Current Status
+
+**Phase 1 (MVP) - COMPLETE:**
+- ✅ Email/password authentication working
+- ✅ Sign up creates account immediately
+- ✅ No email confirmation required
+- ✅ Sign out working correctly
+- ✅ CASCADE delete working
+- ✅ Session persistence working
+- ✅ All auth flows tested
+
+**Phase 2 (Pre-Production) - DOCUMENTED:**
+- 📋 Deep linking architecture planned
+- 📋 Email confirmation flow designed
+- 📋 Check email page designed
+- 📋 Callback handler designed
+- 📋 Testing checklist created
+- ⏰ **Reminder set:** Enable email confirmation before App Store submission
+
+## Files to Create for Phase 2
+
+1. `app/(auth)/callback.tsx` - Email confirmation callback handler
+2. `app/(auth)/check-email.tsx` - "Check your email" instructions screen
+
+## Configuration Changes for Phase 2
+
+1. `app.json` - Add deep linking configuration
+2. Supabase Email Templates - Update redirect URLs
+3. Supabase Authentication Settings - Re-enable "Confirm email"
+
+## Next Session Tasks
+
+**Immediate Focus:**
+1. ✅ Auth flow complete and tested
+2. ⏳ Test profile editing flow
+3. ⏳ Test recording functionality
+4. ⏳ Implement cloud sync for memories
+5. ⏳ Upload audio files to Supabase Storage
+
+**Future (Phase 2):**
+- Implement email confirmation with deep linking (before production)
+- Add OAuth providers (Apple, Google, WeChat)
+- Add biometric authentication option
+
+## Commits
+
+**Commit to be made:**
+```
+docs(auth): Document Phase 2 email confirmation with deep linking
+
+- Documented complete email confirmation implementation plan
+- Created callback.tsx design for handling email confirmation
+- Created check-email.tsx design for user instructions
+- Documented deep linking configuration for app.json
+- Added testing checklist and error handling scenarios
+- Set reminder to enable email confirmation before App Store submission
+
+Phase 1 (Current): Email confirmation disabled for development
+Phase 2 (Pre-Production): Full email confirmation with deep linking
+
+Includes:
+- Email confirmation callback page design
+- Check email instructions page design
+- Deep link configuration (iOS + Android)
+- Supabase email template updates
+- Complete testing checklist
+- Timeline estimate: 6-8 hours implementation
+```
