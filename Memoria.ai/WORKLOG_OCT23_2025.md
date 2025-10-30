@@ -1,7 +1,65 @@
 # Work Log - October 23, 2025
 
 ## Session Summary
-Implemented comprehensive delete functionality and memory preview modal with long-press interaction. Enhanced UX for memory management in the Memories listing.
+Implemented comprehensive delete functionality and memory preview modal with long-press interaction. Enhanced UX for memory management in the Memories listing. Added custom logo and documented Phase 3 UI polish plan.
+
+## Phase 3: UI Polish & Design System Planning
+
+**Document Created**: `UI_POLISH_PHASE_PLAN.md` (1,470 lines)
+
+### Overview
+Comprehensive plan for transforming Memoria's functional UI into a warm, accessible, age-appropriate experience for elderly users. The plan includes:
+
+- **Design Principles**: Clarity, generous spacing, warm aesthetics, forgiving interactions
+- **Color Palette**: Extracted from brand logo - warm terracotta/peach, sage/olive greens, soft blues, cream backgrounds
+- **Typography**: Elderly-optimized with 18pt baseline body text (vs standard 16pt)
+- **Accessibility**: WCAG AAA compliance standards, 56pt recommended touch targets
+- **Component Library**: Complete specifications for buttons, cards, modals, forms
+- **Implementation Timeline**: 4 weeks (160 hours) broken into phases
+
+### Key Features of the Plan
+
+#### 1. Elderly-Optimized Design Standards
+- Minimum 44pt touch targets (56pt recommended)
+- AAA contrast ratios (7:1 for normal text)
+- Larger baseline font sizes (18pt body vs 16pt standard)
+- Dynamic Type support with scaling limits
+- Reduce Motion accessibility support
+
+#### 2. Color System
+**Primary Colors:**
+- Warm Terracotta: #E07856 (primary actions)
+- Primary Light: #F4A890 (highlights)
+- Cream Background: #FFF9F0 (page backgrounds)
+
+**Secondary Colors:**
+- Sage Green: #8B9D83 (secondary actions)
+- Soft Blue: #7B9AB5 (informational)
+- Warm neutrals and functional colors
+
+#### 3. Implementation Phases (4 weeks)
+- **Week 1**: Design tokens, base components, animation utilities
+- **Week 2**: Core UI redesign (recording flow, memory cards, modals)
+- **Week 3**: Navigation, auth screens, profile, global elements
+- **Week 4**: Accessibility audit, fixes, polish, documentation
+
+#### 4. Testing Plan
+- 4 rounds of usability testing with 8-12 elderly participants (65+ years)
+- Specific scenarios: first recording, memory review, deletion, theme selection
+- Success metrics: SUS score > 75, task success > 85%, AAA compliance 100%
+
+#### 5. Design Deliverables
+- Complete component library (`/components/design-system/`)
+- Design tokens (`/constants/` - Colors, Typography, Spacing, Animations)
+- Accessibility utilities and haptic feedback service
+- Comprehensive documentation (`/docs/DESIGN_SYSTEM.md`)
+
+### Reminder for Implementation
+This plan should be implemented **after MVP is complete and before Beta release**. It ensures Memoria stands out with a warm, accessible, human-centered design specifically optimized for elderly users - differentiating from competitors like StoryWorth and LifeTales.
+
+**Priority Level**: High (Post-MVP, Pre-Beta)
+
+---
 
 ## Features Implemented
 
