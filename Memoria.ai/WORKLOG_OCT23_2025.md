@@ -3,6 +3,139 @@
 ## Session Summary
 Implemented comprehensive delete functionality and memory preview modal with long-press interaction. Enhanced UX for memory management in the Memories listing. Added custom logo and documented Phase 3 UI polish plan.
 
+---
+
+## CRITICAL ISSUES IDENTIFIED - HIGHEST PRIORITY
+
+### Issue 1: Memory Data Not Scoped Per User (Privacy Issue)
+**Priority**: 🔴 CRITICAL - Must fix before any further development
+
+**Problem Description**:
+- Memories from all users are visible regardless of which account is signed in
+- Local cache (RecordingContext) is not cleared when users log out
+- No user_id filtering when loading memories from database
+- **Privacy Concern**: Users can see each other's memories
+
+**Current Behavior**:
+1. User A signs up and creates memories
+2. User A logs out
+3. User B signs up
+4. User B can still see User A's memories in the app
+
+**Root Causes**:
+1. `RecordingContext` stores memories in component state but never clears on logout
+2. No user scoping in memory queries - all memories from database are loaded
+3. Local audio files are not organized by user ID
+4. No cleanup of local state when `AuthContext.signOut()` is called
+
+**Required Fixes**:
+1. **Clear local state on logout**:
+   - Add listener in `RecordingContext` for auth state changes
+   - Clear `memories` array when user logs out
+   - Clear `currentRecording` and all temporary state
+
+2. **Filter memories by user_id**:
+   - Update `loadMemories()` in RecordingContext to filter by current user
+   - Add `user_id` check in all memory queries
+   - Ensure RLS policies enforce user isolation
+
+3. **Organize audio files by user**:
+   - Store audio files in user-specific directories: `${FileSystem.documentDirectory}users/${user.id}/recordings/`
+   - Clean up audio files on logout (or keep but scope by user ID)
+
+4. **Database query updates**:
+   - Update Supabase queries to include `.eq('user_id', user.id)`
+   - Verify RLS policies prevent cross-user data access
+
+5. **Testing checklist**:
+   - [ ] Sign up as User A, create 3 memories
+   - [ ] Log out
+   - [ ] Sign up as User B
+   - [ ] Verify User B sees 0 memories (not User A's memories)
+   - [ ] Create 2 memories as User B
+   - [ ] Log out and log back in as User A
+   - [ ] Verify User A only sees their original 3 memories
+
+**Files That Need Changes**:
+- `contexts/RecordingContext.tsx` - Add auth listener, clear state on logout, filter queries by user_id
+- `contexts/AuthContext.tsx` - Ensure proper state cleanup on logout
+- Supabase RLS policies - Verify user isolation
+
+**Implementation Priority**: Fix this BEFORE any other feature work
+
+---
+
+### Issue 2: Profile Update & Authentication Issues
+**Priority**: 🟡 HIGH - Test thoroughly tomorrow
+
+**Problem Description**:
+- User attempted to update email/password in profile settings
+- Update failed (error details unknown)
+- After logout, unable to log back in
+- Suggests possible auth state corruption or incomplete transaction
+
+**Testing Plan for Tomorrow**:
+1. **Fresh Registration Test**:
+   - [ ] Register new account with test email
+   - [ ] Verify successful registration and auto-login
+   - [ ] Document any errors in console
+
+2. **Profile Update Tests**:
+   - [ ] Update display name → Test logout/login
+   - [ ] Update email → Test logout/login → Check for confirmation email
+   - [ ] Update password → Test logout/login with new password
+   - [ ] Update profile settings (accessibility, voice) → Test logout/login
+   - [ ] Document which updates work and which fail
+
+3. **Logout/Login Flow Tests**:
+   - [ ] Create memory before logout
+   - [ ] Log out → Check console for cleanup logs
+   - [ ] Log back in → Verify session restoration
+   - [ ] Check if memories are still visible
+   - [ ] Verify user profile data is correct
+
+4. **Error Scenarios to Document**:
+   - Any error messages displayed to user
+   - Console error logs
+   - Network requests in browser/debugger
+   - State of `user`, `session`, `userProfile` in AuthContext
+
+**Potential Root Causes to Investigate**:
+- Email update requires confirmation (may break login until confirmed)
+- Password update may invalidate current session
+- Profile update may not be properly awaiting async operations
+- Supabase auth error handling may not be showing errors to user
+
+**Files to Review Tomorrow**:
+- `app/(tabs)/profile.tsx` - Profile update logic
+- `components/EditProfileModal.tsx` - Email/password update handling
+- `contexts/AuthContext.tsx` - Session refresh logic
+
+---
+
+## End of Session Notes
+
+**What Works Well**:
+- ✅ Registration flow (creates user + profile successfully)
+- ✅ Basic recording and memory creation
+- ✅ Delete functionality
+- ✅ Logo integration and UI planning
+- ✅ Database CASCADE delete now working
+
+**What Needs Immediate Attention**:
+1. 🔴 Memory data scoping per user (CRITICAL privacy issue)
+2. 🟡 Profile update functionality
+3. 🟡 Logout/login stability
+
+**Next Session Plan**:
+1. Run comprehensive authentication tests (registration, profile updates, logout/login)
+2. Document all findings
+3. Fix memory data scoping issue
+4. Fix any profile update issues discovered during testing
+5. Verify complete user isolation and data privacy
+
+---
+
 ## Phase 3: UI Polish & Design System Planning
 
 **Document Created**: `UI_POLISH_PHASE_PLAN.md` (1,470 lines)
