@@ -118,14 +118,14 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     }
   }, [visible]);
 
-  // Request permissions
+  // Request permissions and auto-start recording
   useEffect(() => {
     if (visible) {
-      requestPermissions();
+      requestPermissionsAndStart();
     }
   }, [visible]);
 
-  const requestPermissions = async () => {
+  const requestPermissionsAndStart = async () => {
     try {
       const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
@@ -135,6 +135,13 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
           [{ text: 'OK' }]
         );
         onClose();
+      } else {
+        // Auto-start recording after permission is granted
+        console.log('Permission granted, auto-starting recording...');
+        // Small delay to ensure UI is ready
+        setTimeout(() => {
+          startRecording();
+        }, 300);
       }
     } catch (error) {
       console.error('Permission request failed:', error);
