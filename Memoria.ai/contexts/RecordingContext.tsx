@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 
 import { MemoryItem, MemoryStats, SmartExportConfig } from '@/types/memory';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from './AuthContext';
 
 interface RecordingContextType {
   // Recording controls
@@ -35,6 +38,7 @@ const STORAGE_KEYS = {
 };
 
 export function RecordingProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth(); // Get current user from AuthContext
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTrigger, setRecordingTrigger] = useState(0);
   const [selectedThemeFromTrigger, setSelectedThemeFromTrigger] = useState<{ id: string; title: string } | undefined>();
@@ -50,45 +54,70 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   });
   const [isExporting, setIsExporting] = useState(false);
 
-  // Load memories from storage on app start
+  // Load memories from Supabase when user changes
   useEffect(() => {
-    loadMemoriesFromStorage();
-  }, []);
+    if (user) {
+      console.log('RecordingContext: User logged in, loading memories for user:', user.id);
+      loadMemoriesFromSupabase(user.id);
+    } else {
+      console.log('RecordingContext: No user, clearing all memories');
+      // Clear all memories when user logs out
+      setMemories([]);
+      setMemoryCount(0);
+      setMemoryStats({
+        totalMemories: 0,
+        totalDuration: 0,
+        memoriesThisWeek: 0,
+        memoriesThisMonth: 0,
+        favoriteTopics: [],
+        averageRecordingLength: 0,
+      });
+    }
+  }, [user]); // Re-run when user changes (login/logout)
 
   // Update stats when memories change
   useEffect(() => {
     refreshStats();
   }, [memories]);
 
-  const loadMemoriesFromStorage = async () => {
+  // Load memories from Supabase for specific user
+  const loadMemoriesFromSupabase = async (userId: string) => {
     try {
-      const storedMemories = await AsyncStorage.getItem(STORAGE_KEYS.MEMORIES);
-      const storedCount = await AsyncStorage.getItem(STORAGE_KEYS.MEMORY_COUNT);
+      console.log('RecordingContext: Loading memories from Supabase for user:', userId);
 
-      if (storedMemories) {
-        const parsedMemories: MemoryItem[] = JSON.parse(storedMemories).map((memory: any) => ({
-          ...memory,
-          date: new Date(memory.date),
-          createdAt: new Date(memory.createdAt),
-          updatedAt: new Date(memory.updatedAt),
+      const { data, error } = await supabase
+        .from('memories')
+        .select('*')
+        .eq('user_id', userId)  // Filter by user_id
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('RecordingContext: Error loading memories:', error);
+        return;
+      }
+
+      console.log('RecordingContext: Loaded', data?.length || 0, 'memories from Supabase');
+
+      if (data) {
+        // Transform database records to MemoryItem format
+        const transformedMemories: MemoryItem[] = data.map((record: any) => ({
+          id: record.id,
+          title: record.title,
+          description: record.description || '',
+          audioUri: record.audio_uri,
+          duration: record.duration,
+          date: new Date(record.date),
+          tags: record.tags || [],
+          transcription: record.transcription,
+          createdAt: new Date(record.created_at),
+          updatedAt: new Date(record.updated_at),
         }));
-        setMemories(parsedMemories);
-      }
 
-      if (storedCount) {
-        setMemoryCount(parseInt(storedCount, 10));
+        setMemories(transformedMemories);
+        setMemoryCount(transformedMemories.length);
       }
     } catch (error) {
-      console.error('Error loading memories from storage:', error);
-    }
-  };
-
-  const saveMemoriesToStorage = async (updatedMemories: MemoryItem[]) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.MEMORIES, JSON.stringify(updatedMemories));
-      await AsyncStorage.setItem(STORAGE_KEYS.MEMORY_COUNT, updatedMemories.length.toString());
-    } catch (error) {
-      console.error('Error saving memories to storage:', error);
+      console.error('RecordingContext: Exception loading memories:', error);
     }
   };
 
@@ -100,38 +129,156 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   };
 
   const addMemory = async (memoryData: Omit<MemoryItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<MemoryItem> => {
-    const newMemory: MemoryItem = {
-      ...memoryData,
-      id: `memory-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    if (!user) {
+      throw new Error('No user logged in');
+    }
 
-    const updatedMemories = [newMemory, ...memories];
-    setMemories(updatedMemories);
-    setMemoryCount(updatedMemories.length);
-    await saveMemoriesToStorage(updatedMemories);
+    try {
+      console.log('RecordingContext: Adding memory to Supabase for user:', user.id);
 
-    return newMemory;
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('memories')
+        .insert({
+          user_id: user.id,  // Associate with current user
+          title: memoryData.title,
+          description: memoryData.description || null,
+          audio_uri: memoryData.audioUri,
+          duration: memoryData.duration,
+          date: memoryData.date.toISOString(),
+          tags: memoryData.tags || [],
+          transcription: memoryData.transcription || null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('RecordingContext: Error adding memory:', error);
+        throw error;
+      }
+
+      console.log('RecordingContext: Memory added successfully:', data.id);
+
+      // Transform to MemoryItem and add to local state
+      const newMemory: MemoryItem = {
+        id: data.id,
+        title: data.title,
+        description: data.description || '',
+        audioUri: data.audio_uri,
+        duration: data.duration,
+        date: new Date(data.date),
+        tags: data.tags || [],
+        transcription: data.transcription,
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at),
+      };
+
+      // Update local state
+      const updatedMemories = [newMemory, ...memories];
+      setMemories(updatedMemories);
+      setMemoryCount(updatedMemories.length);
+
+      return newMemory;
+    } catch (error) {
+      console.error('RecordingContext: Exception adding memory:', error);
+      throw error;
+    }
   };
 
   const removeMemory = async (memoryId: string) => {
-    const updatedMemories = memories.filter(memory => memory.id !== memoryId);
-    setMemories(updatedMemories);
-    setMemoryCount(updatedMemories.length);
-    await saveMemoriesToStorage(updatedMemories);
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    try {
+      console.log('RecordingContext: Deleting memory from Supabase:', memoryId);
+
+      // Find the memory to get the audio URI for file deletion
+      const memory = memories.find(m => m.id === memoryId);
+
+      // Delete audio file from filesystem if it exists
+      if (memory?.audioUri) {
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(memory.audioUri);
+          if (fileInfo.exists) {
+            console.log('RecordingContext: Deleting audio file:', memory.audioUri);
+            await FileSystem.deleteAsync(memory.audioUri);
+            console.log('RecordingContext: Audio file deleted successfully');
+          }
+        } catch (fileError) {
+          console.error('RecordingContext: Error deleting audio file:', fileError);
+          // Continue with memory deletion even if file deletion fails
+        }
+      }
+
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('memories')
+        .delete()
+        .eq('id', memoryId)
+        .eq('user_id', user.id);  // Ensure user can only delete their own memories
+
+      if (error) {
+        console.error('RecordingContext: Error deleting memory:', error);
+        throw error;
+      }
+
+      console.log('RecordingContext: Memory deleted successfully from Supabase');
+
+      // Update local state
+      const updatedMemories = memories.filter(memory => memory.id !== memoryId);
+      setMemories(updatedMemories);
+      setMemoryCount(updatedMemories.length);
+    } catch (error) {
+      console.error('RecordingContext: Exception deleting memory:', error);
+      throw error;
+    }
   };
 
   const updateMemory = async (memoryId: string, updates: Partial<MemoryItem>) => {
-    setMemories(currentMemories => {
-      const updatedMemories = currentMemories.map(memory =>
-        memory.id === memoryId
-          ? { ...memory, ...updates, updatedAt: new Date() }
-          : memory
-      );
-      saveMemoriesToStorage(updatedMemories);
-      return updatedMemories;
-    });
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    try {
+      console.log('RecordingContext: Updating memory in Supabase:', memoryId);
+
+      // Prepare update data (transform MemoryItem fields to database columns)
+      const dbUpdates: any = {};
+      if (updates.title !== undefined) dbUpdates.title = updates.title;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.audioUri !== undefined) dbUpdates.audio_uri = updates.audioUri;
+      if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
+      if (updates.date !== undefined) dbUpdates.date = updates.date.toISOString();
+      if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+      if (updates.transcription !== undefined) dbUpdates.transcription = updates.transcription;
+
+      // Update in Supabase
+      const { error } = await supabase
+        .from('memories')
+        .update(dbUpdates)
+        .eq('id', memoryId)
+        .eq('user_id', user.id);  // Ensure user can only update their own memories
+
+      if (error) {
+        console.error('RecordingContext: Error updating memory:', error);
+        throw error;
+      }
+
+      console.log('RecordingContext: Memory updated successfully in Supabase');
+
+      // Update local state
+      setMemories(currentMemories => {
+        return currentMemories.map(memory =>
+          memory.id === memoryId
+            ? { ...memory, ...updates, updatedAt: new Date() }
+            : memory
+        );
+      });
+    } catch (error) {
+      console.error('RecordingContext: Exception updating memory:', error);
+      throw error;
+    }
   };
 
   const refreshStats = () => {
