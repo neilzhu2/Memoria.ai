@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Alert } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 
 interface UserProfile {
   display_name: string | null;
@@ -167,24 +166,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error };
       }
 
-      // Create user profile in database
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            id: data.user.id,
-            display_name: displayName || null,
-            settings: {
-              autoBackupEnabled: false,
-              lastBackupDate: null,
-              theme: 'auto',
-            },
-          });
-
-        if (profileError) {
-          console.error('Error creating user profile:', profileError);
-        }
-      }
+      // Note: user_profiles row will be created automatically by database trigger
+      // The trigger is defined in supabase-setup.sql (on_auth_user_created)
+      console.log('Sign up successful, user profile will be created by database trigger');
 
       return { error: null };
     } catch (error) {
@@ -215,42 +199,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('AuthContext: signOut called - starting sign out process');
 
-      // Force clear local auth storage first
-      console.log('AuthContext: Clearing local auth storage');
-      try {
-        await SecureStore.deleteItemAsync('supabase.auth.token');
-      } catch (e) {
-        console.log('AuthContext: Error clearing token (may not exist):', e);
-      }
-
       // Clear local state immediately
       setUser(null);
       setSession(null);
       setUserProfile(null);
       console.log('AuthContext: Local state cleared');
 
-      // Try to sign out from Supabase (but don't wait if it times out)
-      const timeout = new Promise((resolve) => setTimeout(() => resolve({ timeout: true }), 5000));
-      const signOutPromise = supabase.auth.signOut();
+      // Sign out from Supabase (let it handle storage cleanup)
+      // Supabase will automatically clear all auth tokens
+      console.log('AuthContext: Calling Supabase signOut');
+      const { error } = await supabase.auth.signOut();
 
-      const result = await Promise.race([signOutPromise, timeout]);
-
-      if (result && 'timeout' in result) {
-        console.warn('AuthContext: Sign out timed out after 5 seconds');
+      if (error) {
+        console.error('AuthContext: Sign out error:', error);
       } else {
-        const { error } = result as any;
-        if (error) {
-          console.error('AuthContext: Sign out error:', error);
-        } else {
-          console.log('AuthContext: Sign out successful');
-        }
+        console.log('AuthContext: Sign out successful');
       }
     } catch (error) {
       console.error('AuthContext: Sign out exception:', error);
-      // Still clear local state even if error
-      setUser(null);
-      setSession(null);
-      setUserProfile(null);
+      // Local state already cleared above
     }
   };
 

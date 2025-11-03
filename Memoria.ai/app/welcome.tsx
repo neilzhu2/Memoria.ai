@@ -30,6 +30,11 @@ export default function WelcomeScreen() {
     router.push('/(auth)/login');
   };
 
+  const handleTestConnection = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/test-supabase');
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       <View style={styles.content}>
@@ -90,6 +95,17 @@ export default function WelcomeScreen() {
           >
             <Text style={[styles.secondaryButtonText, { color: tintColor }]}>
               Already have an account? <Text style={styles.signInLink}>Sign In</Text>
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.testButton, { borderColor: subtextColor }]}
+            onPress={handleTestConnection}
+            accessibilityLabel="Test Supabase connection"
+            accessibilityRole="button"
+          >
+            <Text style={[styles.testButtonText, { color: subtextColor }]}>
+              Test Connection
             </Text>
           </TouchableOpacity>
         </View>
@@ -200,5 +216,17 @@ const styles = StyleSheet.create({
   },
   signInLink: {
     fontWeight: '700',
+  },
+  testButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  testButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
