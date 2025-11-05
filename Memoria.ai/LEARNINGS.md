@@ -519,3 +519,323 @@ Review remaining settings in Profile section one by one:
 1. Family Sharing - Verify functionality
 2. Accessibility - Check implementation
 3. Backup & Sync - Test features
+
+---
+
+## November 4, 2025 - Expo/React Native Performance Best Practices
+
+### 11. Performance Optimization for Memoria App
+
+**Context**: Researched official Expo and React Native performance guidelines (2025) to ensure our app stays fast and responsive as we add features.
+
+---
+
+#### A. List Rendering Optimization
+
+**Current Status**: ✅ We're already using FlatList in mylife.tsx for memories list
+
+**What we're doing right**:
+```typescript
+// app/(tabs)/mylife.tsx uses map() with React.Fragment
+{filteredMemories.map((memory) => (
+  <React.Fragment key={memory.id}>
+    {renderMemoryItem({ item: memory })}
+  </React.Fragment>
+))}
+```
+
+**⚠️ Performance Issue**: Using `.map()` in a ScrollView renders ALL items at once, even those off-screen.
+
+**TODO for future optimization**:
+When memory list grows beyond ~20 items, replace with FlatList:
+```typescript
+<FlatList
+  data={filteredMemories}
+  renderItem={renderMemoryItem}
+  keyExtractor={(item) => item.id}
+  getItemLayout={(data, index) => ({
+    length: ITEM_HEIGHT,
+    offset: ITEM_HEIGHT * index,
+    index
+  })}
+  initialNumToRender={10}
+  maxToRenderPerBatch={10}
+  windowSize={5}
+/>
+```
+
+**Benefits**:
+- Only renders visible items + small buffer
+- Reduces memory usage dramatically
+- Maintains 60fps scrolling even with 1000+ items
+
+---
+
+#### B. Component Rendering Optimization
+
+**Best Practice**: Wrap pure components with `React.memo()` to prevent unnecessary re-renders.
+
+**Components that should be memoized** (TODO):
+1. Memory card items - currently re-render on every parent update
+2. Settings modals - re-render even when closed
+3. Static UI elements like IconSymbol
+
+**Example implementation**:
+```typescript
+// ❌ CURRENT - Re-renders on every parent update
+const MemoryCard = ({ memory }: { memory: MemoryItem }) => {
+  return <View>...</View>;
+};
+
+// ✅ OPTIMIZED - Only re-renders when memory changes
+const MemoryCard = React.memo(({ memory }: { memory: MemoryItem }) => {
+  return <View>...</View>;
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if memory.id changes
+  return prevProps.memory.id === nextProps.memory.id;
+});
+```
+
+**When to use React.memo**:
+- Components that render many times with same props
+- Heavy components (complex layouts, animations)
+- List item components
+- NOT needed for components that always change (like counters)
+
+---
+
+#### C. Avoid Inline Function Definitions
+
+**Anti-pattern we should check for**:
+```typescript
+// ❌ BAD - Creates new function on every render
+<TouchableOpacity onPress={() => handlePress(item.id)}>
+  <Text>Click me</Text>
+</TouchableOpacity>
+```
+
+**Better approach**:
+```typescript
+// ✅ GOOD - Stable function reference
+const handlePressCallback = useCallback(() => {
+  handlePress(item.id);
+}, [item.id]);
+
+<TouchableOpacity onPress={handlePressCallback}>
+  <Text>Click me</Text>
+</TouchableOpacity>
+```
+
+**Audit TODO**: Review our TouchableOpacity handlers in mylife.tsx and RecordingContext.
+
+---
+
+#### D. Image Optimization
+
+**Current**: We're using standard image formats (PNG/JPEG for avatars, icons)
+
+**TODO - Image Performance Improvements**:
+
+1. **Use WebP format**:
+   - 25-35% smaller than PNG/JPEG
+   - Expo supports WebP on iOS and Android natively
+   - Convert all static images to WebP
+
+2. **Preload critical images**:
+   ```typescript
+   // In App.tsx or _layout.tsx
+   import { Asset } from 'expo-asset';
+
+   useEffect(() => {
+     Asset.loadAsync([
+       require('./assets/images/logo.webp'),
+       require('./assets/images/placeholder.webp'),
+     ]);
+   }, []);
+   ```
+
+3. **Use expo-image instead of Image**:
+   ```typescript
+   // ❌ OLD - Standard React Native Image
+   import { Image } from 'react-native';
+
+   // ✅ NEW - Expo's optimized Image
+   import { Image } from 'expo-image';
+
+   <Image
+     source={{ uri: memory.imageUrl }}
+     placeholder={placeholderImage}
+     contentFit="cover"
+     transition={200}
+   />
+   ```
+
+**Benefits of expo-image**:
+- Automatic caching
+- Smooth transitions
+- Better memory management
+- Placeholder support
+
+---
+
+#### E. Animation Performance
+
+**Current**: Using expo-haptics for tactile feedback ✅
+
+**Best Practice**: Always use `useNativeDriver: true` for animations
+
+**Example - Animated opacity**:
+```typescript
+import { Animated } from 'react-native';
+
+const fadeAnim = useRef(new Animated.Value(0)).current;
+
+Animated.timing(fadeAnim, {
+  toValue: 1,
+  duration: 500,
+  useNativeDriver: true,  // ✅ CRITICAL - Runs on native thread
+}).start();
+```
+
+**When useNativeDriver works**:
+- Opacity
+- Transform (translate, rotate, scale)
+- NOT for layout properties (width, height, etc.)
+
+**For complex animations**: Consider react-native-reanimated (we have it installed via Expo)
+
+---
+
+#### F. useMemo and useCallback Usage
+
+**When to use**:
+- `useMemo`: Expensive calculations that depend on specific values
+- `useCallback`: Functions passed as props to memoized components
+
+**Current code audit needed** for:
+1. Filtered memories calculation in mylife.tsx ✅ (already using useMemo)
+2. Sort functions
+3. Search filtering
+
+**Example from our code**:
+```typescript
+// ✅ ALREADY OPTIMIZED in mylife.tsx
+const filteredMemories = useMemo(() => {
+  let filtered = [...memories];
+  // ... expensive filtering logic
+  return filtered;
+}, [memories, searchQuery, sortOrder]);
+```
+
+**⚠️ Don't overuse**: Only memoize when calculations are expensive or functions are passed to memoized children.
+
+---
+
+#### G. StyleSheet.create for Styles
+
+**Best Practice**: Define styles outside components with StyleSheet.create()
+
+**✅ We're already doing this correctly** in all our components:
+```typescript
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  // ...
+});
+```
+
+**Why this matters**:
+- Styles are created once, not on every render
+- React Native can optimize style objects
+- Better debugging in DevTools
+
+**❌ Anti-pattern to avoid**:
+```typescript
+// DON'T DO THIS - Creates new style object every render
+<View style={{ flex: 1, padding: 16 }}>
+```
+
+---
+
+#### H. Bundle Size Optimization
+
+**Tool**: Expo Atlas - analyze bundle size and identify large dependencies
+
+**How to use**:
+```bash
+npx expo-atlas
+```
+
+**What to look for**:
+- Large dependencies that could be replaced
+- Unused imports
+- Duplicate packages
+
+**Action items**:
+- Run expo-atlas quarterly
+- Remove unused dependencies
+- Use tree-shaking compatible imports
+
+---
+
+#### I. Hermes Engine
+
+**Status**: ✅ Hermes is enabled by default in Expo SDK 54+
+
+**Benefits**:
+- Faster app startup (up to 2x)
+- Reduced memory usage
+- Smaller app bundle size
+
+**Verification**: Check `app.json`:
+```json
+{
+  "expo": {
+    "jsEngine": "hermes"  // Should be present
+  }
+}
+```
+
+---
+
+### Performance Audit Checklist for Memoria
+
+**Immediate (High Priority)**:
+- [ ] Convert memory list from ScrollView + map() to FlatList
+- [ ] Wrap MemoryCard component with React.memo()
+- [ ] Audit TouchableOpacity handlers for inline functions
+- [ ] Run expo-atlas to check bundle size
+
+**Short-term (Medium Priority)**:
+- [ ] Convert static images to WebP format
+- [ ] Implement image preloading for critical assets
+- [ ] Replace React Native Image with expo-image
+- [ ] Add getItemLayout to FlatList for better scrolling
+
+**Long-term (Low Priority)**:
+- [ ] Implement pagination for memory list (load 50 at a time)
+- [ ] Add React.memo to settings modal components
+- [ ] Consider react-native-reanimated for smoother animations
+- [ ] Profile app with React DevTools Profiler
+
+---
+
+### Key Principles
+
+1. **Measure first**: Don't optimize prematurely. Use React DevTools Profiler to identify bottlenecks.
+2. **Virtual lists**: Always use FlatList/SectionList for lists > 20 items.
+3. **Memoization**: Wrap pure components with React.memo(), expensive calculations with useMemo().
+4. **Native animations**: Use `useNativeDriver: true` whenever possible.
+5. **Image optimization**: Use WebP, expo-image, and preload critical assets.
+6. **Bundle analysis**: Run expo-atlas quarterly to catch bloat early.
+
+---
+
+### Resources
+
+- [Expo Performance Best Practices (2025)](https://expo.dev/blog/best-practices-for-reducing-lag-in-expo-apps)
+- [React Native Performance Guide](https://reactnative.dev/docs/performance)
+- [Expo Atlas Documentation](https://docs.expo.dev/guides/analyzing-bundles/)
+- [react-native-reanimated](https://docs.swmansion.com/react-native-reanimated/)
