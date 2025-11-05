@@ -139,8 +139,23 @@ npm start -- --reset-cache
 - When code changes aren't reflected in the app
 - When experiencing intermittent behavior
 - After modifying native modules or polyfills
+- **CRITICAL**: After deleting files or removing imports
 
 **Important**: Sometimes Metro can freeze during cache rebuild (e.g., stuck at 49.4%). If this happens, kill processes and restart without `--reset-cache` to use partial cache.
+
+**Real Example (Nov 5, 2025)**:
+After deleting `BackupSettingsModal.tsx`, the app showed:
+```
+Unable to resolve module @/components/settings/BackupSettingsModal
+```
+Even though the import was never added to `mylife.tsx`, Metro's cache still had the old dependency graph. Required full cache clear to fix.
+
+**One-liner for file deletions**:
+```bash
+killall -9 node 2>/dev/null; pkill -9 -f expo 2>/dev/null; pkill -9 -f metro 2>/dev/null; sleep 2 && rm -rf .expo node_modules/.cache && npm start -- --reset-cache
+```
+
+**Pro tip**: Always run cache clear **immediately** after deleting files or changing import paths. Don't wait for the error - be proactive!
 
 ---
 
