@@ -839,3 +839,161 @@ npx expo-atlas
 - [React Native Performance Guide](https://reactnative.dev/docs/performance)
 - [Expo Atlas Documentation](https://docs.expo.dev/guides/analyzing-bundles/)
 - [react-native-reanimated](https://docs.swmansion.com/react-native-reanimated/)
+
+---
+
+## November 5, 2025 - Settings Review and Performance Fixes
+
+### 12. Settings Audit and Performance Optimization
+
+**Context**: Reviewed all remaining settings modals following "less is more" product principle and applied performance best practices from Section 11.
+
+#### Settings Review Results
+
+**1. AccessibilitySettingsModal** - ✅ **KEEP & OPTIMIZE**
+- **Status**: Fully functional with real features
+- **Connected to**: SettingsContext with working state management
+- **Features implemented**:
+  - Theme switching (Light/Dark/Auto)
+  - Font size slider (16-28px)
+  - Touch target size (44-72px)
+  - High Contrast mode
+  - Reduced Motion
+  - Haptic Feedback
+  - Quick presets (Default/Enhanced/Maximum)
+- **Why keep**: Provides genuine accessibility value for elderly users
+- **Performance fixes applied**: See below
+
+**2. FamilySharingModal** - ✅ **KEEP**
+- **Status**: Honest placeholder ("Coming Soon")
+- **Why keep**: Clearly communicates it's a future feature, not misleading
+- **Features planned**:
+  - Guided recording prompts from family members
+  - Family memory connections
+  - Selective sharing
+  - Family story collections
+- **Performance fix**: Wrapped with React.memo()
+
+**3. BackupSettingsModal** - ❌ **REMOVED**
+- **Status**: Misleading placeholder with partial functionality
+- **Why removed**: Following "less is more" principle
+  - Auto-backup toggle doesn't actually backup to cloud (misleading!)
+  - Export Settings just shows JSON in alert (not useful)
+  - "Backup Now" and "Import" buttons show "coming soon" alerts
+  - Users might think their data is backed up when it's not (dangerous!)
+- **Risk**: Could cause data loss if users uninstall thinking data is safe
+- **File deleted**: `/components/settings/BackupSettingsModal.tsx` (305 lines)
+
+#### Performance Optimizations Applied
+
+**AccessibilitySettingsModal.tsx** - Comprehensive optimization:
+
+1. **Moved arrays outside component** (Lines 27-37):
+```typescript
+// Performance optimization: Prevent re-creation on every render
+const PRESET_OPTIONS = [
+  { key: 'default' as const, label: 'Default', icon: 'textformat.size' },
+  { key: 'enhanced' as const, label: 'Enhanced', icon: 'textformat.size.larger' },
+  { key: 'maximum' as const, label: 'Maximum', icon: 'accessibility' },
+] as const;
+
+const THEME_OPTIONS = [
+  { key: 'light' as const, label: 'Light', icon: 'sun.max.fill' },
+  { key: 'dark' as const, label: 'Dark', icon: 'moon.fill' },
+  { key: 'system' as const, label: 'Auto', icon: 'circle.lefthalf.filled' },
+] as const;
+```
+
+**Why**: Arrays defined inside components are recreated on every render, causing unnecessary re-renders when passed to child components.
+
+2. **Added useCallback to all handlers** (Lines 61-147):
+```typescript
+const handleClose = useCallback(async () => {
+  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  onClose();
+}, [onClose]);
+
+const handleFontSizeChange = useCallback((value: number) => {
+  setLocalFontSize(Math.round(value));
+}, []);
+
+// ... 7 more handlers with useCallback
+```
+
+**Why**: Without useCallback, new function instances are created on every render. When passed to TouchableOpacity or Slider components, this prevents React from skipping re-renders even if nothing changed.
+
+3. **Wrapped component with React.memo** (Line 537):
+```typescript
+export const AccessibilitySettingsModal = React.memo(AccessibilitySettingsModalComponent);
+```
+
+**Why**: Prevents re-rendering when parent component updates if props haven't changed.
+
+**FamilySharingModal.tsx** - Simple optimization:
+
+1. **Wrapped with React.memo** (Line 239):
+```typescript
+export const FamilySharingModal = React.memo(FamilySharingModalComponent);
+```
+
+**Why**: This is a pure presentational component. No need to re-render it when parent updates.
+
+#### Performance Impact
+
+**Before**:
+- Arrays recreated on every render (2 arrays × every render = wasted allocations)
+- Functions recreated on every render (9 handlers × every render = 9+ new function objects)
+- Modals re-render on every parent update even when `visible={false}`
+- Total: ~11 unnecessary allocations per render
+
+**After**:
+- Arrays created once at module load
+- Functions stable across renders (only recreate when dependencies change)
+- Modals only re-render when props actually change
+- Total: 0 unnecessary allocations in steady state
+
+**Expected improvements**:
+- Faster re-renders when settings context updates
+- Less garbage collection pressure
+- Smoother interactions (especially when opening/closing modals)
+
+#### Key Learnings
+
+1. **Performance best practices should be applied proactively**
+   - Don't wait for lag to appear
+   - Apply optimizations during code review
+   - Prevents technical debt accumulation
+
+2. **Textbook anti-patterns were present**:
+   - Inline array definitions in JSX `.map()` loops
+   - Non-memoized event handlers
+   - Missing React.memo on pure components
+
+3. **Product decisions guide code decisions**:
+   - BackupSettingsModal removal prevents misleading users
+   - AccessibilitySettingsModal kept because it provides real value
+   - FamilySharingModal kept because it's honest about being a placeholder
+
+#### Checklist Updates
+
+Updated Performance Audit Checklist (from Section 11):
+
+**Immediate (High Priority)**:
+- [ ] Convert memory list from ScrollView + map() to FlatList
+- [ ] Wrap MemoryCard component with React.memo()
+- [ ] Audit TouchableOpacity handlers for inline functions
+- [ ] Run expo-atlas to check bundle size
+
+**Short-term (Medium Priority)**:
+- [ ] Convert static images to WebP format
+- [ ] Implement image preloading for critical assets
+- [ ] Replace React Native Image with expo-image
+- [ ] Add getItemLayout to FlatList for better scrolling
+
+**Long-term (Low Priority)**:
+- [ ] Implement pagination for memory list (load 50 at a time)
+- [x] ~~Add React.memo to settings modal components~~ **DONE (Nov 5)**
+- [ ] Consider react-native-reanimated for smoother animations
+- [ ] Profile app with React DevTools Profiler
+
+---

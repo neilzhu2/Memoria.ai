@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -23,7 +23,20 @@ interface AccessibilitySettingsModalProps {
   onClose: () => void;
 }
 
-export function AccessibilitySettingsModal({ visible, onClose }: AccessibilitySettingsModalProps) {
+// Performance optimization: Move arrays outside component to prevent re-creation on every render
+const PRESET_OPTIONS = [
+  { key: 'default' as const, label: 'Default', icon: 'textformat.size' },
+  { key: 'enhanced' as const, label: 'Enhanced', icon: 'textformat.size.larger' },
+  { key: 'maximum' as const, label: 'Maximum', icon: 'accessibility' },
+] as const;
+
+const THEME_OPTIONS = [
+  { key: 'light' as const, label: 'Light', icon: 'sun.max.fill' },
+  { key: 'dark' as const, label: 'Dark', icon: 'moon.fill' },
+  { key: 'system' as const, label: 'Auto', icon: 'circle.lefthalf.filled' },
+] as const;
+
+function AccessibilitySettingsModalComponent({ visible, onClose }: AccessibilitySettingsModalProps) {
   const colorScheme = useColorScheme();
   const {
     settings,
@@ -44,50 +57,51 @@ export function AccessibilitySettingsModal({ visible, onClose }: AccessibilitySe
   const tintColor = Colors[colorScheme ?? 'light'].elderlyTabActive;
   const borderColor = Colors[colorScheme ?? 'light'].tabIconDefault;
 
-  const handleClose = async () => {
+  // Performance optimization: Use useCallback to prevent re-creating functions on every render
+  const handleClose = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
-  };
+  }, [onClose]);
 
-  const handleFontSizeChange = (value: number) => {
+  const handleFontSizeChange = useCallback((value: number) => {
     setLocalFontSize(Math.round(value));
-  };
+  }, []);
 
-  const handleFontSizeComplete = async (value: number) => {
+  const handleFontSizeComplete = useCallback(async (value: number) => {
     const roundedValue = Math.round(value);
     await updateFontSize(roundedValue);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  }, [updateFontSize]);
 
-  const handleTouchTargetChange = (value: number) => {
+  const handleTouchTargetChange = useCallback((value: number) => {
     setLocalTouchTarget(Math.round(value));
-  };
+  }, []);
 
-  const handleTouchTargetComplete = async (value: number) => {
+  const handleTouchTargetComplete = useCallback(async (value: number) => {
     const roundedValue = Math.round(value);
     await updateTouchTargetSize(roundedValue);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  }, [updateTouchTargetSize]);
 
-  const handleToggleHighContrast = async () => {
+  const handleToggleHighContrast = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await toggleHighContrast();
     toastService.show(
       settings.highContrast ? 'High Contrast Off' : 'High Contrast On',
       settings.highContrast ? 'Standard colors restored' : 'Enhanced contrast enabled'
     );
-  };
+  }, [toggleHighContrast, settings.highContrast]);
 
-  const handleToggleReducedMotion = async () => {
+  const handleToggleReducedMotion = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await toggleReducedMotion();
     toastService.show(
       settings.reducedMotion ? 'Animations On' : 'Animations Off',
       settings.reducedMotion ? 'Animations enabled' : 'Reduced motion enabled'
     );
-  };
+  }, [toggleReducedMotion, settings.reducedMotion]);
 
-  const handleToggleHaptics = async () => {
+  const handleToggleHaptics = useCallback(async () => {
     await toggleHapticFeedback();
     if (settings.hapticFeedbackEnabled) {
       // If turning it on, give immediate feedback
@@ -97,9 +111,9 @@ export function AccessibilitySettingsModal({ visible, onClose }: AccessibilitySe
       settings.hapticFeedbackEnabled ? 'Haptics Off' : 'Haptics On',
       settings.hapticFeedbackEnabled ? 'Touch feedback disabled' : 'Touch feedback enabled'
     );
-  };
+  }, [toggleHapticFeedback, settings.hapticFeedbackEnabled]);
 
-  const handleApplyPreset = async (preset: 'default' | 'enhanced' | 'maximum') => {
+  const handleApplyPreset = useCallback(async (preset: 'default' | 'enhanced' | 'maximum') => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await applyAccessibilityPreset(preset);
 
@@ -117,9 +131,9 @@ export function AccessibilitySettingsModal({ visible, onClose }: AccessibilitySe
       `${presetNames[preset]} Preset Applied`,
       'Accessibility settings updated'
     );
-  };
+  }, [applyAccessibilityPreset, settings.fontSize, settings.touchTargetSize]);
 
-  const handleThemeChange = async (mode: 'light' | 'dark' | 'system') => {
+  const handleThemeChange = useCallback(async (mode: 'light' | 'dark' | 'system') => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await updateThemeMode(mode);
 
@@ -130,7 +144,7 @@ export function AccessibilitySettingsModal({ visible, onClose }: AccessibilitySe
     };
 
     toastService.show('Theme Updated', modeNames[mode]);
-  };
+  }, [updateThemeMode]);
 
   return (
     <Modal
@@ -167,11 +181,7 @@ export function AccessibilitySettingsModal({ visible, onClose }: AccessibilitySe
             </Text>
 
             <View style={styles.presetsContainer}>
-              {[
-                { key: 'default' as const, label: 'Default', icon: 'textformat.size' },
-                { key: 'enhanced' as const, label: 'Enhanced', icon: 'textformat.size.larger' },
-                { key: 'maximum' as const, label: 'Maximum', icon: 'accessibility' },
-              ].map((preset) => (
+              {PRESET_OPTIONS.map((preset) => (
                 <TouchableOpacity
                   key={preset.key}
                   style={[
@@ -196,11 +206,7 @@ export function AccessibilitySettingsModal({ visible, onClose }: AccessibilitySe
             <Text style={[styles.sectionTitle, { color: textColor }]}>Theme</Text>
 
             <View style={styles.themeButtons}>
-              {[
-                { key: 'light' as const, label: 'Light', icon: 'sun.max.fill' },
-                { key: 'dark' as const, label: 'Dark', icon: 'moon.fill' },
-                { key: 'system' as const, label: 'Auto', icon: 'circle.lefthalf.filled' },
-              ].map((theme) => (
+              {THEME_OPTIONS.map((theme) => (
                 <TouchableOpacity
                   key={theme.key}
                   style={[
@@ -526,3 +532,6 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 });
+
+// Performance optimization: Wrap with React.memo to prevent unnecessary re-renders
+export const AccessibilitySettingsModal = React.memo(AccessibilitySettingsModalComponent);

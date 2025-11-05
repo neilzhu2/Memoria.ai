@@ -17,7 +17,7 @@ interface FamilySharingModalProps {
   onClose: () => void;
 }
 
-export function FamilySharingModal({ visible, onClose }: FamilySharingModalProps) {
+function FamilySharingModalComponent({ visible, onClose }: FamilySharingModalProps) {
   const colorScheme = useColorScheme();
 
   const backgroundColor = Colors[colorScheme ?? 'light'].background;
@@ -234,3 +234,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+
+// Performance optimization: Wrap with React.memo to prevent unnecessary re-renders
+export const FamilySharingModal = React.memo(FamilySharingModalComponent);
