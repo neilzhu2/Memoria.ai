@@ -20,7 +20,6 @@ import { EditMemoryModal } from '@/components/EditMemoryModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { MemoryPreviewModal } from '@/components/MemoryPreviewModal';
 import { AccessibilitySettingsModal } from '@/components/settings/AccessibilitySettingsModal';
-import { BackupSettingsModal } from '@/components/settings/BackupSettingsModal';
 import { FamilySharingModal } from '@/components/settings/FamilySharingModal';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -64,7 +63,6 @@ export default function MyLifeScreen() {
   // Settings modal states
   const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
   const [accessibilityModalVisible, setAccessibilityModalVisible] = useState(false);
-  const [backupModalVisible, setBackupModalVisible] = useState(false);
   const [familySharingModalVisible, setFamilySharingModalVisible] = useState(false);
 
   // Search and filter state
@@ -161,11 +159,6 @@ export default function MyLifeScreen() {
   const handleAccessibilityPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setAccessibilityModalVisible(true);
-  };
-
-  const handleBackupPress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setBackupModalVisible(true);
   };
 
   const handleFamilySharingPress = async () => {
@@ -519,18 +512,6 @@ export default function MyLifeScreen() {
           </Text>
           <IconSymbol name="chevron.right" size={16} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.settingItem, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-          onPress={handleBackupPress}
-          accessibilityLabel="Backup and sync settings"
-        >
-          <IconSymbol name="cloud.fill" size={24} color={Colors[colorScheme ?? 'light'].tint} />
-          <Text style={[styles.settingText, { color: Colors[colorScheme ?? 'light'].text }]}>
-            Backup & Sync
-          </Text>
-          <IconSymbol name="chevron.right" size={16} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -627,12 +608,6 @@ export default function MyLifeScreen() {
       <AccessibilitySettingsModal
         visible={accessibilityModalVisible}
         onClose={() => setAccessibilityModalVisible(false)}
-      />
-
-      {/* Backup Settings Modal */}
-      <BackupSettingsModal
-        visible={backupModalVisible}
-        onClose={() => setBackupModalVisible(false)}
       />
 
       {/* Family Sharing Modal */}

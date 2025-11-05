@@ -989,6 +989,41 @@ export const FamilySharingModal = React.memo(FamilySharingModalComponent);
    - AccessibilitySettingsModal kept because it provides real value
    - FamilySharingModal kept because it's honest about being a placeholder
 
+#### Metro Cache Issue: BackupSettingsModal Import Error
+
+**Problem**: After deleting `BackupSettingsModal.tsx`, the app showed import error even though the import was removed from `mylife.tsx`.
+
+**Error message**:
+```
+Unable to resolve module @/components/settings/BackupSettingsModal from app/(tabs)/mylife.tsx
+```
+
+**Root Cause**: Metro bundler was serving a cached dependency graph. Even though the file was deleted and the import was removed, Metro's cache still contained the old module resolution.
+
+**Fix Applied**:
+1. Manually removed all references from `mylife.tsx`:
+   - Import statement (line 23)
+   - State variable `backupModalVisible` (line 67)
+   - Handler function `handleBackupPress` (lines 166-169)
+   - UI button for "Backup & Sync" (lines 523-533)
+   - Modal component JSX (lines 632-636)
+
+2. Killed all Metro processes and cleared cache:
+```bash
+killall -9 node 2>/dev/null
+pkill -9 -f expo 2>/dev/null
+pkill -9 -f metro 2>/dev/null
+sleep 2
+npm start
+```
+
+**Key Learning**: After deleting files, ALWAYS:
+1. Remove all imports/references immediately
+2. Clear Metro cache proactively (don't wait for error)
+3. Verify with fresh Metro build
+
+This reinforces Section 4's Metro Cache Invalidation Protocol - the protocol is critical after file deletions.
+
 #### Checklist Updates
 
 Updated Performance Audit Checklist (from Section 11):
