@@ -86,6 +86,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initAuth = async () => {
       try {
         console.log('AuthContext: Initializing auth...');
+
+        // DEV-ONLY: Validate and clean AsyncStorage on Fast Refresh
+        // This prevents "weird data" issues when reloading during development
+        if (__DEV__) {
+          try {
+            const keys = await AsyncStorage.getAllKeys();
+            const supabaseKeys = keys.filter(key =>
+              key.includes('supabase') ||
+              key.includes('@supabase') ||
+              key.includes('sb-') ||
+              key.startsWith('supabase.auth.token')
+            );
+
+            // Check if there are partial/corrupted keys (e.g., just token but no session)
+            // This happens when Metro Fast Refresh interrupts auth operations
+            if (supabaseKeys.length > 0) {
+              console.log('AuthContext: [DEV] Found', supabaseKeys.length, 'Supabase keys');
+
+              // Try to read them - if any throw errors or return malformed data, clear all
+              for (const key of supabaseKeys) {
+                try {
+                  const value = await AsyncStorage.getItem(key);
+                  if (value) {
+                    // Try to parse as JSON - if it's corrupted, this will throw
+                    JSON.parse(value);
+                  }
+                } catch (parseError) {
+                  console.warn('AuthContext: [DEV] Corrupted key detected:', key);
+                  console.log('AuthContext: [DEV] Clearing all Supabase keys due to corruption');
+                  await AsyncStorage.multiRemove(supabaseKeys);
+                  break;
+                }
+              }
+            }
+          } catch (error) {
+            console.error('AuthContext: [DEV] Error validating storage:', error);
+          }
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         console.log('AuthContext: Got session:', session ? 'User logged in' : 'No session');
 

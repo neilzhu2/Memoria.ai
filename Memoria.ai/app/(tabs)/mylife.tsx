@@ -20,7 +20,6 @@ import { EditMemoryModal } from '@/components/EditMemoryModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { MemoryPreviewModal } from '@/components/MemoryPreviewModal';
 import { AccessibilitySettingsModal } from '@/components/settings/AccessibilitySettingsModal';
-import { VoiceSettingsModal } from '@/components/settings/VoiceSettingsModal';
 import { BackupSettingsModal } from '@/components/settings/BackupSettingsModal';
 import { FamilySharingModal } from '@/components/settings/FamilySharingModal';
 import { Colors } from '@/constants/Colors';
@@ -65,7 +64,6 @@ export default function MyLifeScreen() {
   // Settings modal states
   const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
   const [accessibilityModalVisible, setAccessibilityModalVisible] = useState(false);
-  const [voiceModalVisible, setVoiceModalVisible] = useState(false);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
   const [familySharingModalVisible, setFamilySharingModalVisible] = useState(false);
 
@@ -163,11 +161,6 @@ export default function MyLifeScreen() {
   const handleAccessibilityPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setAccessibilityModalVisible(true);
-  };
-
-  const handleVoicePress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setVoiceModalVisible(true);
   };
 
   const handleBackupPress = async () => {
@@ -505,18 +498,6 @@ export default function MyLifeScreen() {
 
         <TouchableOpacity
           style={[styles.settingItem, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-          onPress={handleVoicePress}
-          accessibilityLabel="Voice settings"
-        >
-          <IconSymbol name="speaker.wave.3.fill" size={24} color={Colors[colorScheme ?? 'light'].tint} />
-          <Text style={[styles.settingText, { color: Colors[colorScheme ?? 'light'].text }]}>
-            Voice Settings
-          </Text>
-          <IconSymbol name="chevron.right" size={16} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.settingItem, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
           onPress={handleFamilySharingPress}
           accessibilityLabel="Family sharing settings"
         >
@@ -646,12 +627,6 @@ export default function MyLifeScreen() {
       <AccessibilitySettingsModal
         visible={accessibilityModalVisible}
         onClose={() => setAccessibilityModalVisible(false)}
-      />
-
-      {/* Voice Settings Modal */}
-      <VoiceSettingsModal
-        visible={voiceModalVisible}
-        onClose={() => setVoiceModalVisible(false)}
       />
 
       {/* Backup Settings Modal */}

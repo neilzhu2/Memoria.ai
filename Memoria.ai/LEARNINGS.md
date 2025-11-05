@@ -471,3 +471,51 @@ const signOut = async () => {
 - ✅ Logout corruption fix implemented and confirmed
 - ✅ Complete auth cycle (login → logout → login) fully functional
 - ✅ Diagnostic tools created for future debugging
+
+---
+
+## November 4, 2025 - Product Decision: Removing Recording Settings
+
+### 10. Less is More: Removing Premature Settings
+
+**Product Decision**: Removed the "Recording Settings" screen entirely.
+
+**Why**: All settings should have been "always on" by default:
+1. **Transcription Language** - Not implemented yet, should default to auto-detect
+2. **Auto-transcribe** - Should always be ON (why wouldn't users want transcription?)
+3. **Sound Effects** - Should always be ON (good UX feedback)
+
+**Key Principle**: **If all settings should just be "always on by default", then there's no point having a settings screen at all.**
+
+**Good product design**:
+- **Less is more** - Fewer settings = simpler UX
+- **Smart defaults** - Just make it work well by default
+- **Focus on value** - Settings should only exist when there's real user value
+
+**What was removed**:
+- `/components/settings/VoiceSettingsModal.tsx` - Deleted (264 lines of unused code)
+- All references in `/app/(tabs)/mylife.tsx`:
+  - Import statement
+  - State variable `voiceModalVisible`
+  - Handler function `handleVoicePress`
+  - Voice Settings button in UI
+  - Modal component usage in JSX
+
+**Metro Cache Issue**:
+After deleting the component, the app showed an import error because Metro bundler was serving cached code. Required full cache clear:
+```bash
+killall -9 node && sleep 2 && rm -rf .expo node_modules/.cache && npm start -- --reset-cache
+```
+
+**Future Considerations**:
+When transcription API is implemented:
+- Default to auto-detect language (no user configuration needed)
+- Always enable auto-transcribe (transcription is a core feature)
+- Always enable sound effects (provides tactile feedback)
+- Only add settings if users request customization
+
+**Next Steps** (for next session):
+Review remaining settings in Profile section one by one:
+1. Family Sharing - Verify functionality
+2. Accessibility - Check implementation
+3. Backup & Sync - Test features
