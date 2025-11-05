@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function TestSupabase() {
   const [results, setResults] = useState<string[]>([]);
@@ -102,6 +103,35 @@ export default function TestSupabase() {
     }
   };
 
+  const clearSupabaseStorage = async () => {
+    addLog('Clearing Supabase AsyncStorage keys...');
+    try {
+      // Get all AsyncStorage keys
+      const keys = await AsyncStorage.getAllKeys();
+      addLog(`Found ${keys.length} total AsyncStorage keys`);
+
+      // Filter for Supabase auth keys
+      const supabaseKeys = keys.filter(key =>
+        key.includes('supabase') ||
+        key.includes('@supabase') ||
+        key.includes('sb-') ||
+        key.startsWith('supabase.auth.token')
+      );
+
+      addLog(`Found ${supabaseKeys.length} Supabase keys: ${supabaseKeys.join(', ')}`);
+
+      if (supabaseKeys.length > 0) {
+        await AsyncStorage.multiRemove(supabaseKeys);
+        addLog(`✅ Cleared ${supabaseKeys.length} Supabase keys`);
+        addLog('Please reload the app (Cmd+R) for changes to take effect');
+      } else {
+        addLog('✅ No Supabase keys found to clear');
+      }
+    } catch (err: any) {
+      addLog(`❌ Clear storage EXCEPTION: ${err.message || err}`);
+    }
+  };
+
   const runAllTests = async () => {
     setResults([]);
     addLog('=== STARTING SUPABASE DIAGNOSTIC TESTS ===');
@@ -137,6 +167,13 @@ export default function TestSupabase() {
 
         <TouchableOpacity style={styles.button} onPress={testInsert}>
           <Text style={styles.buttonText}>Test INSERT</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.warningButton]}
+          onPress={clearSupabaseStorage}
+        >
+          <Text style={styles.buttonText}>Clear Auth Storage</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -179,6 +216,9 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     minWidth: 100,
+  },
+  warningButton: {
+    backgroundColor: '#FF9500',
   },
   clearButton: {
     backgroundColor: '#FF3B30',

@@ -1305,14 +1305,37 @@ All design system components should include:
 - **High Contrast Mode**: Ultra-high contrast option for low vision users
 - **Simplified Mode**: Reduce feature complexity for cognitive accessibility
 
-### 14.2 Delightful Micro-Interactions
+### 14.2 Custom Loading Screen Design (Priority: Medium)
+
+**Current State**: Using the Memoria.ai logo on a warm cream background (#FFF9F0)
+- Logo displays correctly in production/development builds
+- Logo does not display in Expo Go (expected behavior)
+
+**Future Enhancement**: Design a custom loading/splash screen that reinforces the warm, nostalgic brand identity
+
+**Recommended Design Elements**:
+- **Background**: Maintain warm cream (#FFF9F0) base with subtle organic texture or gradient
+- **Logo Treatment**: Add subtle animation (fade in, gentle scale) that respects reduce motion settings
+- **Optional Tagline**: Short, encouraging message like "Preserving Your Story" below logo
+- **Loading Indicator**: Warm terracotta (#E07856) progress bar or spinner if loading extends beyond 2 seconds
+- **Accessibility**: Ensure proper contrast and include descriptive text for screen readers
+
+**Implementation Timeline**: To be scheduled in Phase 4 (UI Polish Refinements)
+
+**Technical Considerations**:
+- Use expo-splash-screen API for native splash control
+- Support both light and dark mode variants
+- Keep file sizes minimal for fast loading
+- Test across various device sizes and aspect ratios
+
+### 14.3 Delightful Micro-Interactions
 
 - **Celebration Animations**: Gentle confetti on recording milestones
 - **Memory Streak Tracking**: Visual celebration of consecutive recording days
 - **Seasonal Themes**: Optional seasonal color accents (warm autumn, soft spring)
 - **Audio Waveform Colors**: Personalized waveform colors matching memory themes
 
-### 14.3 Illustration System
+### 14.4 Illustration System
 
 - **Empty States**: Custom warm illustrations for "No memories yet" states
 - **Onboarding**: Welcoming illustrations for welcome and tutorial screens

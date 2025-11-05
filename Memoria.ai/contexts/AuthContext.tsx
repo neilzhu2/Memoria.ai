@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface UserProfile {
   display_name: string | null;
@@ -178,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('🔵 CODE VERSION: AuthContext.tsx v3.0 (Nov 4, 2025 - AsyncStorage + Clear on Logout)');
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -205,8 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserProfile(null);
       console.log('AuthContext: Local state cleared');
 
-      // Sign out from Supabase (let it handle storage cleanup)
-      // Supabase will automatically clear all auth tokens
+      // Sign out from Supabase
       console.log('AuthContext: Calling Supabase signOut');
       const { error } = await supabase.auth.signOut();
 
@@ -215,6 +216,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         console.log('AuthContext: Sign out successful');
       }
+
+      // CRITICAL FIX: Clear Supabase AsyncStorage keys to prevent corruption
+      // This prevents the "auth hangs after logout" bug
+      console.log('AuthContext: Clearing Supabase AsyncStorage keys');
+      try {
+        const keys = await AsyncStorage.getAllKeys();
+        const supabaseKeys = keys.filter(key =>
+          key.includes('supabase') ||
+          key.includes('@supabase') ||
+          key.includes('sb-') ||
+          key.startsWith('supabase.auth.token')
+        );
+
+        if (supabaseKeys.length > 0) {
+          console.log(`AuthContext: Removing ${supabaseKeys.length} Supabase keys:`, supabaseKeys);
+          await AsyncStorage.multiRemove(supabaseKeys);
+          console.log('AuthContext: Supabase AsyncStorage cleared successfully');
+        } else {
+          console.log('AuthContext: No Supabase keys found to clear');
+        }
+      } catch (storageError) {
+        // Don't fail the logout if storage clearing fails
+        console.error('AuthContext: Error clearing AsyncStorage (non-critical):', storageError);
+      }
+
+      console.log('AuthContext: Sign out complete');
     } catch (error) {
       console.error('AuthContext: Sign out exception:', error);
       // Local state already cleared above

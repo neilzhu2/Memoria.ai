@@ -19,16 +19,17 @@ function TabLayoutContent() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const { triggerRecording, isRecording } = useRecording();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [showThemeModal, setShowThemeModal] = useState(false);
 
   // Redirect to welcome if user is not authenticated
   useEffect(() => {
-    if (!user) {
-      console.log('TabLayout: No user, redirecting to welcome');
+    // Only redirect if loading is complete and there's no user
+    if (!loading && !user) {
+      console.log('TabLayout: No user after loading complete, redirecting to welcome');
       router.replace('/welcome');
     }
-  }, [user]);
+  }, [user, loading]);
 
   const handleRecordPress = () => {
     // Show theme selection modal instead of directly recording

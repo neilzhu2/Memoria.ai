@@ -83,41 +83,85 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   // Load memories from Supabase for specific user
   const loadMemoriesFromSupabase = async (userId: string) => {
     try {
-      console.log('RecordingContext: Loading memories from Supabase for user:', userId);
+      console.log('[loadMemories] START - Loading memories from Supabase for user:', userId);
 
-      const { data, error } = await supabase
+      // Check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('[loadMemories] Session check:', {
+        hasSession: !!session,
+        sessionError: sessionError?.message,
+        userId: session?.user?.id,
+      });
+
+      if (!session) {
+        console.error('[loadMemories] ERROR: No active session found');
+        return;
+      }
+
+      console.log('[loadMemories] Preparing SELECT query...');
+
+      const startTime = Date.now();
+
+      // Create the SELECT query with timeout
+      const selectPromise = supabase
         .from('memories')
         .select('*')
         .eq('user_id', userId)  // Filter by user_id
         .order('created_at', { ascending: false });
 
+      // Add a 30 second timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Supabase SELECT timeout after 30 seconds')), 30000)
+      );
+
+      console.log('[loadMemories] Executing SELECT query (30s timeout)...');
+      const { data, error } = await Promise.race([selectPromise, timeoutPromise]) as any;
+
+      const endTime = Date.now();
+      console.log(`[loadMemories] SELECT query completed in ${endTime - startTime}ms`);
+
       if (error) {
-        console.error('RecordingContext: Error loading memories:', error);
+        console.error('[loadMemories] Supabase error:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: JSON.stringify(error),
+        });
         return;
       }
 
-      console.log('RecordingContext: Loaded', data?.length || 0, 'memories from Supabase');
+      console.log('[loadMemories] SUCCESS - Loaded', data?.length || 0, 'memories from Supabase');
 
       if (data) {
+        console.log('[loadMemories] Transforming data to MemoryItem format...');
         // Transform database records to MemoryItem format
         const transformedMemories: MemoryItem[] = data.map((record: any) => ({
           id: record.id,
           title: record.title,
           description: record.description || '',
-          audioUri: record.audio_uri,
+          audioPath: record.audio_url,  // Map audio_url to audioPath
           duration: record.duration,
           date: new Date(record.date),
-          tags: record.tags || [],
+          tags: record.theme ? [record.theme] : [],  // Map theme to tags array
           transcription: record.transcription,
+          isShared: record.is_shared || false,
+          familyMembers: [],  // Not stored in DB yet
           createdAt: new Date(record.created_at),
           updatedAt: new Date(record.updated_at),
         }));
 
+        console.log('[loadMemories] Setting state with', transformedMemories.length, 'memories');
         setMemories(transformedMemories);
         setMemoryCount(transformedMemories.length);
+        console.log('[loadMemories] COMPLETE - State updated successfully');
       }
     } catch (error) {
-      console.error('RecordingContext: Exception loading memories:', error);
+      console.error('[loadMemories] EXCEPTION caught:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     }
   };
 
@@ -129,58 +173,116 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   };
 
   const addMemory = async (memoryData: Omit<MemoryItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<MemoryItem> => {
+    console.log('[addMemory] START - Adding memory to Supabase');
+    console.log('[addMemory] Memory data:', {
+      title: memoryData.title,
+      duration: memoryData.duration,
+      audioPath: memoryData.audioPath?.substring(0, 50) + '...',
+      hasDescription: !!memoryData.description,
+      tagsCount: memoryData.tags?.length || 0,
+    });
+
     if (!user) {
+      console.error('[addMemory] ERROR: No user logged in');
       throw new Error('No user logged in');
     }
 
-    try {
-      console.log('RecordingContext: Adding memory to Supabase for user:', user.id);
+    console.log('[addMemory] User ID:', user.id);
 
-      // Insert into Supabase
-      const { data, error } = await supabase
+    try {
+      console.log('[addMemory] Preparing Supabase insert...');
+      const insertData = {
+        user_id: user.id,
+        title: memoryData.title,
+        description: memoryData.description || null,
+        audio_url: memoryData.audioPath,  // Map audioPath to audio_url for database
+        duration: memoryData.duration,
+        date: memoryData.date.toISOString(),
+        transcription: memoryData.transcription || null,
+        theme: memoryData.tags?.[0] || null,  // Use first tag as theme
+        is_shared: memoryData.isShared || false,
+      };
+      console.log('[addMemory] Insert data prepared:', {
+        ...insertData,
+        audio_url: insertData.audio_url?.substring(0, 50) + '...',
+      });
+
+      console.log('[addMemory] Calling Supabase insert...');
+      const startTime = Date.now();
+
+      // Insert into Supabase with timeout
+      const insertPromise = supabase
         .from('memories')
-        .insert({
-          user_id: user.id,  // Associate with current user
-          title: memoryData.title,
-          description: memoryData.description || null,
-          audio_uri: memoryData.audioUri,
-          duration: memoryData.duration,
-          date: memoryData.date.toISOString(),
-          tags: memoryData.tags || [],
-          transcription: memoryData.transcription || null,
-        })
+        .insert(insertData)
         .select()
         .single();
 
+      // Add a 30 second timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Supabase insert timeout after 30 seconds')), 30000)
+      );
+
+      console.log('[addMemory] Waiting for Supabase response (30s timeout)...');
+      const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
+
+      const endTime = Date.now();
+      console.log(`[addMemory] Supabase insert completed in ${endTime - startTime}ms`);
+
       if (error) {
-        console.error('RecordingContext: Error adding memory:', error);
+        console.error('[addMemory] Supabase error:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: JSON.stringify(error),
+        });
+        console.error('[addMemory] Insert data that caused error:', insertData);
         throw error;
       }
 
-      console.log('RecordingContext: Memory added successfully:', data.id);
+      if (!data) {
+        console.error('[addMemory] ERROR: No data returned from Supabase');
+        throw new Error('No data returned from Supabase');
+      }
+
+      console.log('[addMemory] Memory inserted successfully:', {
+        id: data.id,
+        title: data.title,
+        created_at: data.created_at,
+      });
 
       // Transform to MemoryItem and add to local state
+      console.log('[addMemory] Transforming to MemoryItem...');
       const newMemory: MemoryItem = {
         id: data.id,
         title: data.title,
         description: data.description || '',
-        audioUri: data.audio_uri,
+        audioPath: data.audio_url,  // Map audio_url to audioPath for MemoryItem
         duration: data.duration,
         date: new Date(data.date),
-        tags: data.tags || [],
+        tags: data.theme ? [data.theme] : [],  // Map theme to tags array
         transcription: data.transcription,
+        isShared: data.is_shared || false,
+        familyMembers: [],  // Not stored in DB yet
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),
       };
 
-      // Update local state
+      console.log('[addMemory] Updating local state...');
       const updatedMemories = [newMemory, ...memories];
       setMemories(updatedMemories);
       setMemoryCount(updatedMemories.length);
 
+      console.log('[addMemory] SUCCESS - Memory saved and state updated');
+      console.log('[addMemory] Total memories now:', updatedMemories.length);
+
       return newMemory;
     } catch (error) {
-      console.error('RecordingContext: Exception adding memory:', error);
+      console.error('[addMemory] EXCEPTION caught:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw error;
     }
   };
@@ -193,16 +295,16 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     try {
       console.log('RecordingContext: Deleting memory from Supabase:', memoryId);
 
-      // Find the memory to get the audio URI for file deletion
+      // Find the memory to get the audio path for file deletion
       const memory = memories.find(m => m.id === memoryId);
 
       // Delete audio file from filesystem if it exists
-      if (memory?.audioUri) {
+      if (memory?.audioPath) {
         try {
-          const fileInfo = await FileSystem.getInfoAsync(memory.audioUri);
+          const fileInfo = await FileSystem.getInfoAsync(memory.audioPath);
           if (fileInfo.exists) {
-            console.log('RecordingContext: Deleting audio file:', memory.audioUri);
-            await FileSystem.deleteAsync(memory.audioUri);
+            console.log('RecordingContext: Deleting audio file:', memory.audioPath);
+            await FileSystem.deleteAsync(memory.audioPath);
             console.log('RecordingContext: Audio file deleted successfully');
           }
         } catch (fileError) {
@@ -247,11 +349,12 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       const dbUpdates: any = {};
       if (updates.title !== undefined) dbUpdates.title = updates.title;
       if (updates.description !== undefined) dbUpdates.description = updates.description;
-      if (updates.audioUri !== undefined) dbUpdates.audio_uri = updates.audioUri;
+      if (updates.audioPath !== undefined) dbUpdates.audio_url = updates.audioPath;  // Map audioPath to audio_url
       if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
       if (updates.date !== undefined) dbUpdates.date = updates.date.toISOString();
-      if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+      if (updates.tags !== undefined) dbUpdates.theme = updates.tags[0] || null;  // Map first tag to theme
       if (updates.transcription !== undefined) dbUpdates.transcription = updates.transcription;
+      if (updates.isShared !== undefined) dbUpdates.is_shared = updates.isShared;
 
       // Update in Supabase
       const { error } = await supabase

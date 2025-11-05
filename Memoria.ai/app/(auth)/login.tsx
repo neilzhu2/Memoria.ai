@@ -32,29 +32,39 @@ export default function LoginScreen() {
   const tintColor = Colors[colorScheme ?? 'light'].elderlyTabActive;
 
   const handleLogin = async () => {
+    console.log('🔵 CODE VERSION: login.tsx v2.0 (Nov 3, 2025 - Promise.race removed)');
+
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
+    console.log('Login: Starting login process...');
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
+    console.log('Login: Loading spinner enabled');
 
-    // Add timeout to prevent infinite loading
-    const timeout = new Promise<{ error: { message: string } }>((resolve) =>
-      setTimeout(() => resolve({ error: { message: 'Request timed out. Please check your connection.' } }), 10000)
-    );
+    try {
+      console.log('Login: Calling signIn...');
+      const result = await signIn(email, password);
+      console.log('Login: signIn returned:', result.error ? 'ERROR' : 'SUCCESS');
 
-    const signInPromise = signIn(email, password);
-    const result = await Promise.race([signInPromise, timeout]);
+      setLoading(false);
+      console.log('Login: Loading spinner disabled');
 
-    setLoading(false);
-
-    if (result.error) {
-      Alert.alert('Login Failed', result.error.message);
-    } else {
-      // Navigation will be handled automatically by auth state change
-      router.replace('/(tabs)');
+      if (result.error) {
+        console.log('Login: Showing error alert:', result.error.message);
+        Alert.alert('Login Failed', result.error.message);
+      } else {
+        console.log('Login: Success! Navigating to tabs...');
+        // Navigation will be handled automatically by auth state change
+        router.replace('/(tabs)');
+        console.log('Login: Navigation called');
+      }
+    } catch (err) {
+      console.error('Login: Exception caught:', err);
+      setLoading(false);
+      Alert.alert('Login Failed', 'An unexpected error occurred');
     }
   };
 

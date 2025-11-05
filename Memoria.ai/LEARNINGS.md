@@ -369,10 +369,105 @@ When Supabase operations hang in React Native:
 
 ---
 
+---
+
+## November 4, 2025 - AsyncStorage Corruption After Logout
+
+### 9. Supabase AsyncStorage Corruption on Logout
+
+**What we learned**: Supabase's `signOut()` method can leave corrupted/partial data in AsyncStorage, causing subsequent auth operations to hang indefinitely.
+
+**The Problem**:
+After calling `supabase.auth.signOut()`, the next `supabase.auth.getSession()` call would hang forever with no error message or timeout.
+
+**Root Cause**:
+1. `signOut()` clears the session but sometimes leaves partial/corrupted keys in AsyncStorage
+2. When `getSession()` tries to read these corrupted keys, AsyncStorage's `getItem()` blocks indefinitely
+3. This is a known issue with Supabase + AsyncStorage (documented in Supabase GitHub issues)
+
+**Symptoms**:
+- Network tests pass (proving server connectivity works)
+- Auth tests hang indefinitely after logout
+- No error message, no timeout - just infinite wait
+- Happens in both dev and production
+
+**The Fix**: Manually clear Supabase AsyncStorage keys AFTER `signOut()` completes:
+
+```typescript
+const signOut = async () => {
+  try {
+    // 1. Clear local state
+    setUser(null);
+    setSession(null);
+    setUserProfile(null);
+
+    // 2. Call Supabase signOut
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error('Sign out error:', error);
+
+    // 3. CRITICAL: Manually clear AsyncStorage keys
+    const keys = await AsyncStorage.getAllKeys();
+    const supabaseKeys = keys.filter(key =>
+      key.includes('supabase') ||
+      key.includes('@supabase') ||
+      key.includes('sb-') ||
+      key.startsWith('supabase.auth.token')
+    );
+
+    if (supabaseKeys.length > 0) {
+      await AsyncStorage.multiRemove(supabaseKeys);
+      console.log(`Cleared ${supabaseKeys.length} Supabase keys`);
+    }
+  } catch (error) {
+    console.error('Sign out exception:', error);
+  }
+};
+```
+
+**Key Design Principles**:
+
+1. **Timing**: Clear AsyncStorage AFTER `signOut()` completes
+   - Let Supabase finish its own cleanup first
+   - Then manually remove any remaining/corrupted keys
+
+2. **Non-blocking error handling**:
+   - Wrap storage clearing in try-catch
+   - If clearing fails, logout still succeeds
+   - User experience > perfect cleanup
+
+3. **Comprehensive key filtering**:
+   - Multiple key patterns: `supabase`, `@supabase`, `sb-*`, `supabase.auth.token`
+   - Robust against Supabase version changes
+
+4. **Production-ready**:
+   - This issue affects production builds
+   - AsyncStorage behaves identically in dev and production
+   - The fix is essential for reliable logout → login cycles
+
+**Why this wasn't caught earlier**:
+- The AsyncStorage fix (Nov 2) solved the hanging during normal auth operations
+- But logout creates a different type of corruption that wasn't tested until Nov 4
+- The diagnostic test screen was crucial in identifying this
+
+**Best Practices**:
+- Always test the complete auth cycle: login → logout → login
+- Monitor logout logs in production for storage clearing confirmation
+- Consider this pattern for any app using Supabase + AsyncStorage
+
+---
+
 ## Conclusion
 
-The most important lesson: **When integrating third-party services, trust the official documentation's recommended configuration.** Custom implementations, while well-intentioned, can introduce subtle bugs that are extremely difficult to diagnose.
+**The three most important lessons:**
 
-The second most important lesson: **Create diagnostic tests early.** Isolated testing saved hours of debugging by immediately identifying that network was fine but the Supabase client was blocking.
+1. **Trust Official Documentation**: When integrating third-party services, the official docs' recommended configuration is battle-tested. Custom implementations can introduce subtle bugs.
 
-**Current status**: AsyncStorage fix implemented per official docs, but connection still not working. Further investigation needed.
+2. **Create Diagnostic Tests Early**: Isolated testing saved hours of debugging by immediately identifying that network was fine but the Supabase client was blocking.
+
+3. **Test Complete User Flows**: Don't just test the happy path. Test login → logout → login cycles to catch state corruption issues.
+
+**Final Status - November 4, 2025**:
+- ✅ AsyncStorage fix implemented and working
+- ✅ Logout corruption fix implemented and confirmed
+- ✅ Complete auth cycle (login → logout → login) fully functional
+- ✅ Diagnostic tools created for future debugging

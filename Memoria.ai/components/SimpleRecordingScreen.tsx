@@ -79,6 +79,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   const audioRecorder = useAudioRecorder(CAF_RECORDING_PRESET);
   const [duration, setDuration] = useState(0);
   const [currentRecordingUri, setCurrentRecordingUri] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false); // Track if save is in progress
 
   // UI state
   const [showRecordingsList, setShowRecordingsList] = useState(false);
@@ -102,7 +103,20 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   const successColor = Colors[colorScheme ?? 'light'].elderlySuccess;
 
   useEffect(() => {
+    console.log('[SimpleRecordingScreen] useEffect - visible changed:', {
+      visible,
+      isSaving,
+      recordingState,
+    });
+
     if (!visible) {
+      // CRITICAL: Don't clean up if save is in progress
+      if (isSaving) {
+        console.log('[SimpleRecordingScreen] BLOCKED cleanup - save is in progress');
+        return;
+      }
+
+      console.log('[SimpleRecordingScreen] Cleaning up when modal closes');
       // Clean up when modal closes
       stopTimer();
       if (audioRecorder.isRecording && recordingState !== 'idle' && !hasStoppedRecording.current) {
@@ -116,7 +130,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       setCurrentRecordingUri(null);
       hasStoppedRecording.current = false; // Reset for next recording
     }
-  }, [visible]);
+  }, [visible, isSaving]);
 
   // Request permissions and auto-start recording
   useEffect(() => {
@@ -272,50 +286,95 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     // Use passed URI or fall back to state (for potential future direct calls)
     const uri = recordingUri || currentRecordingUri;
 
-    console.log('saveRecording called', { uri, isRecording: audioRecorder.isRecording, recordingState });
+    console.log('[saveRecording] START - Called with:', {
+      recordingUri: recordingUri?.substring(0, 50) + '...',
+      currentRecordingUri: currentRecordingUri?.substring(0, 50) + '...',
+      uri: uri?.substring(0, 50) + '...',
+      isRecording: audioRecorder.isRecording,
+      recordingState,
+      duration,
+    });
 
     if (!uri) {
-      console.error('No recording URI available');
+      console.error('[saveRecording] ERROR: No recording URI available');
       toastService.recordingFailed();
       return;
     }
 
+    // Set saving flag to prevent modal from closing prematurely
+    console.log('[saveRecording] Setting isSaving = true');
+    setIsSaving(true);
+
     try {
       const title = selectedTheme?.title || `Recording ${new Date().toLocaleDateString()}`;
+      console.log('[saveRecording] Recording title:', title);
+      console.log('[saveRecording] Preparing to call addMemory...');
 
-      console.log('Saving memory with:', { title, audioPath: uri, duration });
-
-      // Save to context and get the memory object
-      // NOTE: Using recording URI directly - file copy not needed for Expo Go
-      // For production, we'll implement proper file management in Dev Build
-      const newMemory = await addMemory({
+      const memoryData = {
         title,
         description: selectedTheme ? `Recording about: ${selectedTheme.title}` : undefined,
         date: new Date(),
         duration,
-        audioPath: uri, // Use the recording URI directly
+        audioPath: uri,  // MemoryItem type uses audioPath
         tags: selectedTheme ? [selectedTheme.id] : [],
         isShared: false,
         familyMembers: [],
+      };
+
+      console.log('[saveRecording] Memory data prepared:', {
+        title: memoryData.title,
+        duration: memoryData.duration,
+        audioPath: memoryData.audioPath?.substring(0, 50) + '...',
+        tagsCount: memoryData.tags.length,
       });
 
-      console.log('Memory saved successfully:', newMemory);
-      console.log('Total memories after save:', memories.length + 1);
+      console.log('[saveRecording] Calling addMemory (await)...');
+      const startTime = Date.now();
+
+      // Save to context and get the memory object
+      // NOTE: Using recording URI directly - file copy not needed for Expo Go
+      // For production, we'll implement proper file management in Dev Build
+      const newMemory = await addMemory(memoryData);
+
+      const endTime = Date.now();
+      console.log(`[saveRecording] addMemory completed in ${endTime - startTime}ms`);
+      console.log('[saveRecording] Memory saved successfully:', {
+        id: newMemory.id,
+        title: newMemory.title,
+        duration: newMemory.duration,
+      });
+      console.log('[saveRecording] Total memories after save:', memories.length + 1);
+
+      // Clear saving flag
+      console.log('[saveRecording] Setting isSaving = false');
+      setIsSaving(false);
 
       // Show success toast
+      console.log('[saveRecording] Showing success toast');
       toastService.memorySaved();
 
       // Start transcription in the background
+      console.log('[saveRecording] Starting transcription...');
       transcribeRecording(newMemory);
 
       // Show edit modal to review/edit the memory
+      console.log('[saveRecording] Setting savedMemory and showing edit modal');
       setSavedMemory(newMemory);
       setShowEditModal(true);
 
-      console.log('EditMemoryModal should now be visible');
+      console.log('[saveRecording] SUCCESS - EditMemoryModal should now be visible');
 
     } catch (error) {
-      console.error('Failed to save recording:', error);
+      console.error('[saveRecording] ERROR - Failed to save recording:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      // Clear saving flag on error
+      console.log('[saveRecording] Setting isSaving = false (error path)');
+      setIsSaving(false);
+
       toastService.memorySaveFailed(error instanceof Error ? error.message : undefined);
     }
   };
@@ -444,7 +503,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
           </TouchableOpacity>
 
           <Text style={[styles.headerTitle, { color: textColor }]}>
-            {recordingState === 'stopped' ? 'Saving...' : 'New Recording'}
+            {isSaving || recordingState === 'stopped' ? 'Saving...' : 'New Recording'}
           </Text>
 
           {/* Done button - visible when recording or paused */}
