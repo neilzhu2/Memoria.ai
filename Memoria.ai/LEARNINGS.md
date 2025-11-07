@@ -1047,3 +1047,196 @@ Updated Performance Audit Checklist (from Section 11):
 - [ ] Profile app with React DevTools Profiler
 
 ---
+
+## November 5, 2025 - Development Environment Strategy & Dependency Audit
+
+### 13. Expo Go vs Development Builds Strategy
+
+**Context**: Researched official Expo guidance on when to migrate from Expo Go to Development Builds, and best practices for library selection.
+
+#### What is Expo Go?
+
+**Expo Go** is a sandbox app built by Expo and available on app stores. It includes a fixed set of native libraries.
+
+**Key limitation**: You can ONLY use libraries that are already included in Expo Go. If you try to use a library with native code not in Expo Go (e.g., `react-native-firebase`), your app will **immediately error** with no workaround.
+
+**What it's good for**:
+- ✅ Learning and prototyping
+- ✅ Quick experimentation
+- ✅ Early development phase
+- ✅ When using only Expo SDK libraries
+
+#### What are Development Builds?
+
+**Development Build** = Your own custom version of Expo Go where you have full control over native code and configuration.
+
+**Benefits**:
+- ✅ Use ANY native library
+- ✅ Customize app metadata (name, icon, splash screen)
+- ✅ Full native configuration access
+- ✅ Includes `expo-dev-client` for enhanced debugging (network inspector, launcher UI)
+
+**When to migrate** (from Expo documentation):
+1. When you need to use libraries with native code not included in Expo Go
+2. When you want to add custom native modules
+3. When you need to change app metadata or configuration
+4. **Before pushing to production** (recommended by Expo)
+
+#### Our Current Status
+
+**Where we are now (Nov 5, 2025)**:
+- ✅ Using Expo Go for development
+- ✅ All dependencies are Expo Go compatible
+- ✅ No custom native modules needed yet
+- ✅ Within Expo Go's capabilities
+
+**Our dependencies** (all Expo Go compatible):
+- `expo-audio` - Audio recording/playback
+- `expo-haptics` - Tactile feedback
+- `@react-native-async-storage/async-storage` - Auth token storage
+- `@supabase/supabase-js` - Backend services
+- `expo-speech-recognition` - Speech-to-text (future)
+- All other libraries are standard Expo SDK modules
+
+**Decision**: Stay on Expo Go until we hit one of these triggers:
+1. Need transcription API with custom native audio processing
+2. Need cloud backup with native file system access
+3. Ready to push to App Store (production)
+4. User feature request requires native module
+
+#### Migration Path (when needed)
+
+Expo officially supports migrating from Expo Go to Development Builds with minimal friction:
+
+**Resources bookmarked**:
+- Migration guide: https://docs.expo.dev/develop/development-builds/expo-go-to-dev-build/
+- Development Builds intro: https://docs.expo.dev/develop/development-builds/introduction/
+- Expo Go vs Development Builds: https://expo.dev/blog/expo-go-vs-development-builds
+
+**Key insight from Expo**: "You can confidently start your project with Expo Go and switch to a development build when you decide that you want to push the app into production."
+
+---
+
+### 14. Dependency Audit & Library Selection Protocol
+
+**Context**: Audited all current dependencies against React Native Directory quality metrics (https://reactnative.directory).
+
+#### Audit Results (Nov 5, 2025)
+
+**Core Dependencies** - All EXCELLENT:
+
+1. **@supabase/supabase-js** `v2.76.1`
+   - 📊 2.9M weekly downloads
+   - ⭐ 3,842 GitHub stars
+   - 📅 Latest: v2.80.0 (published 8 hours ago)
+   - ✅ Actively maintained
+   - ✅ Official client library
+   - **Status**: KEEP - Excellent choice
+
+2. **@react-native-async-storage/async-storage** `v2.2.0`
+   - 📊 Not measured individually (part of React Native community)
+   - ✅ Official Supabase recommendation
+   - ✅ Non-blocking storage
+   - ✅ Cross-platform (iOS/Android/Web)
+   - **Status**: KEEP - Critical for auth
+
+3. **expo-audio** `~1.0.13`
+   - 📊 3,499 weekly downloads
+   - 📅 Active releases (within last 3 months)
+   - ✅ Healthy maintenance
+   - ✅ 420 open source contributors
+   - ✅ No security vulnerabilities
+   - ✅ "Recognized" popularity classification
+   - **Status**: KEEP - Good quality
+
+4. **react-native-mmkv** `^3.3.3`
+   - 📊 534,689 weekly downloads
+   - ⭐ 7,581 GitHub stars
+   - 📅 Latest: v4.0.0 (17 days ago)
+   - ✅ 30x faster than AsyncStorage
+   - ⚠️ **QUESTION**: Why do we have both MMKV and AsyncStorage?
+   - **Status**: AUDIT - May be redundant
+
+5. **tamagui** `^1.132.24`
+   - 📊 73,597 weekly downloads (main package)
+   - 📊 169,386 weekly downloads (@tamagui/core)
+   - ⭐ 13,300 GitHub stars
+   - 📅 Latest: v1.136.1 (Nov 4, 2024)
+   - ✅ Actively maintained
+   - ⚠️ **QUESTION**: Are we using Tamagui? Not seen in component code
+   - **Status**: AUDIT - May be unused
+
+6. **expo-speech-recognition** `^2.1.5`
+   - 📊 16K weekly downloads
+   - ✅ Expo-compatible
+   - ✅ Community support
+   - **Status**: KEEP - For future transcription feature
+
+**Potential Issues Identified**:
+
+1. **react-native-mmkv vs AsyncStorage**:
+   - We're using AsyncStorage for Supabase auth (correct)
+   - MMKV is present but purpose unclear
+   - **Action**: Determine if MMKV is used anywhere, consider removing if redundant
+
+2. **Tamagui (UI library)**:
+   - Large library (73K+ downloads/week indicates popularity)
+   - Not obviously used in our component code
+   - May have been added initially but not used
+   - **Action**: Verify usage, consider removing if unused (bundle size impact)
+
+#### Library Selection Protocol (for future)
+
+**Before adding ANY new dependency:**
+
+1. **Check React Native Directory**: https://reactnative.directory
+   - Verify Expo Go compatibility (until we migrate)
+   - Check weekly downloads (popularity signal)
+   - Verify recent updates (maintenance signal)
+   - Check GitHub stars (community adoption)
+
+2. **Evaluate quality metrics**:
+   - ✅ Recent release (within 3 months)
+   - ✅ High download count (>10K/week for niche, >100K for common)
+   - ✅ Active GitHub (issues/PRs being addressed)
+   - ✅ TypeScript support
+   - ✅ Small package size
+
+3. **Platform compatibility**:
+   - ✅ iOS support
+   - ✅ Android support
+   - ✅ Expo Go compatible (until migration)
+   - ✅ Works with Hermes engine
+
+4. **Alternatives check**:
+   - Search React Native Directory for alternatives
+   - Compare maintenance, downloads, features
+   - Pick most actively maintained option
+
+**Reference**: React Native Directory - https://reactnative.directory
+
+**Key libraries for future reference**:
+- **i18next** (7.8M downloads/week) - For internationalization
+- **expo-speech-recognition** (16K downloads/week) - For transcription
+- **Axios** (295M+ downloads/week) - For HTTP if needed beyond Supabase
+
+---
+
+### Action Items from Audit
+
+**Immediate**:
+- [ ] Investigate react-native-mmkv usage - is it needed?
+- [ ] Investigate tamagui usage - is it being used?
+- [ ] Run `npx expo-atlas` to check bundle size impact
+
+**Before adding new dependencies**:
+- [ ] Check React Native Directory first
+- [ ] Verify Expo Go compatibility
+- [ ] Confirm maintenance status (recent updates)
+
+**Before production**:
+- [ ] Migrate to Development Build
+- [ ] Test on real devices
+- [ ] Configure app metadata
+
+---
