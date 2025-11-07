@@ -1,28 +1,34 @@
 import { createTamagui } from 'tamagui'
+import { shorthands } from '@tamagui/shorthands'
+import { themes, tokens } from '@tamagui/themes'
+import { createMedia } from '@tamagui/react-native-media-driver'
 
-const tokens = {
-  color: { background: 'white', color: 'black', primary: '#7c5cff' },
-  radius: { 1: 6, 2: 10, 3: 16 },
-  space: { 1: 6, 2: 10, 3: 16, 4: 24, true: 10 },
-  size: { 1: 32, 2: 40, 3: 48, true: 40 },
-  zIndex: { 0: 0, 1: 100, 2: 200, 3: 300 },
-}
-
-const fonts = {
-  body: {
-    family: 'System',
-    size: { 1: 12, 2: 14, 3: 16, 4: 20 },
-    lineHeight: { 1: 16, 2: 20, 3: 24, 4: 28 },
-    weight: { 4: '400', 6: '600' },
-    letterSpacing: { 1: 0, 2: 0.25, 3: 0.5, 4: 0.75 },
-  },
-}
-
-export default createTamagui({
+const config = createTamagui({
+  themes,
   tokens,
-  themes: {
-    modern:  { background: '#0b0f14', color: '#e6e9ef', primary: '#7c5cff' },
-    classic: { background: '#f7f5f0', color: '#2b2b2b', primary: '#355c7d' },
-  },
-  fonts,
+  shorthands,
+  media: createMedia({
+    xs: { maxWidth: 660 },
+    sm: { maxWidth: 800 },
+    md: { maxWidth: 1020 },
+    lg: { maxWidth: 1280 },
+    xl: { maxWidth: 1420 },
+    xxl: { maxWidth: 1600 },
+    gtXs: { minWidth: 660 + 1 },
+    gtSm: { minWidth: 800 + 1 },
+    gtMd: { minWidth: 1020 + 1 },
+    gtLg: { minWidth: 1280 + 1 },
+    short: { maxHeight: 820 },
+    tall: { minHeight: 820 },
+    hoverNone: { hover: 'none' },
+    pointerCoarse: { pointer: 'coarse' },
+  }),
 })
+
+export default config
+
+export type AppConfig = typeof config
+
+declare module 'tamagui' {
+  interface TamaguiCustomConfig extends AppConfig {}
+}
