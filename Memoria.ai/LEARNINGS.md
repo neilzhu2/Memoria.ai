@@ -1239,4 +1239,49 @@ Expo officially supports migrating from Expo Go to Development Builds with minim
 - [ ] Test on real devices
 - [ ] Configure app metadata
 
+#### Unused Dependencies Removed (Nov 6, 2025)
+
+**Investigation Results**:
+Conducted codebase grep for `react-native-mmkv` and `tamagui` - **neither library is being used anywhere in the codebase**.
+
+**Dependencies removed**:
+1. **react-native-mmkv** `^3.3.3`
+   - 534,689 weekly downloads, 7,581 GitHub stars
+   - 30x faster than AsyncStorage, but we're using AsyncStorage for Supabase auth
+   - ❌ Not imported or used anywhere in the codebase
+   - **Removed from**: `package.json` dependencies
+
+2. **tamagui** `^1.132.24`
+   - 73,597 weekly downloads (main package), 13,300 GitHub stars
+   - UI library for React Native
+   - ❌ Not imported or used anywhere in the codebase
+   - **Removed from**: `package.json` dependencies
+
+3. **@tamagui/babel-plugin** `^1.132.24`
+   - Build-time plugin for Tamagui
+   - ❌ No longer needed without Tamagui
+   - **Removed from**: `package.json` devDependencies
+
+4. **tamagui.config.ts**
+   - Configuration file for Tamagui
+   - **Deleted**: Root level config file
+
+5. **tamagui config section** in `package.json`
+   - Removed `"tamagui": { "config": "./tamagui.config.ts" }`
+
+**Impact**:
+- **168 packages removed** (including all Tamagui and MMKV dependencies)
+- Reduced bundle size significantly
+- Simplified dependency tree
+- Removed unused configuration
+
+**Why they were likely added**:
+- May have been part of initial project template
+- Could have been experimental dependencies during prototyping
+- Never actually integrated into the codebase
+
+**Lesson**: Regularly audit dependencies and remove unused libraries to keep bundle size lean and dependency tree simple.
+
+**Commit**: Removed unused dependencies to reduce bundle size
+
 ---
