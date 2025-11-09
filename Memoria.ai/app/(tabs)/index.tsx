@@ -4,13 +4,11 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   Animated,
   Dimensions,
 } from 'react-native';
 import { PanGestureHandler, State, HandlerStateChangeEvent, PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -74,8 +72,7 @@ interface NavigationState {
 
 const HomeScreen = React.memo(function HomeScreen() {
   const colorScheme = useColorScheme();
-  const router = useRouter();
-  const { memoryStats, generateSmartExport, isExporting, recordingTrigger, selectedThemeFromTrigger } = useRecording();
+  const { recordingTrigger, selectedThemeFromTrigger } = useRecording();
 
   // Simple, reliable navigation state
   const [navState, setNavState] = useState<NavigationState>({
@@ -234,63 +231,6 @@ const HomeScreen = React.memo(function HomeScreen() {
     { useNativeDriver: true }
   );
 
-  // Helper functions
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
-
-  const handleSmartExportPress = useCallback(async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (memoryStats.totalMemories === 0) {
-      Alert.alert(
-        'No Memories Yet',
-        'Start recording your first memory to create your memoir!'
-      );
-      return;
-    }
-
-    if (isExporting) {
-      Alert.alert('Export in Progress', 'Please wait for the current export to complete.');
-      return;
-    }
-
-    Alert.alert(
-      'Smart Export',
-      `Create a beautiful memoir from your ${memoryStats.totalMemories} memories.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Export',
-          onPress: async () => {
-            const result = await generateSmartExport({
-              type: 'full',
-              includeAudio: true,
-              includeTranscriptions: true,
-              format: 'pdf',
-              familySharing: true,
-            });
-
-            if (result.success) {
-              Alert.alert('Export Complete', 'Your memoir has been generated successfully!');
-            } else {
-              Alert.alert('Export Failed', result.error || 'Unable to generate memoir.');
-            }
-          },
-        },
-      ]
-    );
-  }, [memoryStats.totalMemories, isExporting, generateSmartExport]);
-
-  const handleViewMemoriesPress = useCallback(async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/mylife?section=memories');
-  }, [router]);
-
   const handleSkipPress = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigate('forward');
@@ -314,31 +254,6 @@ const HomeScreen = React.memo(function HomeScreen() {
       style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
     >
       <StatusBar style="auto" />
-
-      {/* Quick Actions - Top */}
-      <View style={styles.topActionsContainer}>
-        <TouchableOpacity
-          style={[styles.topActionButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-          onPress={handleViewMemoriesPress}
-          accessibilityLabel="View all memories"
-        >
-          <IconSymbol name="list.bullet" size={18} color={Colors[colorScheme ?? 'light'].tint} />
-          <Text style={[styles.topActionText, { color: Colors[colorScheme ?? 'light'].text }]}>
-            View Memories
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.topActionButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-          onPress={handleSmartExportPress}
-          accessibilityLabel="Create memoir export"
-        >
-          <IconSymbol name="square.and.arrow.up" size={18} color={Colors[colorScheme ?? 'light'].tint} />
-          <Text style={[styles.topActionText, { color: Colors[colorScheme ?? 'light'].text }]}>
-            Export Memoir
-          </Text>
-        </TouchableOpacity>
-      </View>
 
       {/* App Header */}
       <View style={styles.header}>
@@ -567,30 +482,6 @@ const styles = StyleSheet.create({
   recentText: {
     fontSize: 16,
     marginLeft: 12,
-  },
-  topActionsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 32,
-    paddingHorizontal: 4,
-  },
-  topActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 12,
-    shadowColor: '#000000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    minHeight: 48,
-  },
-  topActionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
   },
   backgroundCard: {
     position: 'absolute',
