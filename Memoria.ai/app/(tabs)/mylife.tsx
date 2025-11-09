@@ -19,8 +19,6 @@ import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 import { EditMemoryModal } from '@/components/EditMemoryModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { MemoryPreviewModal } from '@/components/MemoryPreviewModal';
-import { AccessibilitySettingsModal } from '@/components/settings/AccessibilitySettingsModal';
-import { FamilySharingModal } from '@/components/settings/FamilySharingModal';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { MyLifeScreenProps } from '@/types/navigation';
@@ -62,8 +60,6 @@ export default function MyLifeScreen() {
 
   // Settings modal states
   const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
-  const [accessibilityModalVisible, setAccessibilityModalVisible] = useState(false);
-  const [familySharingModalVisible, setFamilySharingModalVisible] = useState(false);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -154,16 +150,6 @@ export default function MyLifeScreen() {
   const handleSettingsPress = async (setting: string) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(setting, `${setting} settings coming soon!`);
-  };
-
-  const handleAccessibilityPress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setAccessibilityModalVisible(true);
-  };
-
-  const handleFamilySharingPress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setFamilySharingModalVisible(true);
   };
 
   const handleEditMemory = async (memory: MemoryItem) => {
@@ -483,36 +469,6 @@ export default function MyLifeScreen() {
         </View>
       </View>
 
-      {/* Settings Options */}
-      <View style={styles.settingsSection}>
-        <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-          Settings
-        </Text>
-
-        <TouchableOpacity
-          style={[styles.settingItem, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-          onPress={handleFamilySharingPress}
-          accessibilityLabel="Family sharing settings"
-        >
-          <IconSymbol name="person.2.fill" size={24} color={Colors[colorScheme ?? 'light'].tint} />
-          <Text style={[styles.settingText, { color: Colors[colorScheme ?? 'light'].text }]}>
-            Family Sharing
-          </Text>
-          <IconSymbol name="chevron.right" size={16} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.settingItem, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-          onPress={handleAccessibilityPress}
-          accessibilityLabel="Accessibility settings"
-        >
-          <IconSymbol name="accessibility" size={24} color={Colors[colorScheme ?? 'light'].tint} />
-          <Text style={[styles.settingText, { color: Colors[colorScheme ?? 'light'].text }]}>
-            Accessibility
-          </Text>
-          <IconSymbol name="chevron.right" size={16} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
-        </TouchableOpacity>
-      </View>
     </View>
   );
 
@@ -602,18 +558,6 @@ export default function MyLifeScreen() {
         onViewDetails={handleViewDetailsFromPreview}
         onDelete={handleDeleteFromPreview}
         onClose={() => setPreviewModalVisible(false)}
-      />
-
-      {/* Accessibility Settings Modal */}
-      <AccessibilitySettingsModal
-        visible={accessibilityModalVisible}
-        onClose={() => setAccessibilityModalVisible(false)}
-      />
-
-      {/* Family Sharing Modal */}
-      <FamilySharingModal
-        visible={familySharingModalVisible}
-        onClose={() => setFamilySharingModalVisible(false)}
       />
 
       {/* Edit Profile Modal */}
