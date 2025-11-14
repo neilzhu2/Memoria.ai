@@ -11,13 +11,19 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { IconSymbol } from './ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
+import { DesignTokens } from '@/constants/DesignTokens';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuth } from '@/contexts/AuthContext';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { supabase } from '@/lib/supabase';
+import { decode } from 'base64-arraybuffer';
 
 interface EditProfileModalProps {
   visible: boolean;
@@ -30,6 +36,8 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -39,6 +47,7 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [emailChanged, setEmailChanged] = useState(false);
 
   const backgroundColor = Colors[colorScheme ?? 'light'].background;
@@ -52,6 +61,8 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
     if (visible && user) {
       setDisplayName(userProfile?.display_name || '');
       setEmail(user.email || '');
+      setAvatarUrl(userProfile?.avatar_url || null);
+      setDateOfBirth(userProfile?.date_of_birth || '');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -62,6 +73,98 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  };
+
+  const handlePickImage = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Request permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'We need camera roll permissions to select a photo.');
+      return;
+    }
+
+    // Launch image picker
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled) {
+      return;
+    }
+
+    const imageUri = result.assets[0].uri;
+    await uploadAvatar(imageUri);
+  };
+
+  const uploadAvatar = async (uri: string) => {
+    if (!user) return;
+
+    setUploadingImage(true);
+
+    try {
+      // Resize and compress image
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 400 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      // Read file as base64
+      const response = await fetch(manipResult.uri);
+      const blob = await response.blob();
+      const arrayBuffer = await new Response(blob).arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+      // Generate unique filename
+      const fileExt = 'jpg';
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, decode(base64), {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
+        setUploadingImage(false);
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await updateProfile({ avatar_url: publicUrl });
+
+      if (updateError) {
+        console.error('Profile update error:', updateError);
+        Alert.alert('Update Failed', 'Failed to update profile picture.');
+        setUploadingImage(false);
+        return;
+      }
+
+      setAvatarUrl(publicUrl);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setUploadingImage(false);
+    } catch (error) {
+      console.error('Image upload error:', error);
+      Alert.alert('Error', 'An error occurred while uploading the image.');
+      setUploadingImage(false);
+    }
   };
 
   const handleSave = async () => {
@@ -94,18 +197,31 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
     }, 10000);
 
     try {
-      // Update display name if changed
+      // Update profile fields if changed
+      const profileUpdates: any = {};
+      let hasProfileUpdates = false;
+
       if (displayName !== userProfile?.display_name) {
-        console.log('EditProfileModal: Updating display name to:', displayName);
-        const { error } = await updateProfile({ display_name: displayName });
+        profileUpdates.display_name = displayName;
+        hasProfileUpdates = true;
+      }
+
+      if (dateOfBirth !== userProfile?.date_of_birth) {
+        profileUpdates.date_of_birth = dateOfBirth || null;
+        hasProfileUpdates = true;
+      }
+
+      if (hasProfileUpdates) {
+        console.log('EditProfileModal: Updating profile with:', profileUpdates);
+        const { error } = await updateProfile(profileUpdates);
         if (error) {
-          console.error('EditProfileModal: Display name update error:', error);
+          console.error('EditProfileModal: Profile update error:', error);
           clearTimeout(saveTimeout);
-          Alert.alert('Error', 'Failed to update display name');
+          Alert.alert('Error', 'Failed to update profile');
           setLoading(false);
           return;
         }
-        console.log('EditProfileModal: Display name updated successfully');
+        console.log('EditProfileModal: Profile updated successfully');
       }
 
       // Update email if changed
@@ -221,13 +337,33 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Profile Picture Placeholder */}
+          {/* Profile Picture */}
           <View style={styles.avatarSection}>
-            <View style={[styles.avatarCircle, { backgroundColor: tintColor + '20' }]}>
-              <IconSymbol name="person.fill" size={48} color={tintColor} />
-            </View>
+            <TouchableOpacity
+              onPress={handlePickImage}
+              disabled={uploadingImage}
+              style={[styles.avatarCircle, { backgroundColor: tintColor + '20' }]}
+              accessibilityLabel="Change profile picture"
+            >
+              {avatarUrl ? (
+                <Image
+                  source={{ uri: avatarUrl }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <IconSymbol name="person.fill" size={48} color={tintColor} />
+              )}
+              {uploadingImage && (
+                <View style={styles.avatarOverlay}>
+                  <ActivityIndicator color="white" />
+                </View>
+              )}
+              <View style={[styles.cameraIconContainer, { backgroundColor: tintColor }]}>
+                <IconSymbol name="camera.fill" size={16} color="white" />
+              </View>
+            </TouchableOpacity>
             <Text style={[styles.avatarNote, { color: borderColor }]}>
-              Profile picture upload coming soon
+              Tap to change profile picture
             </Text>
           </View>
 
@@ -245,6 +381,25 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
                 editable={!loading}
               />
             </View>
+          </View>
+
+          {/* Date of Birth */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Date of Birth</Text>
+            <View style={[styles.inputContainer, { backgroundColor: borderColor + '10', borderColor: borderColor + '40' }]}>
+              <IconSymbol name="calendar" size={20} color={borderColor} />
+              <TextInput
+                style={[styles.input, { color: textColor }]}
+                value={dateOfBirth}
+                onChangeText={setDateOfBirth}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={borderColor}
+                editable={!loading}
+              />
+            </View>
+            <Text style={[styles.helper, { color: borderColor }]}>
+              Format: YYYY-MM-DD (e.g., 1950-01-15)
+            </Text>
           </View>
 
           {/* Email */}
@@ -376,94 +531,133 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: DesignTokens.spacing.md,
     paddingTop: 60,
-    paddingBottom: 16,
+    paddingBottom: DesignTokens.spacing.md,
     borderBottomWidth: 1,
   },
   closeButton: {
-    width: 44,
-    height: 44,
+    width: DesignTokens.touchTarget.minimum,
+    height: DesignTokens.touchTarget.minimum,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    ...DesignTokens.typography.h3,
   },
   placeholder: {
-    width: 44,
+    width: DesignTokens.touchTarget.minimum,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
+    padding: DesignTokens.spacing.lg,
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: DesignTokens.spacing.xl,
   },
   avatarCircle: {
     width: 120,
     height: 120,
-    borderRadius: 60,
+    borderRadius: DesignTokens.radius.round,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: DesignTokens.spacing.sm,
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 4,
+    borderColor: DesignTokens.colors.primary.main,
+    ...DesignTokens.elevation[2],
+  },
+  avatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: DesignTokens.radius.round,
+  },
+  avatarOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: DesignTokens.radius.round,
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 36,
+    height: 36,
+    borderRadius: DesignTokens.radius.round,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
   },
   avatarNote: {
-    fontSize: 14,
+    ...DesignTokens.typography.bodySmall,
     fontStyle: 'italic',
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: DesignTokens.spacing.lg,
   },
   label: {
-    fontSize: 16,
+    ...DesignTokens.typography.body,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: DesignTokens.spacing.sm,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: DesignTokens.spacing.md,
+    paddingVertical: DesignTokens.spacing.md,
+    borderRadius: DesignTokens.radius.md,
     borderWidth: 2,
-    gap: 12,
+    gap: DesignTokens.spacing.sm,
+    minHeight: DesignTokens.touchTarget.minimum,
+    ...DesignTokens.elevation[1],
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    ...DesignTokens.typography.body,
   },
   eyeButton: {
-    padding: 4,
-  },
-  helper: {
-    fontSize: 14,
-    marginTop: 8,
-  },
-  section: {
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  saveButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
+    padding: DesignTokens.spacing.xs,
+    minWidth: DesignTokens.touchTarget.minimum,
+    minHeight: DesignTokens.touchTarget.minimum,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+  },
+  helper: {
+    ...DesignTokens.typography.bodySmall,
+    marginTop: DesignTokens.spacing.sm,
+  },
+  section: {
+    marginTop: DesignTokens.spacing.sm,
+    marginBottom: DesignTokens.spacing.md,
+  },
+  sectionTitle: {
+    ...DesignTokens.typography.button,
+    marginBottom: DesignTokens.spacing.xs,
+  },
+  saveButton: {
+    paddingVertical: DesignTokens.spacing.md,
+    paddingHorizontal: DesignTokens.spacing.lg,
+    borderRadius: DesignTokens.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: DesignTokens.spacing.sm,
+    minHeight: DesignTokens.touchTarget.comfortable,
+    ...DesignTokens.elevation[2],
   },
   saveButtonText: {
     color: 'white',
-    fontSize: 18,
-    fontWeight: '700',
+    ...DesignTokens.typography.button,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -472,17 +666,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: DesignTokens.spacing.md,
+    paddingHorizontal: DesignTokens.spacing.lg,
+    borderRadius: DesignTokens.radius.md,
     borderWidth: 2,
-    marginTop: 24,
-    gap: 12,
+    marginTop: DesignTokens.spacing.lg,
+    gap: DesignTokens.spacing.sm,
+    minHeight: DesignTokens.touchTarget.comfortable,
+    ...DesignTokens.elevation[1],
   },
   signOutButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...DesignTokens.typography.button,
   },
   bottomSpacing: {
-    height: 40,
+    height: DesignTokens.spacing.xxl,
   },
 });

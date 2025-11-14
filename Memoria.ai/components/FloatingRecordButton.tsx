@@ -7,6 +7,8 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { IconSymbol } from './ui/IconSymbol';
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 interface FloatingRecordButtonProps {
   onPress: () => void;
@@ -19,6 +21,9 @@ export function FloatingRecordButton({
   isRecording = false,
   size = 70
 }: FloatingRecordButtonProps) {
+  const colorScheme = useColorScheme();
+  const buttonColor = Colors[colorScheme ?? 'light'].accent;
+  const buttonColorActive = Colors[colorScheme ?? 'light'].accentDark;
 
   const handlePress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -45,7 +50,7 @@ export function FloatingRecordButton({
               width: size,
               height: size,
               borderRadius: size / 2,
-              backgroundColor: isRecording ? '#3498db' : '#5dade2',
+              backgroundColor: isRecording ? buttonColorActive : buttonColor,
             },
           ]}
           onPress={handlePress}

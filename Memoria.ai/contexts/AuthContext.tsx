@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 interface UserProfile {
   display_name: string | null;
   avatar_url: string | null;
+  date_of_birth: string | null;
 }
 
 interface AuthContextType {
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('display_name, avatar_url')
+        .select('display_name, avatar_url, date_of_birth')
         .eq('id', userId)
         .single();
 
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               id: userId,
               display_name: null,
               avatar_url: null,
+              date_of_birth: null,
               settings: {
                 autoBackupEnabled: false,
                 lastBackupDate: null,

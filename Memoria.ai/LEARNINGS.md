@@ -1,1242 +1,307 @@
-# Technical Learnings from Supabase Connection Debugging
+# Technical Learnings - Memoria Development
 
-## November 2, 2025
-
-This document captures the architectural insights, best practices, and lessons learned during the debugging session for the Supabase connection timeout issue.
+**Purpose**: Key technical insights and best practices to remember for future development.
 
 ---
 
-## Core Lessons Learned
+## 🔑 Core Principles
 
-### 1. Trust Official Documentation Over Custom Implementations
+### 1. Trust Official Documentation
+**Lesson**: When integrating third-party services, use their official recommended configuration.
 
-**What we learned**: When integrating third-party services like Supabase, the official documentation's recommended configuration is battle-tested and should be trusted over custom implementations.
+**Why**: Custom wrappers/implementations can introduce race conditions and timing issues.
 
-**What we did wrong**: Created a custom `AsyncStorageAdapter` wrapper with logging and platform checks, thinking it would be more robust.
-
-**Why it was wrong**: Custom wrappers can introduce race conditions and timing issues that are hard to debug. The wrapper added unnecessary abstraction that interfered with Supabase's internal async operations.
-
-**Correct approach**:
+**Example**: Supabase + AsyncStorage
 ```typescript
-// ❌ WRONG - Custom wrapper
-const AsyncStorageAdapter = {
-  getItem: async (key: string) => {
-    console.log('🔑 Storage GET:', key);
-    const value = await AsyncStorage.getItem(key);
-    return value;
-  },
-  // ... more methods
-};
-
+// ❌ WRONG - Custom wrapper causes race conditions
+const AsyncStorageAdapter = { getItem: async (key) => { ... } };
 export const supabase = createClient(url, key, {
   auth: { storage: AsyncStorageAdapter }
 });
 
-// ✅ CORRECT - Direct pass-through
+// ✅ CORRECT - Direct pass-through (official recommendation)
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-export const supabase = createClient(url, key, {
-  auth: {
-    storage: AsyncStorage,  // Pass directly
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  }
-});
-```
-
-**Reference**: [Official Supabase React Native Setup Docs (2025)](https://supabase.com/docs/guides/getting-started/tutorials/with-react-native)
-
----
-
-### 2. expo-secure-store Compatibility Issues with Supabase
-
-**What we learned**: `expo-secure-store` has blocking behavior that causes indefinite hangs when used as Supabase's storage adapter.
-
-**Symptoms**:
-- `supabase.auth.getSession()` hangs forever
-- Database queries never return
-- No error messages, just silent timeout
-- Works intermittently or not at all
-
-**Root cause**: `expo-secure-store`'s `getItemAsync()` can block indefinitely in certain scenarios, especially when Supabase's auth module tries to retrieve tokens.
-
-**Solution**: Use `@react-native-async-storage/async-storage` instead - it's non-blocking and officially recommended by Supabase.
-
-**Package to install**:
-```bash
-npm install @react-native-async-storage/async-storage
-```
-
-**Packages to avoid**:
-- `expo-secure-store` (for Supabase auth storage)
-
----
-
-### 3. Diagnostic-First Debugging Strategy
-
-**What we learned**: When facing complex async issues, create isolated diagnostic tests before implementing fixes.
-
-**Approach we used**:
-1. Created `/app/test-supabase.tsx` diagnostic screen
-2. Added test for raw network fetch (to verify network connectivity)
-3. Added test for auth session (to verify Supabase client initialization)
-4. Added test for SELECT query (to verify database operations)
-5. Added timing information to each test
-6. Made tests accessible without requiring login
-
-**Benefits**:
-- Isolated the problem to Supabase client operations (network was fine)
-- Ruled out RLS policies, environment variables, and server issues
-- Provided clear ✅/❌ feedback for each component
-- Enabled rapid iteration and testing without full app reload
-
-**Code pattern**:
-```typescript
-const testAuthSession = async () => {
-  addLog('Testing auth session...');
-  try {
-    const startTime = Date.now();
-    const { data, error } = await supabase.auth.getSession();
-    const duration = Date.now() - startTime;
-
-    if (error) {
-      addLog(`❌ Auth session ERROR (${duration}ms): ${error.message}`);
-    } else {
-      addLog(`✅ Auth session OK (${duration}ms): User ${data.session?.user?.id || 'NONE'}`);
-    }
-  } catch (err) {
-    addLog(`❌ Auth session EXCEPTION: ${err}`);
-  }
-};
-```
-
-**Key insight**: Always include timing information to distinguish between "slow" and "hanging" operations.
-
----
-
-### 4. Metro Bundler Cache Invalidation Protocol
-
-**What we learned**: Metro bundler can aggressively cache code, serving stale versions even after code changes. A comprehensive cache clearing protocol is essential.
-
-**Force-Implement Protocol**:
-```bash
-# 1. Kill all related processes
-killall -9 node
-pkill -9 -f expo
-pkill -9 -f metro
-
-# 2. Clear cache directories
-rm -rf .expo
-rm -rf node_modules/.cache
-
-# 3. Restart Metro with cache reset
-npm start -- --reset-cache
-```
-
-**When to use**:
-- After changing core dependencies or configuration
-- When code changes aren't reflected in the app
-- When experiencing intermittent behavior
-- After modifying native modules or polyfills
-- **CRITICAL**: After deleting files or removing imports
-
-**Important**: Sometimes Metro can freeze during cache rebuild (e.g., stuck at 49.4%). If this happens, kill processes and restart without `--reset-cache` to use partial cache.
-
-**Real Example (Nov 5, 2025)**:
-After deleting `BackupSettingsModal.tsx`, the app showed:
-```
-Unable to resolve module @/components/settings/BackupSettingsModal
-```
-Even though the import was never added to `mylife.tsx`, Metro's cache still had the old dependency graph. Required full cache clear to fix.
-
-**One-liner for file deletions**:
-```bash
-killall -9 node 2>/dev/null; pkill -9 -f expo 2>/dev/null; pkill -9 -f metro 2>/dev/null; sleep 2 && rm -rf .expo node_modules/.cache && npm start -- --reset-cache
-```
-
-**Pro tip**: Always run cache clear **immediately** after deleting files or changing import paths. Don't wait for the error - be proactive!
-
----
-
-### 5. Async Storage vs Secure Storage Trade-offs
-
-**What we learned**: There's a trade-off between security and reliability for auth token storage in React Native.
-
-**AsyncStorage**:
-- ✅ Non-blocking, reliable
-- ✅ Works perfectly with Supabase
-- ✅ Fast read/write operations
-- ⚠️ Less secure (stored unencrypted on device)
-- ⚠️ Accessible to other apps with root access
-
-**SecureStore**:
-- ✅ Hardware-encrypted storage
-- ✅ Protected by device keychain/keystore
-- ❌ Can block indefinitely with some libraries
-- ❌ Known compatibility issues with Supabase
-
-**Decision**: For Supabase auth tokens, AsyncStorage is the correct choice because:
-1. Auth tokens are already encrypted and have short expiration
-2. Supabase refreshes tokens automatically
-3. Reliability is more important than defense-in-depth for this use case
-4. Official Supabase documentation recommends it
-
----
-
-### 6. Race Conditions in Custom Storage Adapters
-
-**What we learned**: Custom storage adapters that wrap async operations can introduce subtle race conditions.
-
-**Problem pattern**:
-```typescript
-// This pattern can cause race conditions
-const AsyncStorageAdapter = {
-  getItem: async (key: string) => {
-    console.log('Getting:', key);  // Logging adds time
-    const value = await AsyncStorage.getItem(key);  // Async operation
-    console.log('Got:', value);  // More logging
-    return value;  // Return might be delayed
-  }
-};
-```
-
-**Why it fails**:
-1. Supabase's auth module expects immediate, consistent responses
-2. Adding logging/debugging between async calls can delay responses
-3. Multiple concurrent calls to the adapter can interleave
-4. Platform checks (`Platform.OS === 'web'`) add conditional timing
-
-**Symptoms**:
-- Works initially, then breaks
-- Works in some test runs, fails in others
-- Different behavior after app reload
-- No consistent error messages
-
-**Solution**: Pass the storage implementation directly without wrapping:
-```typescript
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Supabase expects this exact interface - don't wrap it
 export const supabase = createClient(url, key, {
   auth: { storage: AsyncStorage }
 });
 ```
 
----
+### 2. Diagnostic-First Debugging
+**Lesson**: Create isolated diagnostic tests before implementing fixes.
 
-### 7. Timeout Logic vs Root Cause Fixing
+**Approach**:
+1. Create test screen isolated from main app
+2. Test individual components (network, auth, database)
+3. Include timing information
+4. Show clear ✅/❌ results
 
-**What we learned**: Adding timeout logic masks symptoms but doesn't fix root causes.
+**Benefits**: Quickly identifies root cause, rules out unrelated issues.
 
-**User insight**: "I don't want you to introduce more timeout logics for now, just dive into the root to see what's wrong with the network/connection"
+### 3. Test Complete User Flows
+**Lesson**: Don't just test happy path - test full cycles.
 
-**Why this matters**:
-- Timeouts make the app "fail faster" but don't fix the underlying issue
-- Users still experience failures, just with faster feedback
-- Root cause (storage adapter issue) remains unfixed
-- Technical debt accumulates
-
-**Better approach**:
-1. Use diagnostic tests to identify root cause
-2. Fix the architectural issue (wrong storage adapter)
-3. Remove timeout logic once root cause is fixed
-4. Keep diagnostic tests for future debugging
-
----
-
-### 8. Platform-Specific Storage Considerations
-
-**What we learned**: React Native apps need different storage strategies for different platforms.
-
-**Platform differences**:
-```typescript
-if (Platform.OS === 'web') {
-  // Use localStorage
-  return localStorage.getItem(key);
-} else {
-  // Use AsyncStorage
-  return await AsyncStorage.getItem(key);
-}
-```
-
-**Problem**: This adds complexity and potential bugs. For Expo apps, better approach is to use a library that abstracts platform differences.
-
-**Recommendation**: Trust Expo's libraries to handle platform abstraction:
-- `@react-native-async-storage/async-storage` works on all platforms
-- It handles web/iOS/Android differences internally
-- No need for custom platform checks
+**Examples**:
+- Login → Logout → Login (catches AsyncStorage corruption)
+- User A creates data → Logout → User B logs in (catches isolation bugs)
+- Update profile → Logout → Login (catches state corruption)
 
 ---
 
-## Architecture Insights
+## 🐛 Known Issues & Solutions
 
-### Supabase Client Configuration Best Practices
+### Supabase + AsyncStorage Corruption on Logout
 
-Based on this debugging session, here's the recommended Supabase client setup for React Native/Expo:
+**Problem**: After `signOut()`, Supabase leaves corrupted keys in AsyncStorage, causing next auth operation to hang.
 
-```typescript
-import 'react-native-url-polyfill/auto';  // Required polyfill
-import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: AsyncStorage,           // Direct, no wrapper
-    autoRefreshToken: true,          // Let Supabase manage tokens
-    persistSession: true,            // Persist across app restarts
-    detectSessionInUrl: false,       // Not needed in mobile
-  },
-  global: {
-    headers: {
-      'X-Client-Info': 'supabase-js-react-native',
-    },
-  },
-  db: {
-    schema: 'public',
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
-  },
-});
-```
-
-**Key elements**:
-1. **URL polyfill**: Required for React Native URL parsing
-2. **AsyncStorage**: Non-blocking, official recommendation
-3. **autoRefreshToken**: Automatic token renewal
-4. **persistSession**: Maintains login across restarts
-5. **X-Client-Info**: Helps Supabase identify React Native clients
-
----
-
-## Mistakes Made and Corrected
-
-### Mistake 1: Premature Custom Implementation
-**What we did**: Created custom storage adapter before checking official docs
-**Cost**: 30+ minutes of debugging intermittent failures
-**Lesson**: Always check official documentation first
-
-### Mistake 2: Not Testing in Isolation
-**What we did**: Initially tried to debug within the full app context
-**Impact**: Couldn't isolate whether issue was auth, RLS, network, or storage
-**Fix**: Created isolated test screen - immediately identified the issue
-
-### Mistake 3: Over-Engineering the Solution
-**What we did**: Added logging, platform checks, error handling to storage adapter
-**Problem**: Added complexity that introduced race conditions
-**Learning**: Simplicity is better - pass dependencies directly
-
-### Mistake 4: Cache Assumptions
-**What we did**: Assumed code changes would be reflected immediately
-**Result**: Tested "fixed" code that was actually old cached code
-**Protocol**: Always use force-implement protocol after core changes
-
----
-
-## What's Still Unknown / To Be Investigated
-
-1. **Current Status**: Connection is still broken after implementing the official AsyncStorage configuration
-   - Need to verify Metro properly loaded the changes
-   - May need to investigate Supabase server-side configuration
-   - Should check if RLS policies are blocking operations
-   - Verify environment variables are correctly set
-
-2. **Intermittent Behavior**: Why did the first fix (custom wrapper) work initially but then break?
-   - Possible Metro cache was serving different versions
-   - May have been race condition that only manifested sometimes
-   - Could be related to auth token refresh timing
-
-3. **Production Behavior**: All debugging done in Expo Go development environment
-   - Need to verify behavior in production build
-   - SecureStore might work in production where AsyncStorage works in dev
-
----
-
-## Quick Reference: Troubleshooting Checklist
-
-When Supabase operations hang in React Native:
-
-- [ ] Check storage adapter - is it AsyncStorage directly?
-- [ ] Verify `react-native-url-polyfill/auto` is imported
-- [ ] Kill all processes and clear Metro cache
-- [ ] Check environment variables are set correctly
-- [ ] Test network connectivity with raw fetch
-- [ ] Create isolated diagnostic test
-- [ ] Check Supabase dashboard for server-side errors
-- [ ] Verify RLS policies allow the operation
-- [ ] Check auth token is being stored/retrieved correctly
-- [ ] Test with and without auth session
-
----
-
-## Resources
-
-- [Supabase React Native Setup](https://supabase.com/docs/guides/getting-started/tutorials/with-react-native)
-- [AsyncStorage Documentation](https://react-native-async-storage.github.io/async-storage/)
-- [Metro Bundler Caching](https://facebook.github.io/metro/docs/configuration)
-- [React Native URL Polyfill](https://github.com/charpeni/react-native-url-polyfill)
-
----
-
----
-
-## November 4, 2025 - AsyncStorage Corruption After Logout
-
-### 9. Supabase AsyncStorage Corruption on Logout
-
-**What we learned**: Supabase's `signOut()` method can leave corrupted/partial data in AsyncStorage, causing subsequent auth operations to hang indefinitely.
-
-**The Problem**:
-After calling `supabase.auth.signOut()`, the next `supabase.auth.getSession()` call would hang forever with no error message or timeout.
-
-**Root Cause**:
-1. `signOut()` clears the session but sometimes leaves partial/corrupted keys in AsyncStorage
-2. When `getSession()` tries to read these corrupted keys, AsyncStorage's `getItem()` blocks indefinitely
-3. This is a known issue with Supabase + AsyncStorage (documented in Supabase GitHub issues)
-
-**Symptoms**:
-- Network tests pass (proving server connectivity works)
-- Auth tests hang indefinitely after logout
-- No error message, no timeout - just infinite wait
-- Happens in both dev and production
-
-**The Fix**: Manually clear Supabase AsyncStorage keys AFTER `signOut()` completes:
-
+**Solution**: Manually clear Supabase keys after signOut
 ```typescript
 const signOut = async () => {
-  try {
-    // 1. Clear local state
-    setUser(null);
-    setSession(null);
-    setUserProfile(null);
+  // 1. Clear local state
+  setUser(null);
 
-    // 2. Call Supabase signOut
-    const { error } = await supabase.auth.signOut();
-    if (error) console.error('Sign out error:', error);
+  // 2. Call Supabase signOut
+  await supabase.auth.signOut();
 
-    // 3. CRITICAL: Manually clear AsyncStorage keys
-    const keys = await AsyncStorage.getAllKeys();
-    const supabaseKeys = keys.filter(key =>
-      key.includes('supabase') ||
-      key.includes('@supabase') ||
-      key.includes('sb-') ||
-      key.startsWith('supabase.auth.token')
-    );
+  // 3. CRITICAL: Clear AsyncStorage keys
+  const keys = await AsyncStorage.getAllKeys();
+  const supabaseKeys = keys.filter(key =>
+    key.includes('supabase') ||
+    key.includes('@supabase') ||
+    key.includes('sb-') ||
+    key.startsWith('supabase.auth.token')
+  );
 
-    if (supabaseKeys.length > 0) {
-      await AsyncStorage.multiRemove(supabaseKeys);
-      console.log(`Cleared ${supabaseKeys.length} Supabase keys`);
-    }
-  } catch (error) {
-    console.error('Sign out exception:', error);
+  if (supabaseKeys.length > 0) {
+    await AsyncStorage.multiRemove(supabaseKeys);
   }
 };
 ```
 
-**Key Design Principles**:
-
-1. **Timing**: Clear AsyncStorage AFTER `signOut()` completes
-   - Let Supabase finish its own cleanup first
-   - Then manually remove any remaining/corrupted keys
-
-2. **Non-blocking error handling**:
-   - Wrap storage clearing in try-catch
-   - If clearing fails, logout still succeeds
-   - User experience > perfect cleanup
-
-3. **Comprehensive key filtering**:
-   - Multiple key patterns: `supabase`, `@supabase`, `sb-*`, `supabase.auth.token`
-   - Robust against Supabase version changes
-
-4. **Production-ready**:
-   - This issue affects production builds
-   - AsyncStorage behaves identically in dev and production
-   - The fix is essential for reliable logout → login cycles
-
-**Why this wasn't caught earlier**:
-- The AsyncStorage fix (Nov 2) solved the hanging during normal auth operations
-- But logout creates a different type of corruption that wasn't tested until Nov 4
-- The diagnostic test screen was crucial in identifying this
-
-**Best Practices**:
-- Always test the complete auth cycle: login → logout → login
-- Monitor logout logs in production for storage clearing confirmation
-- Consider this pattern for any app using Supabase + AsyncStorage
+**Key patterns to filter**: `supabase`, `@supabase`, `sb-*`, `supabase.auth.token`
 
 ---
 
-## Conclusion
+## ⚡ Performance Best Practices
 
-**The three most important lessons:**
+### List Rendering
+**Rule**: Use FlatList for lists > 20 items, NOT ScrollView + map()
 
-1. **Trust Official Documentation**: When integrating third-party services, the official docs' recommended configuration is battle-tested. Custom implementations can introduce subtle bugs.
-
-2. **Create Diagnostic Tests Early**: Isolated testing saved hours of debugging by immediately identifying that network was fine but the Supabase client was blocking.
-
-3. **Test Complete User Flows**: Don't just test the happy path. Test login → logout → login cycles to catch state corruption issues.
-
-**Final Status - November 4, 2025**:
-- ✅ AsyncStorage fix implemented and working
-- ✅ Logout corruption fix implemented and confirmed
-- ✅ Complete auth cycle (login → logout → login) fully functional
-- ✅ Diagnostic tools created for future debugging
-
----
-
-## November 4, 2025 - Product Decision: Removing Recording Settings
-
-### 10. Less is More: Removing Premature Settings
-
-**Product Decision**: Removed the "Recording Settings" screen entirely.
-
-**Why**: All settings should have been "always on" by default:
-1. **Transcription Language** - Not implemented yet, should default to auto-detect
-2. **Auto-transcribe** - Should always be ON (why wouldn't users want transcription?)
-3. **Sound Effects** - Should always be ON (good UX feedback)
-
-**Key Principle**: **If all settings should just be "always on by default", then there's no point having a settings screen at all.**
-
-**Good product design**:
-- **Less is more** - Fewer settings = simpler UX
-- **Smart defaults** - Just make it work well by default
-- **Focus on value** - Settings should only exist when there's real user value
-
-**What was removed**:
-- `/components/settings/VoiceSettingsModal.tsx` - Deleted (264 lines of unused code)
-- All references in `/app/(tabs)/mylife.tsx`:
-  - Import statement
-  - State variable `voiceModalVisible`
-  - Handler function `handleVoicePress`
-  - Voice Settings button in UI
-  - Modal component usage in JSX
-
-**Metro Cache Issue**:
-After deleting the component, the app showed an import error because Metro bundler was serving cached code. Required full cache clear:
-```bash
-killall -9 node && sleep 2 && rm -rf .expo node_modules/.cache && npm start -- --reset-cache
-```
-
-**Future Considerations**:
-When transcription API is implemented:
-- Default to auto-detect language (no user configuration needed)
-- Always enable auto-transcribe (transcription is a core feature)
-- Always enable sound effects (provides tactile feedback)
-- Only add settings if users request customization
-
-**Next Steps** (for next session):
-Review remaining settings in Profile section one by one:
-1. Family Sharing - Verify functionality
-2. Accessibility - Check implementation
-3. Backup & Sync - Test features
-
----
-
-## November 4, 2025 - Expo/React Native Performance Best Practices
-
-### 11. Performance Optimization for Memoria App
-
-**Context**: Researched official Expo and React Native performance guidelines (2025) to ensure our app stays fast and responsive as we add features.
-
----
-
-#### A. List Rendering Optimization
-
-**Current Status**: ✅ We're already using FlatList in mylife.tsx for memories list
-
-**What we're doing right**:
 ```typescript
-// app/(tabs)/mylife.tsx uses map() with React.Fragment
-{filteredMemories.map((memory) => (
-  <React.Fragment key={memory.id}>
-    {renderMemoryItem({ item: memory })}
-  </React.Fragment>
-))}
-```
+// ❌ BAD - Renders ALL items at once
+{memories.map(item => <MemoryCard {...item} />)}
 
-**⚠️ Performance Issue**: Using `.map()` in a ScrollView renders ALL items at once, even those off-screen.
-
-**TODO for future optimization**:
-When memory list grows beyond ~20 items, replace with FlatList:
-```typescript
+// ✅ GOOD - Only renders visible items
 <FlatList
-  data={filteredMemories}
-  renderItem={renderMemoryItem}
-  keyExtractor={(item) => item.id}
-  getItemLayout={(data, index) => ({
-    length: ITEM_HEIGHT,
-    offset: ITEM_HEIGHT * index,
-    index
-  })}
+  data={memories}
+  renderItem={({ item }) => <MemoryCard {...item} />}
+  keyExtractor={item => item.id}
   initialNumToRender={10}
-  maxToRenderPerBatch={10}
   windowSize={5}
 />
 ```
 
-**Benefits**:
-- Only renders visible items + small buffer
-- Reduces memory usage dramatically
-- Maintains 60fps scrolling even with 1000+ items
+### Component Optimization
+**Rules**:
+1. Wrap pure components with `React.memo()`
+2. Move constant arrays/objects outside component
+3. Use `useCallback` for functions passed to memoized children
+4. Use `useMemo` for expensive calculations
 
----
-
-#### B. Component Rendering Optimization
-
-**Best Practice**: Wrap pure components with `React.memo()` to prevent unnecessary re-renders.
-
-**Components that should be memoized** (TODO):
-1. Memory card items - currently re-render on every parent update
-2. Settings modals - re-render even when closed
-3. Static UI elements like IconSymbol
-
-**Example implementation**:
 ```typescript
-// ❌ CURRENT - Re-renders on every parent update
-const MemoryCard = ({ memory }: { memory: MemoryItem }) => {
-  return <View>...</View>;
+// ❌ BAD - Array recreated every render
+const MyComponent = () => {
+  const options = [{ key: 'a', label: 'A' }, ...];
+  return <Picker options={options} />;
 };
 
-// ✅ OPTIMIZED - Only re-renders when memory changes
-const MemoryCard = React.memo(({ memory }: { memory: MemoryItem }) => {
-  return <View>...</View>;
-}, (prevProps, nextProps) => {
-  // Custom comparison: only re-render if memory.id changes
-  return prevProps.memory.id === nextProps.memory.id;
+// ✅ GOOD - Array created once
+const OPTIONS = [{ key: 'a', label: 'A' }, ...];
+const MyComponent = React.memo(() => {
+  return <Picker options={OPTIONS} />;
 });
 ```
 
-**When to use React.memo**:
-- Components that render many times with same props
-- Heavy components (complex layouts, animations)
-- List item components
-- NOT needed for components that always change (like counters)
+### Animation Performance
+**Rule**: Always use `useNativeDriver: true` for animations
 
----
-
-#### C. Avoid Inline Function Definitions
-
-**Anti-pattern we should check for**:
 ```typescript
-// ❌ BAD - Creates new function on every render
-<TouchableOpacity onPress={() => handlePress(item.id)}>
-  <Text>Click me</Text>
-</TouchableOpacity>
-```
-
-**Better approach**:
-```typescript
-// ✅ GOOD - Stable function reference
-const handlePressCallback = useCallback(() => {
-  handlePress(item.id);
-}, [item.id]);
-
-<TouchableOpacity onPress={handlePressCallback}>
-  <Text>Click me</Text>
-</TouchableOpacity>
-```
-
-**Audit TODO**: Review our TouchableOpacity handlers in mylife.tsx and RecordingContext.
-
----
-
-#### D. Image Optimization
-
-**Current**: We're using standard image formats (PNG/JPEG for avatars, icons)
-
-**TODO - Image Performance Improvements**:
-
-1. **Use WebP format**:
-   - 25-35% smaller than PNG/JPEG
-   - Expo supports WebP on iOS and Android natively
-   - Convert all static images to WebP
-
-2. **Preload critical images**:
-   ```typescript
-   // In App.tsx or _layout.tsx
-   import { Asset } from 'expo-asset';
-
-   useEffect(() => {
-     Asset.loadAsync([
-       require('./assets/images/logo.webp'),
-       require('./assets/images/placeholder.webp'),
-     ]);
-   }, []);
-   ```
-
-3. **Use expo-image instead of Image**:
-   ```typescript
-   // ❌ OLD - Standard React Native Image
-   import { Image } from 'react-native';
-
-   // ✅ NEW - Expo's optimized Image
-   import { Image } from 'expo-image';
-
-   <Image
-     source={{ uri: memory.imageUrl }}
-     placeholder={placeholderImage}
-     contentFit="cover"
-     transition={200}
-   />
-   ```
-
-**Benefits of expo-image**:
-- Automatic caching
-- Smooth transitions
-- Better memory management
-- Placeholder support
-
----
-
-#### E. Animation Performance
-
-**Current**: Using expo-haptics for tactile feedback ✅
-
-**Best Practice**: Always use `useNativeDriver: true` for animations
-
-**Example - Animated opacity**:
-```typescript
-import { Animated } from 'react-native';
-
-const fadeAnim = useRef(new Animated.Value(0)).current;
-
 Animated.timing(fadeAnim, {
   toValue: 1,
   duration: 500,
-  useNativeDriver: true,  // ✅ CRITICAL - Runs on native thread
+  useNativeDriver: true,  // ✅ Runs on native thread
 }).start();
 ```
 
-**When useNativeDriver works**:
-- Opacity
-- Transform (translate, rotate, scale)
-- NOT for layout properties (width, height, etc.)
+**When it works**: opacity, transform (translate, rotate, scale)
+**When it doesn't**: layout properties (width, height, padding)
 
-**For complex animations**: Consider react-native-reanimated (we have it installed via Expo)
+### Styles
+**Rule**: Define styles with `StyleSheet.create()` outside components
 
----
-
-#### F. useMemo and useCallback Usage
-
-**When to use**:
-- `useMemo`: Expensive calculations that depend on specific values
-- `useCallback`: Functions passed as props to memoized components
-
-**Current code audit needed** for:
-1. Filtered memories calculation in mylife.tsx ✅ (already using useMemo)
-2. Sort functions
-3. Search filtering
-
-**Example from our code**:
 ```typescript
-// ✅ ALREADY OPTIMIZED in mylife.tsx
-const filteredMemories = useMemo(() => {
-  let filtered = [...memories];
-  // ... expensive filtering logic
-  return filtered;
-}, [memories, searchQuery, sortOrder]);
-```
+// ❌ BAD - New object every render
+<View style={{ flex: 1, padding: 16 }} />
 
-**⚠️ Don't overuse**: Only memoize when calculations are expensive or functions are passed to memoized children.
-
----
-
-#### G. StyleSheet.create for Styles
-
-**Best Practice**: Define styles outside components with StyleSheet.create()
-
-**✅ We're already doing this correctly** in all our components:
-```typescript
+// ✅ GOOD - Created once
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  // ...
+  container: { flex: 1, padding: 16 }
 });
-```
-
-**Why this matters**:
-- Styles are created once, not on every render
-- React Native can optimize style objects
-- Better debugging in DevTools
-
-**❌ Anti-pattern to avoid**:
-```typescript
-// DON'T DO THIS - Creates new style object every render
-<View style={{ flex: 1, padding: 16 }}>
+<View style={styles.container} />
 ```
 
 ---
 
-#### H. Bundle Size Optimization
+## 🔧 Metro Bundler Cache Protocol
 
-**Tool**: Expo Atlas - analyze bundle size and identify large dependencies
+**When to use**: After changing dependencies, deleting files, or experiencing stale code.
 
-**How to use**:
+**Force clear protocol**:
 ```bash
-npx expo-atlas
-```
-
-**What to look for**:
-- Large dependencies that could be replaced
-- Unused imports
-- Duplicate packages
-
-**Action items**:
-- Run expo-atlas quarterly
-- Remove unused dependencies
-- Use tree-shaking compatible imports
-
----
-
-#### I. Hermes Engine
-
-**Status**: ✅ Hermes is enabled by default in Expo SDK 54+
-
-**Benefits**:
-- Faster app startup (up to 2x)
-- Reduced memory usage
-- Smaller app bundle size
-
-**Verification**: Check `app.json`:
-```json
-{
-  "expo": {
-    "jsEngine": "hermes"  // Should be present
-  }
-}
-```
-
----
-
-### Performance Audit Checklist for Memoria
-
-**Immediate (High Priority)**:
-- [ ] Convert memory list from ScrollView + map() to FlatList
-- [ ] Wrap MemoryCard component with React.memo()
-- [ ] Audit TouchableOpacity handlers for inline functions
-- [ ] Run expo-atlas to check bundle size
-
-**Short-term (Medium Priority)**:
-- [ ] Convert static images to WebP format
-- [ ] Implement image preloading for critical assets
-- [ ] Replace React Native Image with expo-image
-- [ ] Add getItemLayout to FlatList for better scrolling
-
-**Long-term (Low Priority)**:
-- [ ] Implement pagination for memory list (load 50 at a time)
-- [ ] Add React.memo to settings modal components
-- [ ] Consider react-native-reanimated for smoother animations
-- [ ] Profile app with React DevTools Profiler
-
----
-
-### Key Principles
-
-1. **Measure first**: Don't optimize prematurely. Use React DevTools Profiler to identify bottlenecks.
-2. **Virtual lists**: Always use FlatList/SectionList for lists > 20 items.
-3. **Memoization**: Wrap pure components with React.memo(), expensive calculations with useMemo().
-4. **Native animations**: Use `useNativeDriver: true` whenever possible.
-5. **Image optimization**: Use WebP, expo-image, and preload critical assets.
-6. **Bundle analysis**: Run expo-atlas quarterly to catch bloat early.
-
----
-
-### Resources
-
-- [Expo Performance Best Practices (2025)](https://expo.dev/blog/best-practices-for-reducing-lag-in-expo-apps)
-- [React Native Performance Guide](https://reactnative.dev/docs/performance)
-- [Expo Atlas Documentation](https://docs.expo.dev/guides/analyzing-bundles/)
-- [react-native-reanimated](https://docs.swmansion.com/react-native-reanimated/)
-
----
-
-## November 5, 2025 - Settings Review and Performance Fixes
-
-### 12. Settings Audit and Performance Optimization
-
-**Context**: Reviewed all remaining settings modals following "less is more" product principle and applied performance best practices from Section 11.
-
-#### Settings Review Results
-
-**1. AccessibilitySettingsModal** - ✅ **KEEP & OPTIMIZE**
-- **Status**: Fully functional with real features
-- **Connected to**: SettingsContext with working state management
-- **Features implemented**:
-  - Theme switching (Light/Dark/Auto)
-  - Font size slider (16-28px)
-  - Touch target size (44-72px)
-  - High Contrast mode
-  - Reduced Motion
-  - Haptic Feedback
-  - Quick presets (Default/Enhanced/Maximum)
-- **Why keep**: Provides genuine accessibility value for elderly users
-- **Performance fixes applied**: See below
-
-**2. FamilySharingModal** - ✅ **KEEP**
-- **Status**: Honest placeholder ("Coming Soon")
-- **Why keep**: Clearly communicates it's a future feature, not misleading
-- **Features planned**:
-  - Guided recording prompts from family members
-  - Family memory connections
-  - Selective sharing
-  - Family story collections
-- **Performance fix**: Wrapped with React.memo()
-
-**3. BackupSettingsModal** - ❌ **REMOVED**
-- **Status**: Misleading placeholder with partial functionality
-- **Why removed**: Following "less is more" principle
-  - Auto-backup toggle doesn't actually backup to cloud (misleading!)
-  - Export Settings just shows JSON in alert (not useful)
-  - "Backup Now" and "Import" buttons show "coming soon" alerts
-  - Users might think their data is backed up when it's not (dangerous!)
-- **Risk**: Could cause data loss if users uninstall thinking data is safe
-- **File deleted**: `/components/settings/BackupSettingsModal.tsx` (305 lines)
-
-#### Performance Optimizations Applied
-
-**AccessibilitySettingsModal.tsx** - Comprehensive optimization:
-
-1. **Moved arrays outside component** (Lines 27-37):
-```typescript
-// Performance optimization: Prevent re-creation on every render
-const PRESET_OPTIONS = [
-  { key: 'default' as const, label: 'Default', icon: 'textformat.size' },
-  { key: 'enhanced' as const, label: 'Enhanced', icon: 'textformat.size.larger' },
-  { key: 'maximum' as const, label: 'Maximum', icon: 'accessibility' },
-] as const;
-
-const THEME_OPTIONS = [
-  { key: 'light' as const, label: 'Light', icon: 'sun.max.fill' },
-  { key: 'dark' as const, label: 'Dark', icon: 'moon.fill' },
-  { key: 'system' as const, label: 'Auto', icon: 'circle.lefthalf.filled' },
-] as const;
-```
-
-**Why**: Arrays defined inside components are recreated on every render, causing unnecessary re-renders when passed to child components.
-
-2. **Added useCallback to all handlers** (Lines 61-147):
-```typescript
-const handleClose = useCallback(async () => {
-  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  onClose();
-}, [onClose]);
-
-const handleFontSizeChange = useCallback((value: number) => {
-  setLocalFontSize(Math.round(value));
-}, []);
-
-// ... 7 more handlers with useCallback
-```
-
-**Why**: Without useCallback, new function instances are created on every render. When passed to TouchableOpacity or Slider components, this prevents React from skipping re-renders even if nothing changed.
-
-3. **Wrapped component with React.memo** (Line 537):
-```typescript
-export const AccessibilitySettingsModal = React.memo(AccessibilitySettingsModalComponent);
-```
-
-**Why**: Prevents re-rendering when parent component updates if props haven't changed.
-
-**FamilySharingModal.tsx** - Simple optimization:
-
-1. **Wrapped with React.memo** (Line 239):
-```typescript
-export const FamilySharingModal = React.memo(FamilySharingModalComponent);
-```
-
-**Why**: This is a pure presentational component. No need to re-render it when parent updates.
-
-#### Performance Impact
-
-**Before**:
-- Arrays recreated on every render (2 arrays × every render = wasted allocations)
-- Functions recreated on every render (9 handlers × every render = 9+ new function objects)
-- Modals re-render on every parent update even when `visible={false}`
-- Total: ~11 unnecessary allocations per render
-
-**After**:
-- Arrays created once at module load
-- Functions stable across renders (only recreate when dependencies change)
-- Modals only re-render when props actually change
-- Total: 0 unnecessary allocations in steady state
-
-**Expected improvements**:
-- Faster re-renders when settings context updates
-- Less garbage collection pressure
-- Smoother interactions (especially when opening/closing modals)
-
-#### Key Learnings
-
-1. **Performance best practices should be applied proactively**
-   - Don't wait for lag to appear
-   - Apply optimizations during code review
-   - Prevents technical debt accumulation
-
-2. **Textbook anti-patterns were present**:
-   - Inline array definitions in JSX `.map()` loops
-   - Non-memoized event handlers
-   - Missing React.memo on pure components
-
-3. **Product decisions guide code decisions**:
-   - BackupSettingsModal removal prevents misleading users
-   - AccessibilitySettingsModal kept because it provides real value
-   - FamilySharingModal kept because it's honest about being a placeholder
-
-#### Metro Cache Issue: BackupSettingsModal Import Error
-
-**Problem**: After deleting `BackupSettingsModal.tsx`, the app showed import error even though the import was removed from `mylife.tsx`.
-
-**Error message**:
-```
-Unable to resolve module @/components/settings/BackupSettingsModal from app/(tabs)/mylife.tsx
-```
-
-**Root Cause**: Metro bundler was serving a cached dependency graph. Even though the file was deleted and the import was removed, Metro's cache still contained the old module resolution.
-
-**Fix Applied**:
-1. Manually removed all references from `mylife.tsx`:
-   - Import statement (line 23)
-   - State variable `backupModalVisible` (line 67)
-   - Handler function `handleBackupPress` (lines 166-169)
-   - UI button for "Backup & Sync" (lines 523-533)
-   - Modal component JSX (lines 632-636)
-
-2. Killed all Metro processes and cleared cache:
-```bash
+# Kill all processes
 killall -9 node 2>/dev/null
 pkill -9 -f expo 2>/dev/null
 pkill -9 -f metro 2>/dev/null
-sleep 2
-npm start
+
+# Clear cache directories
+rm -rf .expo node_modules/.cache
+
+# Restart with clean cache
+npm start -- --reset-cache
 ```
 
-**Key Learning**: After deleting files, ALWAYS:
-1. Remove all imports/references immediately
-2. Clear Metro cache proactively (don't wait for error)
-3. Verify with fresh Metro build
+**⚠️ Important**: ALWAYS clear cache after deleting files - Metro caches dependency graph!
 
-This reinforces Section 4's Metro Cache Invalidation Protocol - the protocol is critical after file deletions.
+---
 
-#### Checklist Updates
+## 📦 Supabase Client Configuration
 
-Updated Performance Audit Checklist (from Section 11):
+**Recommended setup for Expo/React Native**:
 
-**Immediate (High Priority)**:
-- [ ] Convert memory list from ScrollView + map() to FlatList
-- [ ] Wrap MemoryCard component with React.memo()
+```typescript
+import 'react-native-url-polyfill/auto';  // Required!
+import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export const supabase = createClient(
+  process.env.EXPO_PUBLIC_SUPABASE_URL!,
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      storage: AsyncStorage,           // Direct, no wrapper
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,       // Not needed in mobile
+    }
+  }
+);
+```
+
+**Key elements**:
+1. URL polyfill (required for React Native)
+2. AsyncStorage direct pass-through
+3. Auto token refresh enabled
+4. Session persistence enabled
+
+---
+
+## 🎨 Product Design Principles
+
+### "Less is More" - Settings Philosophy
+**Rule**: Only add settings when there's real user value.
+
+**Questions to ask**:
+- Should this just be "always on" by default?
+- Do users actually need to configure this?
+- Can we make a smart default instead?
+
+**Example**: Removed "Recording Settings" because all settings should be default ON:
+- Auto-transcribe → Should always be ON
+- Sound effects → Should always be ON
+- Language → Should auto-detect
+
+**Result**: Simpler UX, fewer decisions for elderly users.
+
+---
+
+## 🚀 Development Environment Strategy
+
+### Expo Go vs Development Builds
+
+**Current**: Using Expo Go (sandbox with fixed native libraries)
+
+**When to migrate to Development Build**:
+1. Need native library not included in Expo Go
+2. Need custom native modules
+3. Ready to push to production
+4. Need to customize app metadata
+
+**Migration resources**: https://docs.expo.dev/develop/development-builds/expo-go-to-dev-build/
+
+---
+
+## 📚 Quick Reference Resources
+
+### Supabase
+- [React Native Setup](https://supabase.com/docs/guides/getting-started/tutorials/with-react-native)
+- [AsyncStorage Integration](https://supabase.com/docs)
+
+### Expo/React Native
+- [Performance Best Practices](https://expo.dev/blog/best-practices-for-reducing-lag-in-expo-apps)
+- [Metro Bundler Caching](https://facebook.github.io/metro/docs/configuration)
+- [React Native Directory](https://reactnative.directory) - Library quality check
+
+### Performance
+- [React Native Performance](https://reactnative.dev/docs/performance)
+- [Expo Atlas](https://docs.expo.dev/guides/analyzing-bundles/) - Bundle size analysis
+
+---
+
+## 🔍 Troubleshooting Checklist
+
+**When Supabase operations hang**:
+- [ ] Check storage adapter - is it AsyncStorage directly?
+- [ ] Verify `react-native-url-polyfill/auto` is imported
+- [ ] Kill processes and clear Metro cache
+- [ ] Check environment variables are set
+- [ ] Test network with raw fetch
+- [ ] Create isolated diagnostic test
+- [ ] Check Supabase RLS policies
+- [ ] Verify auth token storage/retrieval
+
+**When Metro serves stale code**:
+- [ ] Kill all node/expo/metro processes
+- [ ] Clear `.expo` and `node_modules/.cache`
+- [ ] Restart with `--reset-cache`
+- [ ] Force close Expo Go app (not just reload)
+
+**When users report data issues**:
+- [ ] Check user_id filtering in queries
+- [ ] Verify RLS policies
+- [ ] Test logout → login cycle
+- [ ] Check AsyncStorage for corruption
+- [ ] Review auth state listeners
+
+---
+
+## 🎯 Performance Audit Checklist
+
+**High Priority**:
+- [ ] Convert memory list to FlatList (when > 20 items)
+- [ ] Wrap list item components with React.memo()
 - [ ] Audit TouchableOpacity handlers for inline functions
-- [ ] Run expo-atlas to check bundle size
+- [ ] Run `npx expo-atlas` to check bundle size
 
-**Short-term (Medium Priority)**:
-- [ ] Convert static images to WebP format
-- [ ] Implement image preloading for critical assets
-- [ ] Replace React Native Image with expo-image
-- [ ] Add getItemLayout to FlatList for better scrolling
+**Medium Priority**:
+- [ ] Convert images to WebP format
+- [ ] Implement image preloading
+- [ ] Replace Image with expo-image
+- [ ] Add getItemLayout to FlatList
 
-**Long-term (Low Priority)**:
-- [ ] Implement pagination for memory list (load 50 at a time)
-- [x] ~~Add React.memo to settings modal components~~ **DONE (Nov 5)**
-- [ ] Consider react-native-reanimated for smoother animations
-- [ ] Profile app with React DevTools Profiler
-
----
-
-## November 5, 2025 - Development Environment Strategy & Dependency Audit
-
-### 13. Expo Go vs Development Builds Strategy
-
-**Context**: Researched official Expo guidance on when to migrate from Expo Go to Development Builds, and best practices for library selection.
-
-#### What is Expo Go?
-
-**Expo Go** is a sandbox app built by Expo and available on app stores. It includes a fixed set of native libraries.
-
-**Key limitation**: You can ONLY use libraries that are already included in Expo Go. If you try to use a library with native code not in Expo Go (e.g., `react-native-firebase`), your app will **immediately error** with no workaround.
-
-**What it's good for**:
-- ✅ Learning and prototyping
-- ✅ Quick experimentation
-- ✅ Early development phase
-- ✅ When using only Expo SDK libraries
-
-#### What are Development Builds?
-
-**Development Build** = Your own custom version of Expo Go where you have full control over native code and configuration.
-
-**Benefits**:
-- ✅ Use ANY native library
-- ✅ Customize app metadata (name, icon, splash screen)
-- ✅ Full native configuration access
-- ✅ Includes `expo-dev-client` for enhanced debugging (network inspector, launcher UI)
-
-**When to migrate** (from Expo documentation):
-1. When you need to use libraries with native code not included in Expo Go
-2. When you want to add custom native modules
-3. When you need to change app metadata or configuration
-4. **Before pushing to production** (recommended by Expo)
-
-#### Our Current Status
-
-**Where we are now (Nov 5, 2025)**:
-- ✅ Using Expo Go for development
-- ✅ All dependencies are Expo Go compatible
-- ✅ No custom native modules needed yet
-- ✅ Within Expo Go's capabilities
-
-**Our dependencies** (all Expo Go compatible):
-- `expo-audio` - Audio recording/playback
-- `expo-haptics` - Tactile feedback
-- `@react-native-async-storage/async-storage` - Auth token storage
-- `@supabase/supabase-js` - Backend services
-- `expo-speech-recognition` - Speech-to-text (future)
-- All other libraries are standard Expo SDK modules
-
-**Decision**: Stay on Expo Go until we hit one of these triggers:
-1. Need transcription API with custom native audio processing
-2. Need cloud backup with native file system access
-3. Ready to push to App Store (production)
-4. User feature request requires native module
-
-#### Migration Path (when needed)
-
-Expo officially supports migrating from Expo Go to Development Builds with minimal friction:
-
-**Resources bookmarked**:
-- Migration guide: https://docs.expo.dev/develop/development-builds/expo-go-to-dev-build/
-- Development Builds intro: https://docs.expo.dev/develop/development-builds/introduction/
-- Expo Go vs Development Builds: https://expo.dev/blog/expo-go-vs-development-builds
-
-**Key insight from Expo**: "You can confidently start your project with Expo Go and switch to a development build when you decide that you want to push the app into production."
+**Low Priority**:
+- [ ] Implement pagination (load 50 at a time)
+- [ ] Profile with React DevTools Profiler
+- [ ] Consider react-native-reanimated for animations
 
 ---
 
-### 14. Dependency Audit & Library Selection Protocol
-
-**Context**: Audited all current dependencies against React Native Directory quality metrics (https://reactnative.directory).
-
-#### Audit Results (Nov 5, 2025)
-
-**Core Dependencies** - All EXCELLENT:
-
-1. **@supabase/supabase-js** `v2.76.1`
-   - 📊 2.9M weekly downloads
-   - ⭐ 3,842 GitHub stars
-   - 📅 Latest: v2.80.0 (published 8 hours ago)
-   - ✅ Actively maintained
-   - ✅ Official client library
-   - **Status**: KEEP - Excellent choice
-
-2. **@react-native-async-storage/async-storage** `v2.2.0`
-   - 📊 Not measured individually (part of React Native community)
-   - ✅ Official Supabase recommendation
-   - ✅ Non-blocking storage
-   - ✅ Cross-platform (iOS/Android/Web)
-   - **Status**: KEEP - Critical for auth
-
-3. **expo-audio** `~1.0.13`
-   - 📊 3,499 weekly downloads
-   - 📅 Active releases (within last 3 months)
-   - ✅ Healthy maintenance
-   - ✅ 420 open source contributors
-   - ✅ No security vulnerabilities
-   - ✅ "Recognized" popularity classification
-   - **Status**: KEEP - Good quality
-
-4. **react-native-mmkv** `^3.3.3`
-   - 📊 534,689 weekly downloads
-   - ⭐ 7,581 GitHub stars
-   - 📅 Latest: v4.0.0 (17 days ago)
-   - ✅ 30x faster than AsyncStorage
-   - ⚠️ **QUESTION**: Why do we have both MMKV and AsyncStorage?
-   - **Status**: AUDIT - May be redundant
-
-5. **tamagui** `^1.132.24`
-   - 📊 73,597 weekly downloads (main package)
-   - 📊 169,386 weekly downloads (@tamagui/core)
-   - ⭐ 13,300 GitHub stars
-   - 📅 Latest: v1.136.1 (Nov 4, 2024)
-   - ✅ Actively maintained
-   - ⚠️ **QUESTION**: Are we using Tamagui? Not seen in component code
-   - **Status**: AUDIT - May be unused
-
-6. **expo-speech-recognition** `^2.1.5`
-   - 📊 16K weekly downloads
-   - ✅ Expo-compatible
-   - ✅ Community support
-   - **Status**: KEEP - For future transcription feature
-
-**Potential Issues Identified**:
-
-1. **react-native-mmkv vs AsyncStorage**:
-   - We're using AsyncStorage for Supabase auth (correct)
-   - MMKV is present but purpose unclear
-   - **Action**: Determine if MMKV is used anywhere, consider removing if redundant
-
-2. **Tamagui (UI library)**:
-   - Large library (73K+ downloads/week indicates popularity)
-   - Not obviously used in our component code
-   - May have been added initially but not used
-   - **Action**: Verify usage, consider removing if unused (bundle size impact)
-
-#### Library Selection Protocol (for future)
-
-**Before adding ANY new dependency:**
-
-1. **Check React Native Directory**: https://reactnative.directory
-   - Verify Expo Go compatibility (until we migrate)
-   - Check weekly downloads (popularity signal)
-   - Verify recent updates (maintenance signal)
-   - Check GitHub stars (community adoption)
-
-2. **Evaluate quality metrics**:
-   - ✅ Recent release (within 3 months)
-   - ✅ High download count (>10K/week for niche, >100K for common)
-   - ✅ Active GitHub (issues/PRs being addressed)
-   - ✅ TypeScript support
-   - ✅ Small package size
-
-3. **Platform compatibility**:
-   - ✅ iOS support
-   - ✅ Android support
-   - ✅ Expo Go compatible (until migration)
-   - ✅ Works with Hermes engine
-
-4. **Alternatives check**:
-   - Search React Native Directory for alternatives
-   - Compare maintenance, downloads, features
-   - Pick most actively maintained option
-
-**Reference**: React Native Directory - https://reactnative.directory
-
-**Key libraries for future reference**:
-- **i18next** (7.8M downloads/week) - For internationalization
-- **expo-speech-recognition** (16K downloads/week) - For transcription
-- **Axios** (295M+ downloads/week) - For HTTP if needed beyond Supabase
-
----
-
-### Action Items from Audit
-
-**Immediate**:
-- [ ] Investigate react-native-mmkv usage - is it needed?
-- [ ] Investigate tamagui usage - is it being used?
-- [ ] Run `npx expo-atlas` to check bundle size impact
-
-**Before adding new dependencies**:
-- [ ] Check React Native Directory first
-- [ ] Verify Expo Go compatibility
-- [ ] Confirm maintenance status (recent updates)
-
-**Before production**:
-- [ ] Migrate to Development Build
-- [ ] Test on real devices
-- [ ] Configure app metadata
-
----
+**Last Updated**: November 9, 2025

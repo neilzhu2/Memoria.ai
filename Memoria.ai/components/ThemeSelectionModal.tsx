@@ -11,6 +11,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
+import { DesignTokens } from '@/constants/DesignTokens';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 interface MemoryTheme {
@@ -91,7 +92,10 @@ export function ThemeSelectionModal({ visible, onClose, onThemeSelect }: ThemeSe
           {MEMORY_THEMES.map((theme) => (
             <TouchableOpacity
               key={theme.id}
-              style={[styles.themeCard, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
+              style={[styles.themeCard, {
+                backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper,
+                borderColor: Colors[colorScheme ?? 'light'].primary + '40',
+              }]}
               onPress={() => handleThemeSelect(theme)}
               accessibilityLabel={`Record about: ${theme.title}`}
               accessibilityHint="Tap to start recording about this topic"
@@ -117,34 +121,33 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: DesignTokens.spacing.md,
+    paddingVertical: DesignTokens.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   closeButton: {
-    width: 44,
-    height: 44,
+    width: DesignTokens.touchTarget.minimum,
+    height: DesignTokens.touchTarget.minimum,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
+    borderRadius: DesignTokens.touchTarget.minimum / 2,
   },
   headerContent: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: DesignTokens.spacing.md,
   },
   placeholder: {
-    width: 44,
+    width: DesignTokens.touchTarget.minimum,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    ...DesignTokens.typography.h2,
+    marginBottom: DesignTokens.spacing.xs,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    ...DesignTokens.typography.body,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -152,32 +155,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: DesignTokens.spacing.md,
   },
   themeCard: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    marginBottom: 12,
-    borderRadius: 16,
+    paddingHorizontal: DesignTokens.spacing.lg,
+    paddingVertical: DesignTokens.spacing.md,
+    marginBottom: DesignTokens.spacing.md,
+    borderRadius: DesignTokens.radius.lg,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
-    borderStyle: 'dashed',
     minHeight: 80,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    ...DesignTokens.elevation[2],
   },
   themeText: {
-    fontSize: 18,
-    fontWeight: '500',
+    ...DesignTokens.typography.button,
     textAlign: 'center',
     lineHeight: 24,
   },
   bottomSpacing: {
-    height: 32,
+    height: DesignTokens.spacing.xl,
   },
 });
