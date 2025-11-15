@@ -48,6 +48,11 @@ export const Colors = {
     accentDark: DesignTokens.colors.accent.dark,
     accentLight: DesignTokens.colors.accent.light,
 
+    highlight: DesignTokens.colors.highlight.main,
+    highlightDark: DesignTokens.colors.highlight.dark,
+    highlightLight: DesignTokens.colors.highlight.light,
+    highlightContrast: DesignTokens.colors.highlight.contrast,
+
     // Surface colors
     backgroundDefault: DesignTokens.colors.background.default,
     backgroundPaper: DesignTokens.colors.background.paper,
@@ -100,6 +105,11 @@ export const Colors = {
     accent: DesignTokens.colors.accent.mainDark,
     accentDark: DesignTokens.colors.accent.darkDark,
     accentLight: DesignTokens.colors.accent.lightDark,
+
+    highlight: DesignTokens.colors.highlight.mainDark,
+    highlightDark: DesignTokens.colors.highlight.darkDark,
+    highlightLight: DesignTokens.colors.highlight.lightDark,
+    highlightContrast: DesignTokens.colors.highlight.contrast,
 
     // Surface colors
     backgroundDefault: DesignTokens.colors.background.defaultDark,

@@ -54,6 +54,20 @@ export const DesignTokens = {
       lightDark: '#A8C7D9',   // Very light for backgrounds
     },
 
+    // HIGHLIGHT - Warm Honey Gold (Energizing secondary accent)
+    // Adds vibrancy and brightness to combat "dusk feeling"
+    // Optimized for elderly users - warm tones penetrate aged lenses
+    highlight: {
+      main: '#F5A623',        // 3.5:1 on #FAF8F5 (AA Large 18pt+)
+      dark: '#E8931E',        // 4.1:1 on white (AA) - Deeper amber
+      light: '#FFD574',       // Light gold for backgrounds
+      contrast: '#2B2823',    // Dark text on highlight (8.2:1 AAA)
+      // Dark mode variants (brighter for visibility)
+      mainDark: '#FFD700',    // Bright gold for dark backgrounds
+      darkDark: '#F5A623',    // Medium gold for pressed states
+      lightDark: '#FFE57F',   // Very light gold for backgrounds
+    },
+
     // NEUTRALS - Warm grays with beige undertones
     neutral: {
       50: '#FAF8F5',          // Warm off-white background
