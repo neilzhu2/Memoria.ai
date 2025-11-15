@@ -19,6 +19,8 @@ import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 import { EditMemoryModal } from '@/components/EditMemoryModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { MemoryPreviewModal } from '@/components/MemoryPreviewModal';
+import { TermsOfUseModal } from '@/components/TermsOfUseModal';
+import { FeedbackModal } from '@/components/FeedbackModal';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { MyLifeScreenProps } from '@/types/navigation';
@@ -60,6 +62,8 @@ export default function MyLifeScreen() {
 
   // Settings modal states
   const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
+  const [termsModalVisible, setTermsModalVisible] = useState(false);
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -469,6 +473,41 @@ export default function MyLifeScreen() {
         </View>
       </View>
 
+      {/* Settings Options */}
+      <View style={styles.settingsButtonsContainer}>
+        <TouchableOpacity
+          style={[styles.settingButton, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}
+          onPress={async () => {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setTermsModalVisible(true);
+          }}
+          accessibilityLabel="View Terms of Use"
+          accessibilityHint="View the terms and conditions for using Memoria.ai"
+        >
+          <IconSymbol name="doc.text" size={24} color={Colors[colorScheme ?? 'light'].text} />
+          <Text style={[styles.settingButtonText, { color: Colors[colorScheme ?? 'light'].text }]}>
+            Terms of Use
+          </Text>
+          <IconSymbol name="chevron.right" size={20} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.settingButton, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}
+          onPress={async () => {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setFeedbackModalVisible(true);
+          }}
+          accessibilityLabel="Send Feedback"
+          accessibilityHint="Share your ideas and feedback about Memoria.ai"
+        >
+          <IconSymbol name="envelope" size={24} color={Colors[colorScheme ?? 'light'].text} />
+          <Text style={[styles.settingButtonText, { color: Colors[colorScheme ?? 'light'].text }]}>
+            Send Feedback
+          </Text>
+          <IconSymbol name="chevron.right" size={20} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
+        </TouchableOpacity>
+      </View>
+
     </View>
   );
 
@@ -564,6 +603,18 @@ export default function MyLifeScreen() {
       <EditProfileModal
         visible={editProfileModalVisible}
         onClose={() => setEditProfileModalVisible(false)}
+      />
+
+      {/* Terms of Use Modal */}
+      <TermsOfUseModal
+        visible={termsModalVisible}
+        onClose={() => setTermsModalVisible(false)}
+      />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        visible={feedbackModalVisible}
+        onClose={() => setFeedbackModalVisible(false)}
       />
     </View>
   );
@@ -778,6 +829,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     flex: 1,
     marginLeft: 12,
+  },
+  settingsButtonsContainer: {
+    gap: 12,
+  },
+  settingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    minHeight: 64,
+  },
+  settingButtonText: {
+    fontSize: 18,
+    fontWeight: '500',
+    flex: 1,
+    marginLeft: 16,
   },
   bottomSpacing: {
     height: 100, // Space for tab bar and FAB

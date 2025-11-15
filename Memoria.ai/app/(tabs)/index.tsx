@@ -265,51 +265,10 @@ const HomeScreen = React.memo(function HomeScreen() {
         </Text>
       </View>
 
-      {/* Topic Cards - Swipeable Stack */}
+      {/* Topic Cards - Single Card with Swipe Support */}
       <View style={styles.topicCardsContainer}>
         <View style={styles.cardStack}>
-          {/* Background Cards - Visual Preview */}
-          {/* Left Card - Shows where right swipe will go */}
-          <View style={[
-            styles.topicCard,
-            styles.backgroundCard,
-            styles.leftCard,
-            { backgroundColor: Colors[colorScheme ?? 'light'].background }
-          ]}>
-            <View style={[styles.topicCardInner, {
-              borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
-              opacity: 0.4
-            }]}>
-              <Text style={[styles.topicTitle, {
-                color: Colors[colorScheme ?? 'light'].text,
-                opacity: 0.4
-              }]}>
-                {backgroundCards.left.title}
-              </Text>
-            </View>
-          </View>
-
-          {/* Right Card - Shows where left swipe will go */}
-          <View style={[
-            styles.topicCard,
-            styles.backgroundCard,
-            styles.rightCard,
-            { backgroundColor: Colors[colorScheme ?? 'light'].background }
-          ]}>
-            <View style={[styles.topicCardInner, {
-              borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
-              opacity: 0.6
-            }]}>
-              <Text style={[styles.topicTitle, {
-                color: Colors[colorScheme ?? 'light'].text,
-                opacity: 0.6
-              }]}>
-                {backgroundCards.right.title}
-              </Text>
-            </View>
-          </View>
-
-          {/* Main Active Card */}
+          {/* Main Active Card - Swipeable */}
           <PanGestureHandler
             onGestureEvent={onPanGestureEvent}
             onHandlerStateChange={onPanHandlerStateChange}
@@ -330,7 +289,11 @@ const HomeScreen = React.memo(function HomeScreen() {
                 },
               ]}
             >
-              <View style={[styles.topicCardInner, { borderColor: Colors[colorScheme ?? 'light'].tint }]}>
+              <View style={[styles.topicCardInner, {
+                backgroundColor: colorScheme === 'dark'
+                  ? '#3F3B35'  // DesignTokens.colors.neutral[700]
+                  : '#F5F2ED', // DesignTokens.colors.neutral[100]
+              }]}>
                 <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
                   {backgroundCards.current.title}
                 </Text>
@@ -339,14 +302,14 @@ const HomeScreen = React.memo(function HomeScreen() {
                 </Text>
                 <View style={styles.topicActions}>
                   <TouchableOpacity
-                    style={[styles.topicActionButton, styles.skipButton, { borderColor: Colors[colorScheme ?? 'light'].elderlyError, backgroundColor: Colors[colorScheme ?? 'light'].background }]}
+                    style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
                     onPress={handleSkipPress}
                     accessibilityLabel="Skip this topic"
                   >
                     <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].elderlyError} />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.topicActionButton, styles.recordButton, { borderColor: Colors[colorScheme ?? 'light'].elderlySuccess, backgroundColor: Colors[colorScheme ?? 'light'].background }]}
+                    style={[styles.topicActionButton, styles.recordButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
                     onPress={handleRecordPress}
                     accessibilityLabel="Record about this topic"
                   >
@@ -356,6 +319,33 @@ const HomeScreen = React.memo(function HomeScreen() {
               </View>
             </Animated.View>
           </PanGestureHandler>
+        </View>
+
+        {/* Navigation Buttons - Elderly-Optimized */}
+        <View style={styles.navigationButtons}>
+          <TouchableOpacity
+            style={[styles.navButton, styles.navButtonLeft, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}
+            onPress={() => navigate('backward')}
+            accessibilityLabel="Previous topic"
+            accessibilityHint="Go to the previous memory topic"
+          >
+            <IconSymbol name="chevron.left" size={24} color={Colors[colorScheme ?? 'light'].text} />
+            <Text style={[styles.navButtonText, { color: Colors[colorScheme ?? 'light'].text }]}>
+              Previous
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.navButton, styles.navButtonRight, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}
+            onPress={() => navigate('forward')}
+            accessibilityLabel="Next topic"
+            accessibilityHint="Skip to the next memory topic"
+          >
+            <Text style={[styles.navButtonText, { color: Colors[colorScheme ?? 'light'].text }]}>
+              Next
+            </Text>
+            <IconSymbol name="chevron.right" size={24} color={Colors[colorScheme ?? 'light'].text} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -419,7 +409,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
     borderRadius: 18,
-    borderWidth: 2,
     justifyContent: 'space-between',
   },
   topicTitle: {
@@ -453,10 +442,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   skipButton: {
-    borderWidth: 2,
   },
   recordButton: {
-    borderWidth: 2,
   },
   recentSection: {
     marginBottom: 32,
@@ -483,20 +470,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
   },
-  backgroundCard: {
-    position: 'absolute',
+  navigationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 24,
+    gap: 16,
   },
-  leftCard: {
-    left: -20,
-    zIndex: 1,
-    transform: [{ rotate: '-8deg' }, { scale: 0.95 }],
+  navButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    minHeight: 56,
+    flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  rightCard: {
-    right: -20,
-    zIndex: 2,
-    transform: [{ rotate: '8deg' }, { scale: 0.98 }],
+  navButtonLeft: {
+    gap: 8,
   },
-  activeCard: {
-    zIndex: 3,
+  navButtonRight: {
+    gap: 8,
+  },
+  navButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
   },
 });

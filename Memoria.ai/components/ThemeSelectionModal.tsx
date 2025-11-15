@@ -93,12 +93,14 @@ export function ThemeSelectionModal({ visible, onClose, onThemeSelect }: ThemeSe
             <TouchableOpacity
               key={theme.id}
               style={[styles.themeCard, {
-                backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper,
-                borderColor: Colors[colorScheme ?? 'light'].primary + '40',
+                backgroundColor: colorScheme === 'dark'
+                  ? DesignTokens.colors.neutral[700]
+                  : DesignTokens.colors.neutral[100],
               }]}
               onPress={() => handleThemeSelect(theme)}
               accessibilityLabel={`Record about: ${theme.title}`}
               accessibilityHint="Tap to start recording about this topic"
+              activeOpacity={0.92}
             >
               <Text style={[styles.themeText, { color: Colors[colorScheme ?? 'light'].text }]}>
                 {theme.title}
@@ -162,11 +164,10 @@ const styles = StyleSheet.create({
     paddingVertical: DesignTokens.spacing.md,
     marginBottom: DesignTokens.spacing.md,
     borderRadius: DesignTokens.radius.lg,
-    borderWidth: 2,
     minHeight: 80,
     justifyContent: 'center',
     alignItems: 'center',
-    ...DesignTokens.elevation[2],
+    ...DesignTokens.elevation[3],
   },
   themeText: {
     ...DesignTokens.typography.button,
