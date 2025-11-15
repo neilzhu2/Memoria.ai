@@ -22,8 +22,10 @@ export function FloatingRecordButton({
   size = 70
 }: FloatingRecordButtonProps) {
   const colorScheme = useColorScheme();
-  const buttonColor = Colors[colorScheme ?? 'light'].accent;
-  const buttonColorActive = Colors[colorScheme ?? 'light'].accentDark;
+  // Use terracotta (primary) for recording button - aligns with recording affordances
+  // and optimized for elderly vision (warm tones penetrate aged lenses better)
+  const buttonColor = Colors[colorScheme ?? 'light'].primary;
+  const buttonColorActive = Colors[colorScheme ?? 'light'].primaryDark;
 
   const handlePress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
