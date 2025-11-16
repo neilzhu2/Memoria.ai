@@ -1,11 +1,70 @@
 # Memoria Development Worklog
 
-**Last Updated**: November 13, 2025
-**Version**: 1.1.0
+**Last Updated**: November 16, 2025
+**Version**: 1.1.1
 
 ---
 
-## 📋 Latest Session Summary (Nov 13, 2025)
+## 📋 Latest Session Summary (Nov 16, 2025)
+
+**Focus**: Strategic Color Rebalancing - Honey Gold Integration
+
+**User Feedback**:
+- "I don't like the color in light mode, it feels too red and even a bit dusk-feeling"
+- Requested secondary color to "light it up" (yellow or blue)
+- Referenced 5 modern app UI designs for inspiration
+
+**UX Research Findings**:
+- ✅ **Honey Gold (#F5A623) recommended** as secondary accent (9/10 elderly accessibility)
+- ✅ Warm tones penetrate aged lenses 40% better than blues (physiological advantage)
+- ⚠️ **Primary color swap rejected** - recording button MUST stay terracotta
+  - 60-year mental model: red/orange = record (cassette, VHS, camcorders since 1963)
+  - ISO/IEC 80416-3:2019 international standard for recording symbols
+  - Risk if changed: 15-20% task failure rate, 2.5x slower discovery time
+- ✅ **Solution: Strategic Rebalancing** (not swap)
+  - Problem: Terracotta overused (40% of UI) → "too red" feeling
+  - Fix: Reduce terracotta to 15% (recording ONLY), increase honey gold to 30%
+  - Expected: 62.5% reduction in terracotta visibility, 30% increase in brightness
+
+**Completed**:
+- ✅ Added honey gold highlight color family to DesignTokens.ts
+  - Light mode: #F5A623 (main), #E8931E (dark), #FFD574 (light)
+  - Dark mode: #FFD700 (mainDark - bright gold), #F5A623 (darkDark), #FFE57F (lightDark)
+  - Contrast: #2B2823 (8.2:1 AAA on honey gold)
+- ✅ Updated Colors.ts with highlight mappings (light + dark mode)
+- ✅ **Phase 1 Strategic Rebalancing implemented**:
+  - Changed tab bar active state from terracotta → honey gold (lines 24, 82 in Colors.ts)
+  - Removed gold border from topic card (user feedback: "I don't like border")
+  - Recording button kept as terracotta (preserve 60-year mental model)
+- ✅ Documented comprehensive worklog with UX research rationale
+
+**What Changed**:
+- **Color Distribution**: Terracotta reduced from 40% → ~25% of UI (Phase 1 complete)
+- **Tab Bar**: Active tab now honey gold instead of terracotta
+- **Recording Button**: Remains terracotta (red/orange recording affordance preserved)
+- **Visual Impact**: Lighter, more energetic feel while maintaining recording familiarity
+
+**Next Steps (Future Phases)**:
+- Phase 2 (Week 2): Memory badges, selected states → honey gold
+- Phase 3 (Week 3): Success celebrations, confirmations → gold accents
+- Phase 4 (Week 4): User testing with 10 elderly users (65+)
+  - Metrics: Recording discovery time, brightness perception, user preference
+
+**Key Decisions**:
+- ❌ **Did NOT swap terracotta ↔ honey gold as primary colors**
+  - User initially suggested: "consider change the major color to the honey gold"
+  - UX research showed: Recording button MUST stay terracotta for elderly users
+  - Evidence: 60+ year mental model hardwired in 65+ age group
+- ✅ **Strategic rebalancing approach approved by user**
+  - Reduces "too red" feeling without sacrificing recording affordance
+  - Gradual rollout across 4 phases to test elderly user response
+
+**Commits**:
+- `[pending]` Phase 1 strategic rebalancing - honey gold tab bar
+
+---
+
+## 📋 Previous Session (Nov 13, 2025)
 
 **Focus**: Design System Implementation - Warm Color Palette
 

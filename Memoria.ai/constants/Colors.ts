@@ -21,7 +21,7 @@ export const Colors = {
     tabIconSelected: DesignTokens.colors.primary.main,
 
     // Elderly-specific colors - Updated to warm palette
-    elderlyTabActive: DesignTokens.colors.primary.main,          // Warm terracotta
+    elderlyTabActive: DesignTokens.colors.highlight.main,        // Honey gold (strategic rebalancing)
     elderlyTabInactive: DesignTokens.colors.text.secondary,      // Warm gray
     tabBarBackground: DesignTokens.colors.background.paper,      // Pure white
 
@@ -79,7 +79,7 @@ export const Colors = {
     tabIconSelected: DesignTokens.colors.primary.mainDark,
 
     // Elderly-specific colors - Updated to warm palette for dark mode
-    elderlyTabActive: DesignTokens.colors.primary.mainDark,           // Warm terracotta (light)
+    elderlyTabActive: DesignTokens.colors.highlight.mainDark,         // Bright honey gold (strategic rebalancing)
     elderlyTabInactive: DesignTokens.colors.text.secondaryDark,       // Warm gray (light)
     tabBarBackground: DesignTokens.colors.background.paperDark,       // Warm dark
 

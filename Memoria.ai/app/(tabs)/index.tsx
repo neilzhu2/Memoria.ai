@@ -279,11 +279,7 @@ const HomeScreen = React.memo(function HomeScreen() {
               style={[
                 styles.topicCard,
                 styles.activeCard,
-                {
-                  backgroundColor: Colors[colorScheme ?? 'light'].background,
-                  borderWidth: 3,
-                  borderColor: Colors[colorScheme ?? 'light'].highlight,
-                },
+                { backgroundColor: Colors[colorScheme ?? 'light'].background },
                 {
                   transform: [
                     { translateX },
