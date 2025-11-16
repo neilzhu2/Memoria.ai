@@ -15,6 +15,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRecording } from '@/contexts/RecordingContext';
 import { RecordingFlowContainer } from '@/components/RecordingFlowContainer';
 import { Colors } from '@/constants/Colors';
+import { DesignTokens } from '@/constants/DesignTokens';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 const DAILY_TOPICS = [
@@ -287,12 +288,32 @@ const HomeScreen = React.memo(function HomeScreen() {
                     { scale }
                   ]
                 },
+                // Honey gold shadow for active card (no border - modern depth)
+                {
+                  shadowColor: Colors[colorScheme ?? 'light'].highlight,  // Honey gold
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 16,
+                  elevation: 12,
+                },
               ]}
             >
+              {/* Top accent bar - modern alternative to border */}
+              <View style={{
+                position: 'absolute',
+                top: 0,
+                left: 20,
+                right: 20,
+                height: 4,
+                backgroundColor: Colors[colorScheme ?? 'light'].highlight,  // Honey gold
+                borderRadius: 2,
+                zIndex: 10,
+              }} />
+
               <View style={[styles.topicCardInner, {
                 backgroundColor: colorScheme === 'dark'
-                  ? '#3F3B35'  // DesignTokens.colors.neutral[700]
-                  : '#F5F2ED', // DesignTokens.colors.neutral[100]
+                  ? DesignTokens.colors.neutral[700]
+                  : DesignTokens.colors.neutral[100],  // Using updated lighter neutral
               }]}>
                 <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
                   {backgroundCards.current.title}
@@ -376,7 +397,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 48,  // Increased from 40 for more breathing room
   },
   appName: {
     fontSize: 36,
@@ -407,7 +428,7 @@ const styles = StyleSheet.create({
   },
   topicCardInner: {
     flex: 1,
-    padding: 24,
+    padding: 32,  // Increased from 24 for more breathing room (modern aesthetic)
     borderRadius: 18,
     justifyContent: 'space-between',
   },
@@ -475,8 +496,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginTop: 24,
-    gap: 16,
+    marginTop: 32,  // Increased from 24 for more spacing
+    gap: 20,        // Increased from 16 for more gap between buttons
   },
   navButton: {
     flexDirection: 'row',

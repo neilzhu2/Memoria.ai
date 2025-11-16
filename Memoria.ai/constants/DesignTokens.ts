@@ -70,9 +70,9 @@ export const DesignTokens = {
 
     // NEUTRALS - Warm grays with beige undertones
     neutral: {
-      50: '#FAF8F5',          // Warm off-white background
-      100: '#F4F1EC',         // Light card background
-      200: '#E8E3DA',         // Border light
+      50: '#FFFBF7',          // Brighter warm off-white background (lightened for less "dusk feeling")
+      100: '#FFF9F4',         // Lighter card background (increased brightness)
+      200: '#F0EBE0',         // Border light (lightened)
       300: '#D4CFC4',         // Border medium
       400: '#A8A198',         // Text tertiary
       500: '#7A746A',         // Text secondary (7:1 on white)
@@ -118,7 +118,7 @@ export const DesignTokens = {
 
     // SURFACES
     background: {
-      default: '#FAF8F5',     // Warm off-white
+      default: '#FFFBF7',     // Brighter warm off-white (lightened for less "dusk feeling")
       paper: '#FFFFFF',       // Pure white for cards
       elevated: '#FFFFFF',    // Cards with shadow
       // Dark mode variants (warm dark backgrounds)
@@ -146,15 +146,16 @@ export const DesignTokens = {
   /**
    * SPACING SCALE
    * Based on 8pt grid system for consistency
+   * Updated for more breathing room and modern aesthetics
    */
   spacing: {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
-    xxl: 48,
-    xxxl: 64,
+    xs: 6,      // Increased from 4 - slightly more micro-spacing
+    sm: 10,     // Increased from 8 - better for inline gaps
+    md: 20,     // Increased from 16 - core spacing unit, more generous
+    lg: 32,     // Increased from 24 - section spacing
+    xl: 40,     // Increased from 32 - major sections
+    xxl: 56,    // Increased from 48 - page-level spacing
+    xxxl: 72,   // Increased from 64 - max spacing
   },
 
   /**
@@ -184,29 +185,29 @@ export const DesignTokens = {
     1: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.12,
-      shadowRadius: 3,
+      shadowOpacity: 0.06,      // Reduced from 0.12 (50% softer for modern feel)
+      shadowRadius: 4,          // Slightly softer spread
       elevation: 1,
     },
     2: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.16,
-      shadowRadius: 6,
+      shadowOpacity: 0.08,      // Reduced from 0.16 (50% softer)
+      shadowRadius: 8,          // Softer spread
       elevation: 2,
     },
     3: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.20,
-      shadowRadius: 10,
+      shadowOpacity: 0.10,      // Reduced from 0.20 (50% softer)
+      shadowRadius: 12,         // Softer spread
       elevation: 4,
     },
     4: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.24,
-      shadowRadius: 16,
+      shadowOpacity: 0.12,      // Reduced from 0.24 (50% softer)
+      shadowRadius: 20,         // Softer spread
       elevation: 8,
     },
   },
