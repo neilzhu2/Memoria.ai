@@ -126,7 +126,13 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
       const fileName = `${user.id}/${user.id}-${Date.now()}.${fileExt}`;
       const filePath = fileName;
 
-      console.log('Uploading avatar:', { fileName, filePath, size: fileData.length });
+      console.log('Uploading avatar:', {
+        fileName,
+        filePath,
+        size: fileData.length,
+        userId: user.id,
+        bucket: 'avatars'
+      });
 
       // Upload to Supabase Storage with ArrayBuffer
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -137,8 +143,15 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
         });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
-        Alert.alert('Upload Failed', uploadError.message || 'Failed to upload image. Please try again.');
+        console.error('Upload error details:', {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          error: uploadError,
+        });
+        Alert.alert(
+          'Upload Failed',
+          uploadError.message || 'Failed to upload image. Please try again.\n\nCheck console for details.'
+        );
         setUploadingImage(false);
         return;
       }

@@ -77,6 +77,67 @@
 
 ---
 
+## 📋 Session (Nov 17, 2025)
+
+**Focus**: Welcome Screen Improvements & Avatar Upload Debugging
+
+**UX Research Decision - Onboarding Screen**:
+- User requested to remove welcome/onboarding screen and go straight to sign-in
+- Invoked ux-research-strategist agent for elderly user validation
+- **Research conclusion: KEEP the welcome screen**
+  - Nielsen Norman Group: Elderly users (65+) READ onboarding content (unlike younger users)
+  - Welcome screen builds trust before authentication (reduces anxiety)
+  - Competitive analysis: All successful elderly apps use upfront orientation
+  - User accepted recommendation to keep the screen
+
+**Completed**:
+- ✅ Welcome screen improvements:
+  - Replaced brain icon with actual Memoria logo (icon.png)
+  - Added rounded corners to logo (28pt border radius)
+  - Moved "Test Connection" to top-right corner (small wrench icon, 44x44pt)
+  - Reduced button gap from 16pt → 12pt for tighter spacing
+- ✅ Avatar upload debugging (3 iterations):
+  - **Issue 1**: "Bucket not found" - Supabase storage bucket didn't exist
+  - **Issue 2**: Unnecessary base64 conversion causing failures
+  - **Issue 3**: RLS policy path structure mismatch
+  - **Issue 4**: React Native doesn't support fetch().blob()
+  - **Fix**: Use ArrayBuffer + Uint8Array for React Native compatibility
+  - Added comprehensive error logging and debugging
+- ✅ Supabase setup verification:
+  - Confirmed 'avatars' bucket exists (public, 5MB limit)
+  - Verified 4 RLS policies created (upload, update, delete, view)
+  - Policies use folder structure: {user_id}/{user_id}-{timestamp}.jpg
+
+**Known Issue** (TO FIX NEXT SESSION):
+- ⚠️ Avatar upload still failing with "bucket not found" error
+- Bucket exists in Supabase, policies are correct
+- Possible causes to investigate:
+  1. Case sensitivity (AVATARS vs avatars)
+  2. Supabase project URL mismatch in .env
+  3. App cache needs clearing
+  4. Network/CORS issue
+- Enhanced logging added to help debug (userId, bucket name, file path, error details)
+
+**Commits**:
+- `5f82e7b` Welcome screen layout and branding improvements
+- `66cab71` Add rounded corners to logo icon
+- `ec6cbf2` Fix avatar upload - remove circular base64 conversion
+- `c156f08` Fix avatar path to match RLS policy folder structure
+- `2df406f` Fix React Native blob compatibility issue
+- `[pending]` Enhanced error logging for avatar upload debugging
+
+**Next Session TODO**:
+- 🔴 **PRIORITY**: Debug avatar upload "bucket not found" error
+  - Check Supabase project URL in .env.local
+  - Verify bucket name case sensitivity
+  - Test with fresh app reload
+  - Check console logs for detailed error info
+- Test avatar upload end-to-end once fixed
+- Verify image appears in Supabase Storage bucket
+- Test profile picture display after upload
+
+---
+
 ## 📋 Previous Session (Nov 13, 2025)
 
 **Focus**: Design System Implementation - Warm Color Palette
