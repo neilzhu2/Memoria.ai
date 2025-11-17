@@ -23,7 +23,6 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '@/lib/supabase';
-import { decode } from 'base64-arraybuffer';
 
 interface EditProfileModalProps {
   visible: boolean;
@@ -114,31 +113,33 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      // Read file as base64
+      // Read file as blob
       const response = await fetch(manipResult.uri);
       const blob = await response.blob();
-      const arrayBuffer = await new Response(blob).arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
       // Generate unique filename
       const fileExt = 'jpg';
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const filePath = `${fileName}`;
 
-      // Upload to Supabase Storage
+      console.log('Uploading avatar:', { fileName, filePath, size: blob.size });
+
+      // Upload to Supabase Storage (upload blob directly)
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, decode(base64), {
+        .upload(filePath, blob, {
           contentType: 'image/jpeg',
           upsert: false,
         });
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
-        Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
+        Alert.alert('Upload Failed', uploadError.message || 'Failed to upload image. Please try again.');
         setUploadingImage(false);
         return;
       }
+
+      console.log('Upload successful:', uploadData);
 
       // Get public URL
       const { data: urlData } = supabase.storage
