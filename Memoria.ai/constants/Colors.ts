@@ -22,7 +22,7 @@ export const Colors = {
 
     // Elderly-specific colors - Updated to warm palette
     elderlyTabActive: DesignTokens.colors.highlight.main,        // Honey gold (strategic rebalancing)
-    elderlyTabInactive: DesignTokens.colors.text.secondary,      // Warm gray
+    elderlyTabInactive: DesignTokens.colors.neutral[400],        // #A8A198 Lighter gray (less competitive)
     tabBarBackground: DesignTokens.colors.background.paper,      // Pure white
 
     // Contrast levels
@@ -80,7 +80,7 @@ export const Colors = {
 
     // Elderly-specific colors - Updated to warm palette for dark mode
     elderlyTabActive: DesignTokens.colors.highlight.mainDark,         // Bright honey gold (strategic rebalancing)
-    elderlyTabInactive: DesignTokens.colors.text.secondaryDark,       // Warm gray (light)
+    elderlyTabInactive: DesignTokens.colors.neutral[400],             // #A8A198 Lighter gray (less competitive)
     tabBarBackground: DesignTokens.colors.background.paperDark,       // Warm dark
 
     // Contrast levels

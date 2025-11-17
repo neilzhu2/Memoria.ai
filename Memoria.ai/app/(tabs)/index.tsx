@@ -298,18 +298,6 @@ const HomeScreen = React.memo(function HomeScreen() {
                 },
               ]}
             >
-              {/* Top accent bar - modern alternative to border */}
-              <View style={{
-                position: 'absolute',
-                top: 0,
-                left: 20,
-                right: 20,
-                height: 4,
-                backgroundColor: Colors[colorScheme ?? 'light'].highlight,  // Honey gold
-                borderRadius: 2,
-                zIndex: 10,
-              }} />
-
               <View style={[styles.topicCardInner, {
                 backgroundColor: colorScheme === 'dark'
                   ? DesignTokens.colors.neutral[700]
@@ -334,7 +322,7 @@ const HomeScreen = React.memo(function HomeScreen() {
                     onPress={handleRecordPress}
                     accessibilityLabel="Record about this topic"
                   >
-                    <IconSymbol name="mic.fill" size={24} color={Colors[colorScheme ?? 'light'].elderlySuccess} />
+                    <IconSymbol name="mic.fill" size={24} color={Colors[colorScheme ?? 'light'].primary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -400,14 +388,14 @@ const styles = StyleSheet.create({
     marginBottom: 48,  // Increased from 40 for more breathing room
   },
   appName: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 28,        // Reduced from 36 for less prominence
+    fontWeight: '600',   // Reduced from 'bold' (700) to semibold
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,        // Reduced from 16
     fontWeight: '400',
-    opacity: 0.8,
+    opacity: 0.6,        // Reduced from 0.8 for less prominence
   },
   topicCardsContainer: {
     marginBottom: 32,
