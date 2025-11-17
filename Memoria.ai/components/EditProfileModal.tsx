@@ -113,9 +113,12 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      // Read file as blob
+      // For React Native, we need to create a File-like object from the URI
       const response = await fetch(manipResult.uri);
-      const blob = await response.blob();
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Convert to Uint8Array for upload
+      const fileData = new Uint8Array(arrayBuffer);
 
       // Generate unique filename with user folder structure
       // This matches the RLS policy expectations in 003_setup_avatar_storage.sql
@@ -123,12 +126,12 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
       const fileName = `${user.id}/${user.id}-${Date.now()}.${fileExt}`;
       const filePath = fileName;
 
-      console.log('Uploading avatar:', { fileName, filePath, size: blob.size });
+      console.log('Uploading avatar:', { fileName, filePath, size: fileData.length });
 
-      // Upload to Supabase Storage (upload blob directly)
+      // Upload to Supabase Storage with ArrayBuffer
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, blob, {
+        .upload(filePath, fileData, {
           contentType: 'image/jpeg',
           upsert: false,
         });
