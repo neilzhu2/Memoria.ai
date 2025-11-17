@@ -60,7 +60,20 @@
   - Gradual rollout across 4 phases to test elderly user response
 
 **Commits**:
-- `[pending]` Phase 1 strategic rebalancing - honey gold tab bar
+- `3899fca` Phase 1 strategic rebalancing - honey gold tab bar + design tokens
+- `b03ed92` Phase 2 quick wins - lighter backgrounds, softer shadows, increased spacing
+- `84628d1` Week 1 UI optimizations - removed accent bar, unified mic color, reduced header
+
+**Visual Changes Deployed**:
+- ✅ Tab bar active state: honey gold (strategic rebalancing complete)
+- ✅ Backgrounds: 5-8% lighter (#FFFBF7, #FFF9F4)
+- ✅ Shadows: 50% softer (modern aesthetic)
+- ✅ Spacing: 25% more generous (breathing room)
+- ✅ Mic icon: sage green → terracotta (semantic consolidation)
+- ✅ Inactive tabs: lighter gray #A8A198 (less competitive with active state)
+- ✅ Header: 22% smaller (28pt, less prominent)
+- ❌ Honey gold accent bar: removed (accessibility + user preference)
+- ❌ Gold border: removed (user prefers minimalist)
 
 ---
 

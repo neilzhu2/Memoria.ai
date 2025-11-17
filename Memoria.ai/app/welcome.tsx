@@ -37,12 +37,24 @@ export default function WelcomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
+      {/* Test Connection - Top Right Corner */}
+      <TouchableOpacity
+        style={styles.testButton}
+        onPress={handleTestConnection}
+        accessibilityLabel="Test Supabase connection"
+        accessibilityRole="button"
+      >
+        <IconSymbol name="wrench.fill" size={20} color={subtextColor} />
+      </TouchableOpacity>
+
       <View style={styles.content}>
         {/* Logo Section */}
         <View style={styles.logoSection}>
-          <View style={[styles.logoCircle, { backgroundColor: tintColor + '20' }]}>
-            <IconSymbol name="brain.head.profile" size={80} color={tintColor} />
-          </View>
+          <Image
+            source={require('@/assets/images/icon.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={[styles.appName, { color: textColor }]}>Memoria</Text>
           <Text style={[styles.tagline, { color: subtextColor }]}>
             Your Life, Your Stories
@@ -97,17 +109,6 @@ export default function WelcomeScreen() {
               Already have an account? <Text style={styles.signInLink}>Sign In</Text>
             </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.testButton, { borderColor: subtextColor }]}
-            onPress={handleTestConnection}
-            accessibilityLabel="Test Supabase connection"
-            accessibilityRole="button"
-          >
-            <Text style={[styles.testButtonText, { color: subtextColor }]}>
-              Test Connection
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
@@ -134,6 +135,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  testButton: {
+    position: 'absolute',
+    top: 60,
+    right: 24,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    zIndex: 10,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 24,
@@ -144,12 +156,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 40,
   },
-  logoCircle: {
+  logo: {
     width: 140,
     height: 140,
-    borderRadius: 70,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 24,
   },
   appName: {
@@ -187,7 +196,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   actionsSection: {
-    gap: 16,
+    gap: 12,
   },
   primaryButton: {
     paddingVertical: 18,
@@ -216,17 +225,5 @@ const styles = StyleSheet.create({
   },
   signInLink: {
     fontWeight: '700',
-  },
-  testButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-  },
-  testButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
 });
