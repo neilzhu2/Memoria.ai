@@ -117,10 +117,11 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
       const response = await fetch(manipResult.uri);
       const blob = await response.blob();
 
-      // Generate unique filename
+      // Generate unique filename with user folder structure
+      // This matches the RLS policy expectations in 003_setup_avatar_storage.sql
       const fileExt = 'jpg';
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `${user.id}/${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = fileName;
 
       console.log('Uploading avatar:', { fileName, filePath, size: blob.size });
 
