@@ -525,9 +525,6 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
                   <ActivityIndicator color="white" />
                 </View>
               )}
-              <View style={[styles.cameraIconContainer, { backgroundColor: DesignTokens.colors.secondary.main }]}>
-                <IconSymbol name="camera.fill" size={16} color="white" />
-              </View>
             </TouchableOpacity>
             <Text style={[styles.avatarNote, { color: borderColor }]}>
               Tap to change profile picture

@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -453,7 +454,14 @@ export default function MyLifeScreen() {
       <View style={[styles.profileCard, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
         <View style={styles.profileHeader}>
           <View style={[styles.avatarPlaceholder, { backgroundColor: Colors[colorScheme ?? 'light'].elderlyTabActive }]}>
-            <IconSymbol name="person.fill" size={32} color="white" />
+            {userProfile?.avatar_url ? (
+              <Image
+                source={{ uri: userProfile.avatar_url }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <IconSymbol name="person.fill" size={32} color="white" />
+            )}
           </View>
           <View style={styles.profileInfo}>
             <Text style={[styles.profileName, { color: Colors[colorScheme ?? 'light'].text }]}>
@@ -785,6 +793,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   profileInfo: {
     flex: 1,
