@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ActionSheetIOS,
 } from 'react-native';
 import { router } from 'expo-router';
 import { IconSymbol } from './ui/IconSymbol';
@@ -49,6 +50,16 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [emailChanged, setEmailChanged] = useState(false);
 
+  // Temporary avatar state - holds new image until Save is clicked
+  const [pendingAvatarUri, setPendingAvatarUri] = useState<string | null>(null);
+  const [pendingAvatarRemoved, setPendingAvatarRemoved] = useState(false);
+
+  // Original values for change detection
+  const [originalDisplayName, setOriginalDisplayName] = useState('');
+  const [originalEmail, setOriginalEmail] = useState('');
+  const [originalDateOfBirth, setOriginalDateOfBirth] = useState('');
+  const [originalAvatarUrl, setOriginalAvatarUrl] = useState<string | null>(null);
+
   const backgroundColor = Colors[colorScheme ?? 'light'].background;
   const textColor = Colors[colorScheme ?? 'light'].text;
   const borderColor = Colors[colorScheme ?? 'light'].tabIconDefault;
@@ -58,25 +69,132 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   // Initialize form with current user data
   useEffect(() => {
     if (visible && user) {
-      setDisplayName(userProfile?.display_name || '');
-      setEmail(user.email || '');
-      setAvatarUrl(userProfile?.avatar_url || null);
-      setDateOfBirth(userProfile?.date_of_birth || '');
+      const name = userProfile?.display_name || '';
+      const userEmail = user.email || '';
+      const avatar = userProfile?.avatar_url || null;
+      const dob = userProfile?.date_of_birth || '';
+
+      setDisplayName(name);
+      setEmail(userEmail);
+      setAvatarUrl(avatar);
+      setDateOfBirth(dob);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setEmailChanged(false);
+
+      // Store original values for change detection
+      setOriginalDisplayName(name);
+      setOriginalEmail(userEmail);
+      setOriginalAvatarUrl(avatar);
+      setOriginalDateOfBirth(dob);
+
+      // Reset pending states
+      setPendingAvatarUri(null);
+      setPendingAvatarRemoved(false);
     }
   }, [visible, user, userProfile]);
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = () => {
+    return (
+      displayName !== originalDisplayName ||
+      email !== originalEmail ||
+      dateOfBirth !== originalDateOfBirth ||
+      pendingAvatarUri !== null ||
+      pendingAvatarRemoved ||
+      newPassword.length > 0
+    );
+  };
+
+  // Handle close with unsaved changes check
+  const handleClose = async () => {
+    if (hasUnsavedChanges()) {
+      Alert.alert(
+        'Discard Changes?',
+        "You haven't saved your profile changes yet.",
+        [
+          {
+            text: 'Keep Editing',
+            style: 'cancel',
+          },
+          {
+            text: 'Discard Changes',
+            style: 'destructive',
+            onPress: () => {
+              // Reset all pending states
+              setPendingAvatarUri(null);
+              setPendingAvatarRemoved(false);
+              onClose();
+            },
+          },
+        ]
+      );
+    } else {
+      onClose();
+    }
+  };
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const handlePickImage = async () => {
+  const handleAvatarPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    // Determine if there's a current avatar (either original or pending)
+    const hasAvatar = (avatarUrl && !pendingAvatarRemoved) || pendingAvatarUri;
+
+    if (Platform.OS === 'ios') {
+      const options = hasAvatar
+        ? ['Choose from Library', 'Remove Current Photo', 'Cancel']
+        : ['Choose from Library', 'Cancel'];
+      const cancelButtonIndex = hasAvatar ? 2 : 1;
+      const destructiveButtonIndex = hasAvatar ? 1 : undefined;
+
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex,
+          destructiveButtonIndex,
+          title: 'Change Profile Photo',
+        },
+        async (buttonIndex) => {
+          if (buttonIndex === 0) {
+            await pickImage();
+          } else if (hasAvatar && buttonIndex === 1) {
+            handleRemoveImage();
+          }
+        }
+      );
+    } else {
+      // Android fallback using Alert
+      const buttons: any[] = [
+        {
+          text: 'Choose from Library',
+          onPress: pickImage,
+        },
+      ];
+
+      if (hasAvatar) {
+        buttons.push({
+          text: 'Remove Current Photo',
+          style: 'destructive',
+          onPress: handleRemoveImage,
+        });
+      }
+
+      buttons.push({
+        text: 'Cancel',
+        style: 'cancel',
+      });
+
+      Alert.alert('Change Profile Photo', '', buttons);
+    }
+  };
+
+  const pickImage = async () => {
     // Request permission
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -97,13 +215,37 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
     }
 
     const imageUri = result.assets[0].uri;
-    await uploadAvatar(imageUri);
+    // Store temporarily - don't persist until Save is clicked
+    setPendingAvatarUri(imageUri);
+    setPendingAvatarRemoved(false);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const uploadAvatar = async (uri: string) => {
-    if (!user) return;
+  const handleRemoveImage = () => {
+    Alert.alert(
+      'Remove Profile Photo?',
+      'This will remove your profile photo.',
+      [
+        {
+          text: 'Keep Photo',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            setPendingAvatarUri(null);
+            setPendingAvatarRemoved(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          },
+        },
+      ]
+    );
+  };
 
-    setUploadingImage(true);
+  // Upload avatar and return the public URL (doesn't persist to profile)
+  const uploadAvatarToStorage = async (uri: string): Promise<string | null> => {
+    if (!user) return null;
 
     try {
       // Resize and compress image
@@ -121,7 +263,6 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
       const fileData = new Uint8Array(arrayBuffer);
 
       // Generate unique filename with user folder structure
-      // This matches the RLS policy expectations in 003_setup_avatar_storage.sql
       const fileExt = 'jpg';
       const fileName = `${user.id}/${user.id}-${Date.now()}.${fileExt}`;
       const filePath = fileName;
@@ -131,11 +272,10 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
         filePath,
         size: fileData.length,
         userId: user.id,
-        bucket: 'avatars'
+        bucket: 'Avatars'
       });
 
-      // Upload to Supabase Storage with ArrayBuffer
-      // Note: Bucket name is case-sensitive - must match exactly as created in Supabase
+      // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('Avatars')
         .upload(filePath, fileData, {
@@ -144,17 +284,8 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
         });
 
       if (uploadError) {
-        console.error('Upload error details:', {
-          message: uploadError.message,
-          statusCode: uploadError.statusCode,
-          error: uploadError,
-        });
-        Alert.alert(
-          'Upload Failed',
-          uploadError.message || 'Failed to upload image. Please try again.\n\nCheck console for details.'
-        );
-        setUploadingImage(false);
-        return;
+        console.error('Upload error details:', uploadError);
+        throw new Error(uploadError.message || 'Failed to upload image');
       }
 
       console.log('Upload successful:', uploadData);
@@ -164,25 +295,10 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
         .from('Avatars')
         .getPublicUrl(filePath);
 
-      const publicUrl = urlData.publicUrl;
-
-      // Update profile with new avatar URL
-      const { error: updateError } = await updateProfile({ avatar_url: publicUrl });
-
-      if (updateError) {
-        console.error('Profile update error:', updateError);
-        Alert.alert('Update Failed', 'Failed to update profile picture.');
-        setUploadingImage(false);
-        return;
-      }
-
-      setAvatarUrl(publicUrl);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setUploadingImage(false);
+      return urlData.publicUrl;
     } catch (error) {
       console.error('Image upload error:', error);
-      Alert.alert('Error', 'An error occurred while uploading the image.');
-      setUploadingImage(false);
+      throw error;
     }
   };
 
@@ -213,7 +329,7 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
       console.warn('EditProfileModal: Save timeout reached');
       setLoading(false);
       Alert.alert('Error', 'Request timed out. Please check your connection and try again.');
-    }, 10000);
+    }, 15000); // Increased timeout for avatar upload
 
     try {
       // Update profile fields if changed
@@ -228,6 +344,30 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
       if (dateOfBirth !== userProfile?.date_of_birth) {
         profileUpdates.date_of_birth = dateOfBirth || null;
         hasProfileUpdates = true;
+      }
+
+      // Handle avatar changes
+      if (pendingAvatarUri) {
+        // Upload new avatar
+        console.log('EditProfileModal: Uploading new avatar...');
+        try {
+          const newAvatarUrl = await uploadAvatarToStorage(pendingAvatarUri);
+          if (newAvatarUrl) {
+            profileUpdates.avatar_url = newAvatarUrl;
+            hasProfileUpdates = true;
+            console.log('EditProfileModal: Avatar uploaded successfully');
+          }
+        } catch (uploadError) {
+          clearTimeout(saveTimeout);
+          setLoading(false);
+          Alert.alert('Upload Failed', 'Failed to upload profile picture. Please try again.');
+          return;
+        }
+      } else if (pendingAvatarRemoved) {
+        // Remove avatar
+        profileUpdates.avatar_url = null;
+        hasProfileUpdates = true;
+        console.log('EditProfileModal: Removing avatar');
       }
 
       if (hasProfileUpdates) {
@@ -331,7 +471,7 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
         style={[styles.container, { backgroundColor }]}
@@ -340,7 +480,7 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: borderColor + '40' }]}>
           <TouchableOpacity
-            onPress={onClose}
+            onPress={handleClose}
             style={styles.closeButton}
             accessibilityLabel="Close"
           >
@@ -359,12 +499,20 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
           {/* Profile Picture */}
           <View style={styles.avatarSection}>
             <TouchableOpacity
-              onPress={handlePickImage}
-              disabled={uploadingImage}
+              onPress={handleAvatarPress}
+              disabled={loading}
               style={[styles.avatarCircle, { backgroundColor: tintColor + '20' }]}
               accessibilityLabel="Change profile picture"
             >
-              {avatarUrl ? (
+              {/* Show pending avatar, current avatar, or placeholder */}
+              {pendingAvatarUri ? (
+                <Image
+                  source={{ uri: pendingAvatarUri }}
+                  style={styles.avatarImage}
+                />
+              ) : pendingAvatarRemoved ? (
+                <IconSymbol name="person.fill" size={48} color={tintColor} />
+              ) : avatarUrl ? (
                 <Image
                   source={{ uri: avatarUrl }}
                   style={styles.avatarImage}
@@ -372,12 +520,12 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
               ) : (
                 <IconSymbol name="person.fill" size={48} color={tintColor} />
               )}
-              {uploadingImage && (
+              {loading && (
                 <View style={styles.avatarOverlay}>
                   <ActivityIndicator color="white" />
                 </View>
               )}
-              <View style={[styles.cameraIconContainer, { backgroundColor: tintColor }]}>
+              <View style={[styles.cameraIconContainer, { backgroundColor: DesignTokens.colors.secondary.main }]}>
                 <IconSymbol name="camera.fill" size={16} color="white" />
               </View>
             </TouchableOpacity>
@@ -586,8 +734,8 @@ const styles = StyleSheet.create({
     marginBottom: DesignTokens.spacing.sm,
     position: 'relative',
     overflow: 'hidden',
-    borderWidth: 4,
-    borderColor: DesignTokens.colors.primary.main,
+    borderWidth: 3,
+    borderColor: DesignTokens.colors.highlight.main, // Honey gold - warm and welcoming
     ...DesignTokens.elevation[2],
   },
   avatarImage: {
