@@ -1,11 +1,71 @@
 # Memoria Development Worklog
 
-**Last Updated**: November 16, 2025
-**Version**: 1.1.1
+**Last Updated**: November 19, 2025
+**Version**: 1.1.2
 
 ---
 
-## 📋 Latest Session Summary (Nov 16, 2025)
+## 📋 Latest Session Summary (Nov 19, 2025)
+
+**Focus**: Profile Avatar UX Improvements
+
+**User Feedback**:
+- Avatar border felt like "warning" or "wrong" (terracotta color)
+- Avatar upload persisted immediately without clicking Save
+- No confirmation when closing with unsaved changes
+- No way to remove uploaded avatar
+- Uploaded avatar not showing in Profile tab (only in Edit modal)
+- Camera badge on avatar was cut off and redundant
+
+**Expert Agent Consultations**:
+- ✅ **ui-visual-design-expert**: Avatar border color analysis
+  - Terracotta (#C85A3F) triggers warning/error associations
+  - Recommended: Honey gold (#D4A574) for warm, welcoming feel
+  - 3px border with matching shadow for modern polish
+- ✅ **ux-research-strategist**: Save behavior and image removal patterns
+  - Explicit save preferred for elderly users (consistent mental model)
+  - Confirmation dialogs protect against accidental data loss
+  - Action sheet (not long-press/swipe) for image removal - highest discoverability
+
+**Completed**:
+- ✅ Changed avatar border from terracotta → honey gold (#D4A574)
+  - Reduced border width from 4px → 3px for modern look
+  - Warm "picture frame" aesthetic instead of warning appearance
+- ✅ Implemented temporary avatar state
+  - Avatar changes held in local state until Save is clicked
+  - Consistent with other profile fields (name, email, date of birth)
+- ✅ Added unsaved changes confirmation dialog
+  - Shows when closing modal with pending changes
+  - Clear labels: "Keep Editing" / "Discard Changes"
+- ✅ Added image removal via action sheet
+  - iOS: ActionSheetIOS with native feel
+  - Android: Alert buttons as fallback
+  - Options: "Choose from Library" / "Remove Current Photo" / "Cancel"
+  - Confirmation before removal: "Remove" / "Keep Photo"
+- ✅ Display avatar in Profile tab (My Life screen)
+  - Profile section now shows userProfile.avatar_url
+  - Falls back to person icon when no avatar
+- ✅ Removed camera badge from EditProfileModal
+  - Was cut off by circle boundary
+  - Redundant with "Tap to change profile picture" text
+
+**Files Modified**:
+- `components/EditProfileModal.tsx` - Avatar UX overhaul
+- `app/(tabs)/mylife.tsx` - Display avatar in Profile section
+
+**Commits**:
+- `f2194c9` feat(profile): Improve avatar UX with explicit save, action sheet, and honey gold border
+- `0d05d5d` fix(profile): Display avatar in Profile tab and remove camera badge
+
+**Key Decisions**:
+- ✅ Explicit save over auto-save for elderly UX consistency
+- ✅ Action sheet over long-press for maximum discoverability
+- ✅ Honey gold border for warm, welcoming appearance
+- ✅ No camera badge - text hint sufficient
+
+---
+
+## 📋 Session Summary (Nov 16, 2025)
 
 **Focus**: Strategic Color Rebalancing - Honey Gold Integration
 
