@@ -1,11 +1,68 @@
 # Memoria Development Worklog
 
 **Last Updated**: November 19, 2025
-**Version**: 1.1.2
+**Version**: 1.1.3
 
 ---
 
-## 📋 Latest Session Summary (Nov 19, 2025)
+## 📋 Latest Session Summary (Nov 19, 2025 - Evening)
+
+**Focus**: Topic Card Swipe Navigation UX Overhaul
+
+**User Feedback**:
+- Card content flashed old content briefly after swipe animation
+- When swiping right (backward) at first card, showed last card (circular wrap confusion)
+- Background card showed wrong card for backward navigation direction
+
+**Expert Agent Consultations**:
+- ✅ **ux-research-strategist**: Swipe navigation at edges
+  - Circular wrap violates mental models for elderly users (65+)
+  - Recommended: Bounce/resistance at edges instead of wrapping
+  - Physical card metaphor requires clear beginning/end
+  - Platform-familiar behavior (iOS/Android standard)
+- ✅ **ux-research-strategist**: Asymmetric navigation evaluation
+  - User proposed asymmetric pattern (different animations for forward/backward)
+  - Research: Single mental model is critical for elderly users
+  - Recommended: "Bounded Deck" with direction-aware backgrounds
+  - Maintain symmetric gestures with correct visual feedback
+
+**Completed**:
+- ✅ Fixed animation callback order to prevent content flash
+  - Problem: Reset animation values before state update caused old content to snap back
+  - Solution: Use `useEffect` with `pendingAnimationReset` ref to reset AFTER state changes
+- ✅ Implemented bounce/resistance at edges
+  - First card: swipe right bounces back with haptic warning
+  - Last card: swipe left bounces back with haptic warning
+  - Clear spatial orientation for elderly users
+- ✅ Direction-aware background cards
+  - Swipe LEFT (forward): shows NEXT card fading in (opacity interpolation)
+  - Swipe RIGHT (backward): shows PREVIOUS card fading in
+  - At first card: no backward background (nothing behind)
+  - At last card: no forward background (nothing ahead)
+- ✅ Updated navigation button handlers
+  - Previous/Next buttons respect edge conditions
+  - Visual feedback: 40% opacity when at edge (disabled state)
+  - Haptic warning when pressing disabled button
+  - Accessibility hints updated: "This is the first/last topic"
+
+**Files Modified**:
+- `app/(tabs)/index.tsx` - Complete swipe navigation overhaul
+
+**Key Decisions**:
+- ✅ Bounce at edges over circular wrap (mental model clarity)
+- ✅ Direction-aware backgrounds (show correct card for swipe direction)
+- ✅ Symmetric gestures (same lift/reveal animation both directions)
+- ✅ Animated opacity interpolation for smooth background transitions
+
+**Technical Implementation**:
+- Added `isAtEdge()` helper to check navigation boundaries
+- Added `pendingAnimationReset` ref + `useEffect` for proper animation reset timing
+- Two `Animated.View` background cards with opposite opacity interpolations
+- Conditionally rendered backgrounds based on edge state
+
+---
+
+## 📋 Session Summary (Nov 19, 2025 - Earlier)
 
 **Focus**: Profile Avatar UX Improvements
 

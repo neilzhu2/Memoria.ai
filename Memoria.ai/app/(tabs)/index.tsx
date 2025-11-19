@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -108,6 +108,19 @@ const HomeScreen = React.memo(function HomeScreen() {
   const translateY = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
 
+  // Track if we need to reset animation values after state updates
+  const pendingAnimationReset = useRef(false);
+
+  // Reset animation values AFTER state has updated (fixes flash issue)
+  useEffect(() => {
+    if (pendingAnimationReset.current) {
+      translateX.setValue(0);
+      translateY.setValue(0);
+      scale.setValue(1);
+      pendingAnimationReset.current = false;
+    }
+  }, [navState, translateX, translateY, scale]);
+
   // Calculate background cards based on navigation logic
   const getBackgroundCards = useCallback(() => {
     const { currentIndex, history, historyPosition } = navState;
@@ -189,6 +202,19 @@ const HomeScreen = React.memo(function HomeScreen() {
     });
   }, []);
 
+  // Check if we're at the edge (first or last card)
+  const isAtEdge = useCallback((direction: 'forward' | 'backward'): boolean => {
+    const { currentIndex, history, historyPosition } = navState;
+
+    if (direction === 'backward') {
+      // At first card and no history to go back to
+      return currentIndex === 0 && historyPosition === 0;
+    } else {
+      // At last card and no forward history
+      return currentIndex === DAILY_TOPICS.length - 1 && historyPosition === history.length - 1;
+    }
+  }, [navState]);
+
   // Gesture handler
   const onPanHandlerStateChange = useCallback((event: HandlerStateChangeEvent<PanGestureHandlerEventPayload>) => {
     if (event.nativeEvent.oldState === State.ACTIVE) {
@@ -198,8 +224,25 @@ const HomeScreen = React.memo(function HomeScreen() {
       const shouldSwipe = Math.abs(translationX) > SWIPE_THRESHOLD || Math.abs(velocityX) > VELOCITY_THRESHOLD;
 
       if (shouldSwipe) {
-        // Determine direction and navigate
+        // Determine direction
         const direction = translationX > 0 ? 'backward' : 'forward';
+
+        // Check if at edge - bounce back instead of wrapping
+        if (isAtEdge(direction)) {
+          // Bounce animation with haptic feedback to indicate edge
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          Animated.parallel([
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+              tension: 100,
+              friction: 8,
+            }),
+            Animated.spring(translateY, { toValue: 0, useNativeDriver: true }),
+            Animated.spring(scale, { toValue: 1, useNativeDriver: true }),
+          ]).start();
+          return;
+        }
 
         // Animate card out
         const toValue = translationX > 0 ? screenWidth : -screenWidth;
@@ -207,13 +250,13 @@ const HomeScreen = React.memo(function HomeScreen() {
           Animated.timing(translateX, { toValue, duration: 300, useNativeDriver: true }),
           Animated.timing(scale, { toValue: 0.8, duration: 300, useNativeDriver: true }),
         ]).start(() => {
-          // Reset animation values
-          translateX.setValue(0);
-          translateY.setValue(0);
-          scale.setValue(1);
+          // Mark that we need to reset animation values after state updates
+          pendingAnimationReset.current = true;
 
-          // Navigate to new card
+          // Navigate to new card (triggers state update)
           navigate(direction);
+
+          // Animation values will be reset in useEffect after state has updated
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         });
       } else {
@@ -225,7 +268,7 @@ const HomeScreen = React.memo(function HomeScreen() {
         ]).start();
       }
     }
-  }, [navigate]);
+  }, [navigate, isAtEdge]);
 
   const onPanGestureEvent = Animated.event(
     [{ nativeEvent: { translationX: translateX, translationY: translateY } }],
@@ -233,9 +276,31 @@ const HomeScreen = React.memo(function HomeScreen() {
   );
 
   const handleSkipPress = useCallback(async () => {
+    if (isAtEdge('forward')) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigate('forward');
-  }, [navigate]);
+  }, [navigate, isAtEdge]);
+
+  const handlePreviousPress = useCallback(async () => {
+    if (isAtEdge('backward')) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigate('backward');
+  }, [navigate, isAtEdge]);
+
+  const handleNextPress = useCallback(async () => {
+    if (isAtEdge('forward')) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigate('forward');
+  }, [navigate, isAtEdge]);
 
   const handleRecordPress = useCallback(async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -269,42 +334,97 @@ const HomeScreen = React.memo(function HomeScreen() {
       {/* Topic Cards - Single Card with Swipe Support */}
       <View style={styles.topicCardsContainer}>
         <View style={styles.cardStack}>
-          {/* Pre-rendered Next Card (behind current) - for smooth transitions */}
-          <View
-            style={[
-              styles.topicCard,
-              styles.backgroundCard,
-              { backgroundColor: Colors[colorScheme ?? 'light'].background },
-            ]}
-            pointerEvents="none"
-          >
-            <View style={[styles.topicCardInner, {
-              backgroundColor: colorScheme === 'dark'
-                ? DesignTokens.colors.neutral[700]
-                : DesignTokens.colors.neutral[100],
-            }]}>
-              <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-                {backgroundCards.right.title}
-              </Text>
-              <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-                {backgroundCards.right.description}
-              </Text>
-              <View style={styles.topicActions}>
-                <TouchableOpacity
-                  style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-                  disabled
-                >
-                  <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].elderlyError} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.topicActionButton, styles.recordButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-                  disabled
-                >
-                  <IconSymbol name="mic.fill" size={24} color={Colors[colorScheme ?? 'light'].primary} />
-                </TouchableOpacity>
+          {/* Background Card for BACKWARD navigation (previous card) - shown when dragging right */}
+          {!isAtEdge('backward') && (
+            <Animated.View
+              style={[
+                styles.topicCard,
+                styles.backgroundCard,
+                { backgroundColor: Colors[colorScheme ?? 'light'].background },
+                {
+                  opacity: translateX.interpolate({
+                    inputRange: [0, 50],
+                    outputRange: [0, 1],
+                    extrapolate: 'clamp',
+                  }),
+                },
+              ]}
+              pointerEvents="none"
+            >
+              <View style={[styles.topicCardInner, {
+                backgroundColor: colorScheme === 'dark'
+                  ? DesignTokens.colors.neutral[700]
+                  : DesignTokens.colors.neutral[100],
+              }]}>
+                <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                  {backgroundCards.left.title}
+                </Text>
+                <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
+                  {backgroundCards.left.description}
+                </Text>
+                <View style={styles.topicActions}>
+                  <TouchableOpacity
+                    style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
+                    disabled
+                  >
+                    <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].elderlyError} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.topicActionButton, styles.recordButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
+                    disabled
+                  >
+                    <IconSymbol name="mic.fill" size={24} color={Colors[colorScheme ?? 'light'].primary} />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </View>
+            </Animated.View>
+          )}
+
+          {/* Background Card for FORWARD navigation (next card) - shown when dragging left */}
+          {!isAtEdge('forward') && (
+            <Animated.View
+              style={[
+                styles.topicCard,
+                styles.backgroundCard,
+                { backgroundColor: Colors[colorScheme ?? 'light'].background },
+                {
+                  opacity: translateX.interpolate({
+                    inputRange: [-50, 0],
+                    outputRange: [1, 0],
+                    extrapolate: 'clamp',
+                  }),
+                },
+              ]}
+              pointerEvents="none"
+            >
+              <View style={[styles.topicCardInner, {
+                backgroundColor: colorScheme === 'dark'
+                  ? DesignTokens.colors.neutral[700]
+                  : DesignTokens.colors.neutral[100],
+              }]}>
+                <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                  {backgroundCards.right.title}
+                </Text>
+                <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
+                  {backgroundCards.right.description}
+                </Text>
+                <View style={styles.topicActions}>
+                  <TouchableOpacity
+                    style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
+                    disabled
+                  >
+                    <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].elderlyError} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.topicActionButton, styles.recordButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
+                    disabled
+                  >
+                    <IconSymbol name="mic.fill" size={24} color={Colors[colorScheme ?? 'light'].primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Animated.View>
+          )}
 
           {/* Main Active Card - Swipeable */}
           <PanGestureHandler
@@ -370,27 +490,45 @@ const HomeScreen = React.memo(function HomeScreen() {
         {/* Navigation Buttons - Elderly-Optimized */}
         <View style={styles.navigationButtons}>
           <TouchableOpacity
-            style={[styles.navButton, styles.navButtonLeft, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}
-            onPress={() => navigate('backward')}
+            style={[
+              styles.navButton,
+              styles.navButtonLeft,
+              { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper },
+              isAtEdge('backward') && { opacity: 0.4 }
+            ]}
+            onPress={handlePreviousPress}
             accessibilityLabel="Previous topic"
-            accessibilityHint="Go to the previous memory topic"
+            accessibilityHint={isAtEdge('backward') ? "This is the first topic" : "Go to the previous memory topic"}
           >
-            <IconSymbol name="chevron.left" size={24} color={Colors[colorScheme ?? 'light'].text} />
+            <IconSymbol
+              name="chevron.left"
+              size={24}
+              color={Colors[colorScheme ?? 'light'].text}
+            />
             <Text style={[styles.navButtonText, { color: Colors[colorScheme ?? 'light'].text }]}>
               Previous
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.navButton, styles.navButtonRight, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}
-            onPress={() => navigate('forward')}
+            style={[
+              styles.navButton,
+              styles.navButtonRight,
+              { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper },
+              isAtEdge('forward') && { opacity: 0.4 }
+            ]}
+            onPress={handleNextPress}
             accessibilityLabel="Next topic"
-            accessibilityHint="Skip to the next memory topic"
+            accessibilityHint={isAtEdge('forward') ? "This is the last topic" : "Skip to the next memory topic"}
           >
             <Text style={[styles.navButtonText, { color: Colors[colorScheme ?? 'light'].text }]}>
               Next
             </Text>
-            <IconSymbol name="chevron.right" size={24} color={Colors[colorScheme ?? 'light'].text} />
+            <IconSymbol
+              name="chevron.right"
+              size={24}
+              color={Colors[colorScheme ?? 'light'].text}
+            />
           </TouchableOpacity>
         </View>
       </View>
