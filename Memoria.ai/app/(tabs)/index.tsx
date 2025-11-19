@@ -269,6 +269,43 @@ const HomeScreen = React.memo(function HomeScreen() {
       {/* Topic Cards - Single Card with Swipe Support */}
       <View style={styles.topicCardsContainer}>
         <View style={styles.cardStack}>
+          {/* Pre-rendered Next Card (behind current) - for smooth transitions */}
+          <View
+            style={[
+              styles.topicCard,
+              styles.backgroundCard,
+              { backgroundColor: Colors[colorScheme ?? 'light'].background },
+            ]}
+            pointerEvents="none"
+          >
+            <View style={[styles.topicCardInner, {
+              backgroundColor: colorScheme === 'dark'
+                ? DesignTokens.colors.neutral[700]
+                : DesignTokens.colors.neutral[100],
+            }]}>
+              <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                {backgroundCards.right.title}
+              </Text>
+              <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
+                {backgroundCards.right.description}
+              </Text>
+              <View style={styles.topicActions}>
+                <TouchableOpacity
+                  style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
+                  disabled
+                >
+                  <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].elderlyError} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.topicActionButton, styles.recordButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
+                  disabled
+                >
+                  <IconSymbol name="mic.fill" size={24} color={Colors[colorScheme ?? 'light'].primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
           {/* Main Active Card - Swipeable */}
           <PanGestureHandler
             onGestureEvent={onPanGestureEvent}
@@ -413,6 +450,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 8,
+    position: 'absolute',
+  },
+  backgroundCard: {
+    zIndex: 1,
+  },
+  activeCard: {
+    zIndex: 2,
   },
   topicCardInner: {
     flex: 1,
