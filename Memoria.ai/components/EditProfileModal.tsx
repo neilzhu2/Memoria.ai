@@ -135,8 +135,9 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
       });
 
       // Upload to Supabase Storage with ArrayBuffer
+      // Note: Bucket name is case-sensitive - must match exactly as created in Supabase
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('avatars')
+        .from('Avatars')
         .upload(filePath, fileData, {
           contentType: 'image/jpeg',
           upsert: false,
@@ -160,7 +161,7 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('avatars')
+        .from('Avatars')
         .getPublicUrl(filePath);
 
       const publicUrl = urlData.publicUrl;
