@@ -1,11 +1,48 @@
 # Memoria Development Worklog
 
-**Last Updated**: November 19, 2025
-**Version**: 1.1.3
+**Last Updated**: November 20, 2025
+**Version**: 1.1.4
 
 ---
 
-## 📋 Latest Session Summary (Nov 19, 2025 - Evening)
+## 📋 Latest Session Summary (Nov 20, 2025)
+
+**Focus**: EAS Build Setup for Development Build
+
+**Goal**: Set up development build to unblock recording and transcription features (expo-speech-recognition requires native modules not available in Expo Go)
+
+**Completed**:
+- ✅ Created `eas.json` configuration file
+  - development profile (device builds)
+  - development-simulator profile (simulator builds)
+  - preview and production profiles
+- ✅ Initialized EAS project
+  - Project ID: 138b22e7-1874-4f98-aef8-dcfc33dfb5be
+  - Project URL: https://expo.dev/accounts/neilzhu2/projects/memoria-ai
+- ✅ Updated @types/react to resolve peer dependency conflicts
+- ✅ Installed expo-dev-client@6.0.18
+
+**Pending**:
+- ⏳ Apple Developer enrollment (Case #102756613187)
+  - New account with preferred email being set up
+  - Awaiting Apple support response (2 business days)
+- ⏳ iOS development build (blocked by Apple enrollment)
+
+**Files Added**:
+- `eas.json` - EAS Build configuration
+
+**Files Modified**:
+- `app.json` - Added EAS project ID
+- `package.json` - Added expo-dev-client, updated @types/react
+
+**Next Steps**:
+- Complete Apple Developer enrollment
+- Run iOS development build
+- Refine recording flow UX
+
+---
+
+## 📋 Session Summary (Nov 19, 2025 - Evening)
 
 **Focus**: Topic Card Swipe Navigation UX Overhaul
 
