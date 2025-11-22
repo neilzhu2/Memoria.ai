@@ -213,13 +213,7 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
             </Text>
 
             <TouchableOpacity
-              style={[
-                styles.saveButton,
-                {
-                  backgroundColor: hasChanges && !isSaving ? tintColor : borderColor + '40',
-                  opacity: hasChanges && !isSaving ? 1 : 0.5,
-                },
-              ]}
+              style={styles.saveButton}
               onPress={handleSave}
               disabled={!hasChanges || isSaving}
               accessibilityLabel="Save changes"
@@ -227,9 +221,19 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
               accessibilityHint="Saves your edits to this memory"
             >
               {isSaving ? (
-                <ActivityIndicator color="white" size="small" />
+                <ActivityIndicator color={tintColor} size="small" />
               ) : (
-                <IconSymbol name="checkmark" size={24} color="white" />
+                <Text
+                  style={[
+                    styles.saveButtonText,
+                    {
+                      color: hasChanges ? tintColor : borderColor,
+                      opacity: hasChanges ? 1 : 0.5,
+                    },
+                  ]}
+                >
+                  Save
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -265,9 +269,9 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
                   <TouchableOpacity
                     style={[styles.audioControlButton, { backgroundColor: tintColor + '20' }]}
                     onPress={skipBackward}
-                    accessibilityLabel="Rewind 15 seconds"
+                    accessibilityLabel="Rewind 10 seconds"
                   >
-                    <IconSymbol name="gobackward.15" size={28} color={tintColor} />
+                    <IconSymbol name="gobackward.10" size={28} color={tintColor} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -285,9 +289,9 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
                   <TouchableOpacity
                     style={[styles.audioControlButton, { backgroundColor: tintColor + '20' }]}
                     onPress={skipForward}
-                    accessibilityLabel="Forward 15 seconds"
+                    accessibilityLabel="Forward 10 seconds"
                   >
-                    <IconSymbol name="goforward.15" size={28} color={tintColor} />
+                    <IconSymbol name="goforward.10" size={28} color={tintColor} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -329,7 +333,7 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
                 onChangeText={setTranscription}
                 placeholder="Transcription will appear here automatically..."
                 placeholderTextColor={borderColor}
-                maxLength={500}
+                maxLength={5000}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
@@ -337,7 +341,7 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
                 accessibilityHint="Edit or add transcription for this memory"
               />
               <Text style={[styles.charCount, { color: borderColor }]}>
-                {transcription.length}/500
+                {transcription.length}/5000
               </Text>
             </View>
 
@@ -399,11 +403,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   closeButton: {
-    width: 80,
-    height: 80,
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 40,
   },
   headerTitle: {
     flex: 1,
@@ -412,11 +415,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   saveButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    minWidth: 56,
+    height: 56,
+    paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  saveButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   content: {
     flex: 1,

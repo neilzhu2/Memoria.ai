@@ -145,7 +145,7 @@ export function useAudioPlayback() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const status = await soundRef.current.getStatusAsync();
       if (status.isLoaded) {
-        const newPosition = Math.max(0, status.positionMillis - 15000); // 15 seconds
+        const newPosition = Math.max(0, status.positionMillis - 10000); // 10 seconds
         await soundRef.current.setPositionAsync(newPosition);
       }
     } catch (error) {
@@ -161,7 +161,7 @@ export function useAudioPlayback() {
       if (status.isLoaded) {
         const newPosition = Math.min(
           status.durationMillis || 0,
-          status.positionMillis + 15000 // 15 seconds
+          status.positionMillis + 10000 // 10 seconds
         );
         await soundRef.current.setPositionAsync(newPosition);
       }

@@ -31,11 +31,6 @@ export function TermsOfUseModal({ visible, onClose }: TermsOfUseModalProps) {
       <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-          <View style={styles.headerContent}>
-            <Text style={[styles.title, { color: Colors[colorScheme ?? 'light'].text }]}>
-              Terms of Use
-            </Text>
-          </View>
           <TouchableOpacity
             style={styles.closeButton}
             onPress={onClose}
@@ -43,6 +38,10 @@ export function TermsOfUseModal({ visible, onClose }: TermsOfUseModalProps) {
           >
             <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].text} />
           </TouchableOpacity>
+          <Text style={[styles.title, { color: Colors[colorScheme ?? 'light'].text }]}>
+            Terms of Use
+          </Text>
+          <View style={styles.placeholder} />
         </View>
 
         {/* Content */}
@@ -180,9 +179,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  headerContent: {
-    flex: 1,
-  },
   closeButton: {
     width: DesignTokens.touchTarget.minimum,
     height: DesignTokens.touchTarget.minimum,
@@ -192,7 +188,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...DesignTokens.typography.h2,
-    marginBottom: DesignTokens.spacing.xs,
+    flex: 1,
+    textAlign: 'center',
+  },
+  placeholder: {
+    width: DesignTokens.touchTarget.minimum,
   },
   scrollView: {
     flex: 1,

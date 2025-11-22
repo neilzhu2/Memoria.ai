@@ -74,6 +74,13 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
       <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={handleClose}
+            accessibilityLabel="Close feedback form"
+          >
+            <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].text} />
+          </TouchableOpacity>
           <View style={styles.headerContent}>
             <Text style={[styles.title, { color: Colors[colorScheme ?? 'light'].text }]}>
               Send Feedback
@@ -82,13 +89,7 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
               We'd love to hear from you!
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={handleClose}
-            accessibilityLabel="Close feedback form"
-          >
-            <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].text} />
-          </TouchableOpacity>
+          <View style={styles.placeholder} />
         </View>
 
         {/* Content */}
@@ -189,9 +190,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  headerContent: {
-    flex: 1,
-  },
   closeButton: {
     width: DesignTokens.touchTarget.minimum,
     height: DesignTokens.touchTarget.minimum,
@@ -199,12 +197,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: DesignTokens.touchTarget.minimum / 2,
   },
+  headerContent: {
+    flex: 1,
+    alignItems: 'center',
+  },
   title: {
     ...DesignTokens.typography.h2,
     marginBottom: DesignTokens.spacing.xs,
+    textAlign: 'center',
   },
   subtitle: {
     ...DesignTokens.typography.body,
+    textAlign: 'center',
+  },
+  placeholder: {
+    width: DesignTokens.touchTarget.minimum,
   },
   scrollView: {
     flex: 1,

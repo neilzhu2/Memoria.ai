@@ -484,10 +484,32 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
             style={styles.closeButton}
             accessibilityLabel="Close"
           >
-            <IconSymbol name="xmark" size={24} color={tintColor} />
+            <IconSymbol name="xmark" size={24} color={textColor} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: textColor }]}>Edit Profile</Text>
-          <View style={styles.placeholder} />
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={handleSave}
+            disabled={!hasUnsavedChanges() || loading}
+            accessibilityLabel="Save changes"
+            accessibilityRole="button"
+          >
+            {loading ? (
+              <ActivityIndicator color={tintColor} size="small" />
+            ) : (
+              <Text
+                style={[
+                  styles.saveButtonText,
+                  {
+                    color: hasUnsavedChanges() ? tintColor : borderColor,
+                    opacity: hasUnsavedChanges() ? 1 : 0.5,
+                  },
+                ]}
+              >
+                Save
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -653,21 +675,6 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
             </View>
           )}
 
-          {/* Save Button */}
-          <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: tintColor }, loading && styles.buttonDisabled]}
-            onPress={handleSave}
-            disabled={loading}
-            accessibilityLabel="Save changes"
-            accessibilityRole="button"
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.saveButtonText}>Save Changes</Text>
-            )}
-          </TouchableOpacity>
-
           {/* Sign Out Button */}
           <TouchableOpacity
             style={[styles.signOutButton, { backgroundColor: errorColor + '20', borderColor: errorColor }]}
@@ -708,9 +715,19 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...DesignTokens.typography.h3,
+    flex: 1,
+    textAlign: 'center',
   },
-  placeholder: {
-    width: DesignTokens.touchTarget.minimum,
+  saveButton: {
+    minWidth: DesignTokens.touchTarget.minimum,
+    height: DesignTokens.touchTarget.minimum,
+    paddingHorizontal: DesignTokens.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   scrollView: {
     flex: 1,
