@@ -101,6 +101,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   const errorColor = Colors[colorScheme ?? 'light'].elderlyError;
   const warningColor = Colors[colorScheme ?? 'light'].elderlyWarning;
   const successColor = Colors[colorScheme ?? 'light'].elderlySuccess;
+  const goldColor = Colors[colorScheme ?? 'light'].highlight; // Honey gold for constructive actions
 
   useEffect(() => {
     console.log('[SimpleRecordingScreen] useEffect - visible changed:', {
@@ -513,7 +514,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
               onPress={stopRecording}
               accessibilityLabel="Stop and save recording"
             >
-              <Text style={[styles.doneHeaderText, { color: tintColor }]}>Done</Text>
+              <Text style={[styles.doneHeaderText, { color: goldColor }]}>Done</Text>
             </TouchableOpacity>
           )}
           {recordingState === 'idle' || recordingState === 'stopped' ? (
