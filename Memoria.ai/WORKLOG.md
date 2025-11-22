@@ -1,11 +1,48 @@
 # Memoria Development Worklog
 
-**Last Updated**: November 20, 2025
-**Version**: 1.1.4
+**Last Updated**: November 22, 2025
+**Version**: 1.1.5
 
 ---
 
-## 📋 Latest Session Summary (Nov 20, 2025)
+## 📋 Latest Session Summary (Nov 22, 2025)
+
+**Focus**: Modal UX Refinements for Elderly Users
+
+**Completed**:
+- ✅ Changed audio skip duration from 15s to 10s (better for short recordings)
+- ✅ Increased transcription character limit from 500 to 5,000 (supports 5+ minutes)
+- ✅ Standardized modal headers across app:
+  - X (close) button on left, title centered
+  - Updated: TermsOfUseModal, FeedbackModal
+- ✅ Moved EditProfileModal Save button from bottom (scrolled) to header
+  - Now matches EditMemoryModal pattern
+  - Always visible without scrolling
+- ✅ Changed "Done" button color from terracotta to gold
+  - Gold = constructive actions (Save, Done, Submit)
+  - Terracotta/Red = destructive actions (Delete, Cancel)
+- ✅ Fixed excessive header gap in EditProfileModal
+  - Removed paddingTop: 60, now uses standard spacing
+
+**Files Modified**:
+- `hooks/useAudioPlayback.ts` - Skip duration 15s → 10s
+- `components/EditMemoryModal.tsx` - Char limit, skip icons
+- `components/EditProfileModal.tsx` - Save in header, fixed gap
+- `components/TermsOfUseModal.tsx` - Header consistency
+- `components/FeedbackModal.tsx` - Header consistency
+- `components/SimpleRecordingScreen.tsx` - Done button gold color
+
+**Color Convention Established**:
+- Honey Gold (#F5A623) → Constructive actions
+- Terracotta (#C85A3F) → Destructive/warning actions
+- Sage Green (#5F7A61) → Success states
+
+**Pending**:
+- ⏳ Apple Developer enrollment (Case #102756613187)
+
+---
+
+## 📋 Session Summary (Nov 20, 2025)
 
 **Focus**: EAS Build Setup for Development Build
 
