@@ -81,15 +81,20 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
           >
             <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].text} />
           </TouchableOpacity>
-          <View style={styles.headerContent}>
-            <Text style={[styles.title, { color: Colors[colorScheme ?? 'light'].text }]}>
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
               Send Feedback
             </Text>
-            <Text style={[styles.subtitle, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-              We'd love to hear from you!
-            </Text>
           </View>
-          <View style={styles.placeholder} />
+          <TouchableOpacity
+            style={styles.sendButton}
+            onPress={handleSubmit}
+            accessibilityLabel="Send feedback"
+          >
+            <Text style={[styles.sendButtonText, { color: Colors[colorScheme ?? 'light'].highlight }]}>
+              Send
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Content */}
@@ -157,18 +162,6 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
             </View>
           </View>
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: Colors[colorScheme ?? 'light'].primary }]}
-            onPress={handleSubmit}
-            accessibilityLabel="Send feedback"
-          >
-            <IconSymbol name="paperplane.fill" size={20} color="white" />
-            <Text style={styles.submitButtonText}>
-              Send Feedback
-            </Text>
-          </TouchableOpacity>
-
           {/* Bottom spacing */}
           <View style={styles.bottomSpacing} />
         </ScrollView>
@@ -185,33 +178,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: DesignTokens.spacing.md,
-    paddingVertical: DesignTokens.spacing.md,
-    borderBottomWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e0e0e0',
   },
   closeButton: {
-    width: DesignTokens.touchTarget.minimum,
-    height: DesignTokens.touchTarget.minimum,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: DesignTokens.touchTarget.minimum / 2,
+    zIndex: 1,
   },
-  headerContent: {
-    flex: 1,
+  headerTitleContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  title: {
-    ...DesignTokens.typography.h2,
-    marginBottom: DesignTokens.spacing.xs,
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
     textAlign: 'center',
   },
-  subtitle: {
-    ...DesignTokens.typography.body,
-    textAlign: 'center',
+  sendButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
-  placeholder: {
-    width: DesignTokens.touchTarget.minimum,
+  sendButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
   },
   scrollView: {
     flex: 1,
@@ -263,20 +265,6 @@ const styles = StyleSheet.create({
   infoText: {
     ...DesignTokens.typography.body,
     flex: 1,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: DesignTokens.spacing.sm,
-    paddingVertical: DesignTokens.spacing.md,
-    borderRadius: DesignTokens.radius.lg,
-    minHeight: DesignTokens.touchTarget.comfortable,
-    ...DesignTokens.elevation[2],
-  },
-  submitButtonText: {
-    ...DesignTokens.typography.button,
-    color: 'white',
   },
   bottomSpacing: {
     height: DesignTokens.spacing.xl,

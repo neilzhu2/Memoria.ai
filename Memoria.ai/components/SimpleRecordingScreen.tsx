@@ -503,9 +503,11 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
             <IconSymbol name="xmark" size={24} color={textColor} />
           </TouchableOpacity>
 
-          <Text style={[styles.headerTitle, { color: textColor }]}>
-            {isSaving || recordingState === 'stopped' ? 'Saving...' : 'New Recording'}
-          </Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: textColor }]}>
+              {isSaving || recordingState === 'stopped' ? 'Saving...' : 'New Recording'}
+            </Text>
+          </View>
 
           {/* Done button - visible when recording or paused */}
           {(recordingState === 'recording' || recordingState === 'paused') && (
@@ -572,8 +574,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
     paddingVertical: 16,
+    paddingHorizontal: 24,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   closeButton: {
@@ -581,23 +583,35 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
+    zIndex: 1,
+  },
+  headerTitleContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
+    textAlign: 'center',
   },
   listButton: {
     width: 44,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
+    zIndex: 1,
   },
   doneHeaderButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   doneHeaderText: {
     fontSize: 17,

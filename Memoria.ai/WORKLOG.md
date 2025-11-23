@@ -1,11 +1,62 @@
 # Memoria Development Worklog
 
-**Last Updated**: November 22, 2025
-**Version**: 1.1.5
+**Last Updated**: November 23, 2025
+**Version**: 1.1.6
 
 ---
 
-## 📋 Latest Session Summary (Nov 22, 2025)
+## 📋 Latest Session Summary (Nov 23, 2025)
+
+**Focus**: Modal Header Standardization & Date Picker Implementation
+
+**Completed**:
+- ✅ **Modal Header Pattern Finalized**
+  - Fixed title centering issue (duplicate style keys in StyleSheet)
+  - Applied consistent header styling across all modals:
+    - `paddingVertical: 16, paddingHorizontal: 24`
+    - Absolute positioning for title (`top: 0, bottom: 0, left: 0, right: 0`)
+    - 44x44 touch targets for buttons with `zIndex: 1`
+    - `fontSize: 17, fontWeight: '600'` for titles
+  - Updated: EditProfileModal, FeedbackModal, TermsOfUseModal, SimpleRecordingScreen
+
+- ✅ **Date Picker for Date of Birth**
+  - Installed `@react-native-community/datetimepicker`
+  - Replaced TextInput with native date picker
+  - iOS: spinner display with Done button
+  - Android: default date picker dialog
+  - Shows user-friendly format ("March 19, 1992")
+  - Maximum date: today, Minimum date: 1900
+  - Respects dark/light mode via `themeVariant`
+
+- ✅ **Home Screen Header Spacing**
+  - Added `marginTop: 8` to push "Memoria.ai" title down slightly
+
+**Bug Fixed**:
+- 🐛 **Duplicate Style Keys** in EditProfileModal
+  - `saveButton` was defined twice (lines 732 and 840)
+  - Second definition overwrote header button with wrong styles
+  - Solution: Removed duplicate style definitions
+
+**Files Modified**:
+- `components/EditProfileModal.tsx` - Date picker, header fix, removed duplicates
+- `components/FeedbackModal.tsx` - Header padding
+- `components/TermsOfUseModal.tsx` - Header padding
+- `components/SimpleRecordingScreen.tsx` - Header padding
+- `app/(tabs)/index.tsx` - Header marginTop
+- `package.json` - Added @react-native-community/datetimepicker
+
+**Technical Details**:
+- Date parsing: `YYYY-MM-DD` string ↔ JavaScript Date object
+- Date display: `toLocaleDateString('en-US', { year, month: 'long', day: 'numeric' })`
+- Platform handling: iOS uses `display="spinner"`, Android uses default
+
+**Pending**:
+- ⏳ Apple Developer enrollment (Case #102756613187)
+- ⏳ Feedback sending UX improvements (next task)
+
+---
+
+## 📋 Session Summary (Nov 22, 2025)
 
 **Focus**: Modal UX Refinements for Elderly Users
 
@@ -36,9 +87,6 @@
 - Honey Gold (#F5A623) → Constructive actions
 - Terracotta (#C85A3F) → Destructive/warning actions
 - Sage Green (#5F7A61) → Success states
-
-**Pending**:
-- ⏳ Apple Developer enrollment (Case #102756613187)
 
 ---
 

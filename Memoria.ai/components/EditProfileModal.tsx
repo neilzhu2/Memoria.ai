@@ -23,6 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { supabase } from '@/lib/supabase';
 
 interface EditProfileModalProps {
@@ -49,6 +50,7 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [emailChanged, setEmailChanged] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Temporary avatar state - holds new image until Save is clicked
   const [pendingAvatarUri, setPendingAvatarUri] = useState<string | null>(null);
@@ -138,6 +140,42 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  };
+
+  // Date picker helpers
+  const parseDateString = (dateStr: string): Date => {
+    if (!dateStr) return new Date(1960, 0, 1); // Default to 1960-01-01
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (year && month && day) {
+      return new Date(year, month - 1, day);
+    }
+    return new Date(1960, 0, 1);
+  };
+
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatDisplayDate = (dateStr: string): string => {
+    if (!dateStr) return 'Select your date of birth';
+    const date = parseDateString(dateStr);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (event.type === 'set' && selectedDate) {
+      setDateOfBirth(formatDate(selectedDate));
+    }
   };
 
   const handleAvatarPress = async () => {
@@ -486,7 +524,9 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
           >
             <IconSymbol name="xmark" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: textColor }]}>Edit Profile</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: textColor }]}>Edit Profile</Text>
+          </View>
           <TouchableOpacity
             style={styles.saveButton}
             onPress={handleSave}
@@ -572,20 +612,43 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
           {/* Date of Birth */}
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: textColor }]}>Date of Birth</Text>
-            <View style={[styles.inputContainer, { backgroundColor: borderColor + '10', borderColor: borderColor + '40' }]}>
-              <IconSymbol name="calendar" size={20} color={borderColor} />
-              <TextInput
-                style={[styles.input, { color: textColor }]}
-                value={dateOfBirth}
-                onChangeText={setDateOfBirth}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={borderColor}
-                editable={!loading}
-              />
-            </View>
-            <Text style={[styles.helper, { color: borderColor }]}>
-              Format: YYYY-MM-DD (e.g., 1950-01-15)
-            </Text>
+            <TouchableOpacity
+              style={[styles.inputContainer, { backgroundColor: borderColor + '10', borderColor: borderColor + '40' }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowDatePicker(true);
+              }}
+              disabled={loading}
+              accessibilityLabel="Select date of birth"
+              accessibilityHint="Opens a date picker"
+            >
+              <IconSymbol name="calendar" size={20} color={tintColor} />
+              <Text style={[styles.input, { color: dateOfBirth ? textColor : borderColor }]}>
+                {formatDisplayDate(dateOfBirth)}
+              </Text>
+              <IconSymbol name="chevron.right" size={16} color={borderColor} />
+            </TouchableOpacity>
+            {showDatePicker && (
+              <View style={styles.datePickerContainer}>
+                <DateTimePicker
+                  value={parseDateString(dateOfBirth)}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDateChange}
+                  maximumDate={new Date()}
+                  minimumDate={new Date(1900, 0, 1)}
+                  themeVariant={colorScheme ?? 'light'}
+                />
+                {Platform.OS === 'ios' && (
+                  <TouchableOpacity
+                    style={[styles.datePickerDoneButton, { backgroundColor: tintColor }]}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={styles.datePickerDoneText}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Email */}
@@ -702,30 +765,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: DesignTokens.spacing.md,
-    paddingVertical: DesignTokens.spacing.md,
-    borderBottomWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   closeButton: {
-    width: DesignTokens.touchTarget.minimum,
-    height: DesignTokens.touchTarget.minimum,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  headerTitleContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    ...DesignTokens.typography.h3,
-    flex: 1,
+    fontSize: 17,
+    fontWeight: '600',
     textAlign: 'center',
   },
   saveButton: {
-    minWidth: DesignTokens.touchTarget.minimum,
-    height: DesignTokens.touchTarget.minimum,
-    paddingHorizontal: DesignTokens.spacing.sm,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   saveButtonText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
   },
   scrollView: {
@@ -817,6 +890,22 @@ const styles = StyleSheet.create({
     ...DesignTokens.typography.bodySmall,
     marginTop: DesignTokens.spacing.sm,
   },
+  datePickerContainer: {
+    marginTop: DesignTokens.spacing.md,
+    borderRadius: DesignTokens.radius.lg,
+    overflow: 'hidden',
+  },
+  datePickerDoneButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: DesignTokens.spacing.md,
+    marginTop: DesignTokens.spacing.sm,
+    borderRadius: DesignTokens.radius.md,
+  },
+  datePickerDoneText: {
+    color: 'white',
+    ...DesignTokens.typography.button,
+  },
   section: {
     marginTop: DesignTokens.spacing.sm,
     marginBottom: DesignTokens.spacing.md,
@@ -825,20 +914,7 @@ const styles = StyleSheet.create({
     ...DesignTokens.typography.button,
     marginBottom: DesignTokens.spacing.xs,
   },
-  saveButton: {
-    paddingVertical: DesignTokens.spacing.md,
-    paddingHorizontal: DesignTokens.spacing.lg,
-    borderRadius: DesignTokens.radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: DesignTokens.spacing.sm,
-    minHeight: DesignTokens.touchTarget.comfortable,
-    ...DesignTokens.elevation[2],
-  },
-  saveButtonText: {
-    color: 'white',
-    ...DesignTokens.typography.button,
-  },
+  // Note: Header save button styles are defined above as saveButton/saveButtonText
   buttonDisabled: {
     opacity: 0.6,
   },

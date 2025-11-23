@@ -38,10 +38,20 @@ export function TermsOfUseModal({ visible, onClose }: TermsOfUseModalProps) {
           >
             <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].text} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: Colors[colorScheme ?? 'light'].text }]}>
-            Terms of Use
-          </Text>
-          <View style={styles.placeholder} />
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.title, { color: Colors[colorScheme ?? 'light'].text }]}>
+              Terms of Use
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.doneButton}
+            onPress={onClose}
+            accessibilityLabel="Done"
+          >
+            <Text style={[styles.doneButtonText, { color: Colors[colorScheme ?? 'light'].highlight }]}>
+              Done
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Content */}
@@ -174,25 +184,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: DesignTokens.spacing.md,
-    paddingVertical: DesignTokens.spacing.md,
-    borderBottomWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e0e0e0',
   },
   closeButton: {
-    width: DesignTokens.touchTarget.minimum,
-    height: DesignTokens.touchTarget.minimum,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: DesignTokens.touchTarget.minimum / 2,
+    zIndex: 1,
+  },
+  headerTitleContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    ...DesignTokens.typography.h2,
-    flex: 1,
+    fontSize: 17,
+    fontWeight: '600',
     textAlign: 'center',
   },
-  placeholder: {
-    width: DesignTokens.touchTarget.minimum,
+  doneButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  doneButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
   },
   scrollView: {
     flex: 1,

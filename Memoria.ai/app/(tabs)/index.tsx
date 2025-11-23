@@ -560,6 +560,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
+    marginTop: 8,
     marginBottom: 48,  // Increased from 40 for more breathing room
   },
   appName: {
