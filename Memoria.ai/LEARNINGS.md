@@ -304,4 +304,47 @@ export const supabase = createClient(
 
 ---
 
-**Last Updated**: November 9, 2025
+## 🎨 UI Updates Not Applying - Style Overwriting
+
+### Duplicate Style Keys in StyleSheet
+**Problem**: UI changes don't appear despite editing the correct style.
+
+**Root Cause**: In JavaScript objects (including StyleSheet.create()), duplicate keys silently fail - the last definition wins.
+
+**Example** (EditProfileModal bug):
+```typescript
+const styles = StyleSheet.create({
+  saveButton: {                    // Line 732 - YOUR EDIT HERE
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // ... 100+ lines later ...
+  saveButton: {                    // Line 840 - OVERWRITES YOUR EDIT!
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    marginTop: 16,
+  },
+});
+```
+
+**Symptoms**:
+- You edit a style property but the UI doesn't change
+- The style looks correct when you read the file
+- No errors or warnings
+
+**Debugging Steps**:
+1. Search for duplicate keys: `Ctrl+F` the style name in the file
+2. Check if there are multiple definitions in StyleSheet.create()
+3. Look for spread operators that might override: `{...baseStyle, ...override}`
+4. Check inline styles on the component: `style={[styles.foo, { override: true }]}`
+
+**Prevention**:
+- Use ESLint rule `no-dupe-keys` (catches this at compile time)
+- Keep StyleSheet declarations organized and near the components that use them
+- When copying styles, immediately rename the key
+
+---
+
+**Last Updated**: November 23, 2025

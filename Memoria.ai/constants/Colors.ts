@@ -67,6 +67,11 @@ export const Colors = {
     // Border colors
     borderLight: DesignTokens.colors.neutral[200],
     borderMedium: DesignTokens.colors.neutral[300],
+
+    // Semantic status colors
+    success: DesignTokens.colors.secondary.main,  // Sage green
+    warning: DesignTokens.colors.warning.main,
+    error: DesignTokens.colors.error.main,
   },
 
   dark: {
@@ -125,5 +130,10 @@ export const Colors = {
     // Border colors
     borderLight: DesignTokens.colors.neutral[700],
     borderMedium: DesignTokens.colors.neutral[600],
+
+    // Semantic status colors
+    success: DesignTokens.colors.secondary.mainDark,  // Sage green (light)
+    warning: DesignTokens.colors.warning.mainDark,
+    error: DesignTokens.colors.error.mainDark,
   },
 };

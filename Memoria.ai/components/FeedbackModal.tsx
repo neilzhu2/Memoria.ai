@@ -8,13 +8,15 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
-  Linking,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { IconSymbol } from './ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { DesignTokens } from '@/constants/DesignTokens';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -23,8 +25,11 @@ interface FeedbackModalProps {
 
 export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
   const colorScheme = useColorScheme();
+  const { user } = useAuth();
   const [feedback, setFeedback] = useState('');
   const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const handleSubmit = async () => {
     if (!feedback.trim()) {
@@ -32,37 +37,73 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
       return;
     }
 
-    const subject = 'Memoria.ai Feedback';
-    const body = `${feedback}${email ? `\n\nReply to: ${email}` : ''}`;
-    const mailtoUrl = `mailto:neilzhu92@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    setIsSubmitting(true);
 
     try {
-      const canOpen = await Linking.canOpenURL(mailtoUrl);
-      if (canOpen) {
-        await Linking.openURL(mailtoUrl);
-        // Clear form and close modal
+      const { error } = await supabase.from('feedback').insert({
+        feedback_text: feedback.trim(),
+        user_email: email.trim() || null,
+        user_id: user?.id || null,
+      });
+
+      if (error) {
+        console.error('Feedback submission error:', error);
+        Alert.alert('Error', 'Could not send feedback. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Show success state
+      setIsSubmitting(false);
+      setSubmitSuccess(true);
+
+      // Auto-close after 2.5 seconds
+      setTimeout(() => {
         setFeedback('');
         setEmail('');
+        setSubmitSuccess(false);
         onClose();
-      } else {
-        Alert.alert(
-          'Email Not Available',
-          'Please send your feedback directly to neilzhu92@gmail.com'
-        );
-      }
+      }, 2500);
     } catch (error) {
-      Alert.alert(
-        'Error',
-        'Could not open email client. Please email us at neilzhu92@gmail.com'
-      );
+      console.error('Feedback submission error:', error);
+      Alert.alert('Error', 'Could not send feedback. Please try again.');
+      setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
+    if (isSubmitting) return; // Don't allow close while submitting
     setFeedback('');
     setEmail('');
+    setSubmitSuccess(false);
     onClose();
   };
+
+  // Success state UI
+  if (submitSuccess) {
+    return (
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleClose}
+      >
+        <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+          <View style={styles.successContainer}>
+            <View style={[styles.successIcon, { backgroundColor: Colors[colorScheme ?? 'light'].success + '20' }]}>
+              <IconSymbol name="checkmark.circle.fill" size={64} color={Colors[colorScheme ?? 'light'].success} />
+            </View>
+            <Text style={[styles.successTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+              Thank You!
+            </Text>
+            <Text style={[styles.successMessage, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
+              Your feedback has been sent successfully.
+            </Text>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -77,9 +118,14 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
           <TouchableOpacity
             style={styles.closeButton}
             onPress={handleClose}
+            disabled={isSubmitting}
             accessibilityLabel="Close feedback form"
           >
-            <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].text} />
+            <IconSymbol
+              name="xmark"
+              size={24}
+              color={isSubmitting ? Colors[colorScheme ?? 'light'].tabIconDefault : Colors[colorScheme ?? 'light'].text}
+            />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={[styles.headerTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
@@ -89,11 +135,16 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
           <TouchableOpacity
             style={styles.sendButton}
             onPress={handleSubmit}
+            disabled={isSubmitting}
             accessibilityLabel="Send feedback"
           >
-            <Text style={[styles.sendButtonText, { color: Colors[colorScheme ?? 'light'].highlight }]}>
-              Send
-            </Text>
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color={Colors[colorScheme ?? 'light'].highlight} />
+            ) : (
+              <Text style={[styles.sendButtonText, { color: Colors[colorScheme ?? 'light'].highlight }]}>
+                Send
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -122,6 +173,7 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
               multiline
               numberOfLines={8}
               textAlignVertical="top"
+              editable={!isSubmitting}
               accessibilityLabel="Feedback text"
             />
           </View>
@@ -148,18 +200,9 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
               placeholderTextColor={Colors[colorScheme ?? 'light'].tabIconDefault}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!isSubmitting}
               accessibilityLabel="Email address"
             />
-          </View>
-
-          {/* Info Section */}
-          <View style={[styles.infoSection, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}>
-            <View style={styles.infoRow}>
-              <IconSymbol name="info.circle" size={20} color={Colors[colorScheme ?? 'light'].accent} />
-              <Text style={[styles.infoText, { color: Colors[colorScheme ?? 'light'].text }]}>
-                Feedback will be sent to: neilzhu92@gmail.com
-              </Text>
-            </View>
           </View>
 
           {/* Bottom spacing */}
@@ -251,22 +294,30 @@ const styles = StyleSheet.create({
     paddingVertical: DesignTokens.spacing.md,
     minHeight: 160,
   },
-  infoSection: {
-    marginBottom: DesignTokens.spacing.md,
-    padding: DesignTokens.spacing.md,
-    borderRadius: DesignTokens.radius.lg,
-    ...DesignTokens.elevation[1],
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DesignTokens.spacing.sm,
-  },
-  infoText: {
-    ...DesignTokens.typography.body,
-    flex: 1,
-  },
   bottomSpacing: {
     height: DesignTokens.spacing.xl,
+  },
+  // Success state styles
+  successContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: DesignTokens.spacing.xl,
+  },
+  successIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: DesignTokens.spacing.lg,
+  },
+  successTitle: {
+    ...DesignTokens.typography.h1,
+    marginBottom: DesignTokens.spacing.sm,
+  },
+  successMessage: {
+    ...DesignTokens.typography.body,
+    textAlign: 'center',
   },
 });
