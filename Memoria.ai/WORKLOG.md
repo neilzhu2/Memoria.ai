@@ -47,7 +47,16 @@
 - Key finding: In-app submission critical for elderly users (40-60% higher abandonment when switching apps)
 - Immediate visual feedback (checkmark) builds confidence action completed
 
-**Pending Testing**:
+**Profile Features Verified**:
+- ✅ Avatar upload working (bucket issue from Nov 17 resolved)
+- ✅ Date of birth picker functional
+- ✅ Profile updates saving correctly to Supabase
+
+**Apple Developer Status**:
+- 🔄 Apple Developer enrollment in progress (Case #102756613187)
+- Blocking: iOS development build, expo-speech-recognition testing
+
+**Next Session (Nov 25)**:
 - ⏳ Test feedback submission end-to-end
 - ⏳ Verify feedback appears in Supabase dashboard
 
