@@ -229,6 +229,21 @@ export const supabase = createClient(
 
 **Current**: Using Expo Go (sandbox with fixed native libraries)
 
+**CRITICAL**: If `expo-dev-client` is installed but no development build exists yet:
+```bash
+# ❌ WRONG - Will fail with "No development build installed"
+npx expo start --tunnel
+npx expo start --ios
+
+# ✅ CORRECT - Force Expo Go mode with --go flag
+npx expo start --go --tunnel
+npx expo start --go
+```
+
+**Why**: When `expo-dev-client` package is installed, Expo CLI defaults to looking for a development build. Without the `--go` flag, the app will appear in Expo Go as `memoria-ai://expo-development-client` (untappable) instead of a regular Expo Go project.
+
+**Symptom**: Expo Go shows project in "Development servers" but it's not tappable, or shows "Could not connect to server" error.
+
 **When to migrate to Development Build**:
 1. Need native library not included in Expo Go
 2. Need custom native modules

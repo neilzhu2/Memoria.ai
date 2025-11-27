@@ -1,11 +1,37 @@
 # Memoria Development Worklog
 
-**Last Updated**: November 24, 2025
+**Last Updated**: November 27, 2025
 **Version**: 1.1.7
 
 ---
 
-## 📋 Latest Session Summary (Nov 24, 2025)
+## 📋 Latest Session Summary (Nov 27, 2025)
+
+**Focus**: Feedback Feature Testing & Expo Go Configuration
+
+**Completed**:
+- ✅ **Feedback Submission Tested End-to-End**
+  - Successfully submitted feedback via in-app modal
+  - Verified data appears in Supabase `feedback` table
+  - Confirmed UX flow works as expected (form → loading → success → auto-close)
+
+- ✅ **Critical Learning Documented: Expo Go vs Development Build**
+  - Issue: `expo-dev-client` installed but no development build exists
+  - Symptom: App shows as untappable `memoria-ai://expo-development-client` in Expo Go
+  - Solution: Use `--go` flag to force Expo Go mode: `npx expo start --go --tunnel`
+  - Documented in LEARNINGS.md to prevent future errors
+
+**Files Modified**:
+- `LEARNINGS.md` - Added Expo Go vs Development Build section with `--go` flag usage
+
+**Next Steps**:
+- Continue testing on physical device via Expo Go
+- Wait for Apple Developer enrollment approval
+- Build iOS development build once approved
+
+---
+
+## 📋 Session Summary (Nov 24, 2025)
 
 **Focus**: Feedback UX Overhaul - Supabase Integration
 
@@ -706,7 +732,13 @@
 **Performance** (from LEARNINGS.md):
 - [ ] Convert memory list to FlatList when > 20 items
 - [ ] Run `npx expo-atlas` to analyze bundle size
-- [ ] Investigate unused dependencies (tamagui, react-native-mmkv)
+- [ ] **Remove Tamagui dependency** (Nov 27, 2025)
+  - Currently only using for basic theming (TamaguiProvider, Theme, YStack)
+  - Causing 50-70% slower build times due to babel plugin processing
+  - Replacement: Simple React Native View + theme context
+  - Expected benefit: 2-5 min builds → 30-60 sec builds
+  - Wait until: After Apple Developer enrollment completes
+- [ ] Investigate react-native-mmkv usage
 
 **Testing**:
 - [ ] Test profile update functionality
