@@ -362,4 +362,107 @@ const styles = StyleSheet.create({
 
 ---
 
-**Last Updated**: November 23, 2025
+## 📦 Safe Library Removal Strategy
+
+### When Removing Integrated Dependencies
+
+**Context**: On Nov 6, 2025, we attempted to remove Tamagui, which immediately broke the app and required an emergency revert.
+
+**What Went Wrong**:
+```bash
+# ❌ DANGEROUS - Breaks app immediately
+1. Remove packages from package.json
+2. npm install
+3. App breaks (components still imported but undefined)
+4. Emergency revert needed
+```
+
+**Why It Failed**:
+- `app/_layout.tsx` still had `TamaguiProvider`, `Theme`, `YStack` components
+- All imports became `undefined` after package removal
+- No replacement code was ready
+- Removed packages BEFORE updating code that depended on them
+
+**Safe Removal Protocol**:
+```bash
+# ✅ SAFE - Build replacements first, remove packages last
+1. Create git branch (easy rollback: git checkout main)
+2. BUILD replacement code (while library still installed)
+3. UPDATE all files to use new code (library still available as fallback)
+4. TEST app works completely with new code
+5. VERIFY old library is no longer imported anywhere
+6. ONLY THEN: Remove packages from package.json
+7. Clear Metro cache: npm start -- --reset-cache
+8. Final testing
+9. If anything breaks: git checkout main && npm install (instant rollback)
+```
+
+**Key Principle**: **Replacements first, removal last**
+
+**Example - Tamagui Removal**:
+```typescript
+// Step 2-3: Build and integrate replacement FIRST
+// contexts/ThemeContext.tsx created
+// app/_layout.tsx updated to use ThemeContext
+// App tested and working
+
+// Step 6: ONLY NOW remove packages
+// Remove from package.json:
+// - tamagui
+// - @tamagui/core
+// - @tamagui/themes
+// etc.
+
+// Step 7: Clear cache
+npm start -- --reset-cache
+```
+
+**Additional Safety Measures**:
+- Work on a branch (never directly on main)
+- Incremental testing after each file change
+- Keep Metro bundler output visible to catch import errors immediately
+- Test theme switching, all main screens, and core functionality
+- Document what you're replacing and why
+
+**When to Remove vs Keep a Library**:
+
+**Remove when**:
+- Minimal usage (< 5% of library's features used)
+- Causing significant performance penalty (50%+ build time increase)
+- Can be replaced with simple custom code
+- Not planning to expand usage in future
+
+**Keep when**:
+- Heavily integrated throughout app
+- Provides complex functionality hard to replicate
+- Planning to use more features soon
+- Removal would require rewriting significant code
+
+### Choosing UI Libraries for New Projects
+
+**Use Tamagui When**:
+- Building complex apps with 50+ unique UI components
+- Need extensive animation capabilities
+- Want built-in responsive design for web + mobile
+- Team familiar with styled-system/theme-ui patterns
+- Rapid prototyping where speed matters more than bundle size
+
+**Use Custom Design System When**:
+- Simpler apps with < 30 unique components
+- Performance and build speed are critical
+- Team prefers standard React Native patterns
+- Only need basic theming (light/dark mode)
+- Want full control over styling architecture
+
+**Memoria Example**:
+- Started with Tamagui (possibly from template)
+- Only used 3 components + 1 token
+- Causing 50-70% slower builds
+- Already have custom design system (DesignTokens.ts + Colors.ts)
+- Decision: Remove and use custom system
+
+**Recommendation**: For most mobile apps, start with a simple custom design system. Only add a UI library when you find yourself building many complex reusable components.
+
+---
+
+**Last Updated**: November 27, 2025
