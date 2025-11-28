@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -90,9 +91,11 @@ export default function LoginScreen() {
       >
         {/* Logo/Header */}
         <View style={styles.header}>
-          <View style={[styles.logoCircle, { backgroundColor: tintColor + '20' }]}>
-            <IconSymbol name="brain.head.profile" size={48} color={tintColor} />
-          </View>
+          <Image
+            source={require('@/assets/images/icon.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={[styles.title, { color: textColor }]}>Welcome to Memoria</Text>
           <Text style={[styles.subtitle, { color: borderColor }]}>
             Sign in to access your memories
@@ -203,12 +206,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  logoCircle: {
+  logo: {
     width: 96,
     height: 96,
-    borderRadius: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 24,
   },
   title: {
