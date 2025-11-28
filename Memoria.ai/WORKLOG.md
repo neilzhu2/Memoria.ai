@@ -7,7 +7,7 @@
 
 ## 📋 Latest Session Summary (Nov 27, 2025)
 
-**Focus**: Feedback Feature Testing & UX Improvements
+**Focus**: Feedback Feature Testing & Auth Screen UX Polish
 
 **Completed**:
 - ✅ **Feedback Submission Tested End-to-End**
@@ -21,10 +21,11 @@
   - Added `keyboardShouldPersistTaps="handled"` for better interaction
   - Increased bottom spacing (120px) to ensure fields stay visible above keyboard
 
-- ✅ **Updated Login Screen Icon**
-  - Changed from generic "photo.on.rectangle.angled" icon
-  - Now using "brain.head.profile" icon (matches Memoria's memory theme)
-  - Better visual identity for the app
+- ✅ **Updated Auth Screens with App Logo**
+  - Replaced icon symbols with actual Memoria app logo (assets/images/icon.png)
+  - Added rounded corners (borderRadius: 24) for modern appearance
+  - Applied to both login and signup screens for consistency
+  - Better brand representation throughout auth flow
 
 - ✅ **Critical Learning Documented: Expo Go vs Development Build**
   - Issue: `expo-dev-client` installed but no development build exists
@@ -34,13 +35,22 @@
 
 **Files Modified**:
 - `components/FeedbackModal.tsx` - Added keyboard avoiding behavior
-- `app/(auth)/login.tsx` - Updated login screen icon to brain icon
+- `app/(auth)/login.tsx` - Updated to use app logo with rounded corners
+- `app/(auth)/signup.tsx` - Updated to use app logo with rounded corners
 - `LEARNINGS.md` - Added Expo Go vs Development Build section
+
+**Commits Today**:
+- `docs: Document Expo Go --go flag requirement and feedback testing`
+- `fix(ux): Improve feedback modal keyboard handling and update login icon`
+- `fix(login): Use app logo instead of brain icon`
+- `style(login): Add rounded corners to app logo`
+- `fix(signup): Use app logo with rounded corners`
 
 **Next Steps**:
 - Continue testing on physical device via Expo Go
 - Wait for Apple Developer enrollment approval
 - Build iOS development build once approved
+- Consider additional UX improvements based on user testing
 
 ---
 
