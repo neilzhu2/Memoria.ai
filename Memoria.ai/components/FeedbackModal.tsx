@@ -10,6 +10,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { IconSymbol } from './ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
@@ -113,101 +115,112 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
       onRequestClose={handleClose}
     >
       <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-        {/* Header */}
-        <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={handleClose}
-            disabled={isSubmitting}
-            accessibilityLabel="Close feedback form"
-          >
-            <IconSymbol
-              name="xmark"
-              size={24}
-              color={isSubmitting ? Colors[colorScheme ?? 'light'].tabIconDefault : Colors[colorScheme ?? 'light'].text}
-            />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={[styles.headerTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-              Send Feedback
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.sendButton}
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-            accessibilityLabel="Send feedback"
-          >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color={Colors[colorScheme ?? 'light'].highlight} />
-            ) : (
-              <Text style={[styles.sendButtonText, { color: Colors[colorScheme ?? 'light'].highlight }]}>
-                Send
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
+          {/* Header */}
+          <View style={[styles.header, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={handleClose}
+              disabled={isSubmitting}
+              accessibilityLabel="Close feedback form"
+            >
+              <IconSymbol
+                name="xmark"
+                size={24}
+                color={isSubmitting ? Colors[colorScheme ?? 'light'].tabIconDefault : Colors[colorScheme ?? 'light'].text}
+              />
+            </TouchableOpacity>
+            <View style={styles.headerTitleContainer}>
+              <Text style={[styles.headerTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                Send Feedback
               </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Content */}
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <View style={[styles.formSection, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}>
-            <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
-              Your Feedback *
-            </Text>
-            <Text style={[styles.helperText, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-              Share your ideas, suggestions, or report issues
-            </Text>
-            <TextInput
-              style={[
-                styles.textArea,
-                {
-                  backgroundColor: Colors[colorScheme ?? 'light'].background,
-                  color: Colors[colorScheme ?? 'light'].text,
-                  borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
-                },
-              ]}
-              value={feedback}
-              onChangeText={setFeedback}
-              placeholder="Tell us what you think..."
-              placeholderTextColor={Colors[colorScheme ?? 'light'].tabIconDefault}
-              multiline
-              numberOfLines={8}
-              textAlignVertical="top"
-              editable={!isSubmitting}
-              accessibilityLabel="Feedback text"
-            />
+            </View>
+            <TouchableOpacity
+              style={styles.sendButton}
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+              accessibilityLabel="Send feedback"
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color={Colors[colorScheme ?? 'light'].highlight} />
+              ) : (
+                <Text style={[styles.sendButtonText, { color: Colors[colorScheme ?? 'light'].highlight }]}>
+                  Send
+                </Text>
+              )}
+            </TouchableOpacity>
           </View>
 
-          <View style={[styles.formSection, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}>
-            <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
-              Your Email (Optional)
-            </Text>
-            <Text style={[styles.helperText, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-              If you'd like us to follow up with you
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: Colors[colorScheme ?? 'light'].background,
-                  color: Colors[colorScheme ?? 'light'].text,
-                  borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
-                },
-              ]}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="your@email.com"
-              placeholderTextColor={Colors[colorScheme ?? 'light'].tabIconDefault}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!isSubmitting}
-              accessibilityLabel="Email address"
-            />
-          </View>
+          {/* Content */}
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
+          >
+            <View style={[styles.formSection, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}>
+              <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
+                Your Feedback *
+              </Text>
+              <Text style={[styles.helperText, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
+                Share your ideas, suggestions, or report issues
+              </Text>
+              <TextInput
+                style={[
+                  styles.textArea,
+                  {
+                    backgroundColor: Colors[colorScheme ?? 'light'].background,
+                    color: Colors[colorScheme ?? 'light'].text,
+                    borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
+                  },
+                ]}
+                value={feedback}
+                onChangeText={setFeedback}
+                placeholder="Tell us what you think..."
+                placeholderTextColor={Colors[colorScheme ?? 'light'].tabIconDefault}
+                multiline
+                numberOfLines={8}
+                textAlignVertical="top"
+                editable={!isSubmitting}
+                accessibilityLabel="Feedback text"
+              />
+            </View>
 
-          {/* Bottom spacing */}
-          <View style={styles.bottomSpacing} />
-        </ScrollView>
+            <View style={[styles.formSection, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}>
+              <Text style={[styles.label, { color: Colors[colorScheme ?? 'light'].text }]}>
+                Your Email (Optional)
+              </Text>
+              <Text style={[styles.helperText, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
+                If you'd like us to follow up with you
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: Colors[colorScheme ?? 'light'].background,
+                    color: Colors[colorScheme ?? 'light'].text,
+                    borderColor: Colors[colorScheme ?? 'light'].tabIconDefault,
+                  },
+                ]}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="your@email.com"
+                placeholderTextColor={Colors[colorScheme ?? 'light'].tabIconDefault}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!isSubmitting}
+                accessibilityLabel="Email address"
+              />
+            </View>
+
+            {/* Bottom spacing for keyboard */}
+            <View style={styles.bottomSpacing} />
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
@@ -215,6 +228,9 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboardAvoidingView: {
     flex: 1,
   },
   header: {
@@ -295,7 +311,7 @@ const styles = StyleSheet.create({
     minHeight: 160,
   },
   bottomSpacing: {
-    height: DesignTokens.spacing.xl,
+    height: 120, // Extra spacing for keyboard
   },
   // Success state styles
   successContainer: {

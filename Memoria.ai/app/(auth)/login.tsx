@@ -91,7 +91,7 @@ export default function LoginScreen() {
         {/* Logo/Header */}
         <View style={styles.header}>
           <View style={[styles.logoCircle, { backgroundColor: tintColor + '20' }]}>
-            <IconSymbol name="photo.on.rectangle.angled" size={48} color={tintColor} />
+            <IconSymbol name="brain.head.profile" size={48} color={tintColor} />
           </View>
           <Text style={[styles.title, { color: textColor }]}>Welcome to Memoria</Text>
           <Text style={[styles.subtitle, { color: borderColor }]}>

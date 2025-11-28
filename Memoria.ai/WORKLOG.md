@@ -7,13 +7,24 @@
 
 ## 📋 Latest Session Summary (Nov 27, 2025)
 
-**Focus**: Feedback Feature Testing & Expo Go Configuration
+**Focus**: Feedback Feature Testing & UX Improvements
 
 **Completed**:
 - ✅ **Feedback Submission Tested End-to-End**
   - Successfully submitted feedback via in-app modal
   - Verified data appears in Supabase `feedback` table
   - Confirmed UX flow works as expected (form → loading → success → auto-close)
+
+- ✅ **Fixed Feedback Modal Keyboard UX Issue**
+  - Problem: Keyboard was covering input fields when typing
+  - Solution: Added `KeyboardAvoidingView` with platform-specific behavior
+  - Added `keyboardShouldPersistTaps="handled"` for better interaction
+  - Increased bottom spacing (120px) to ensure fields stay visible above keyboard
+
+- ✅ **Updated Login Screen Icon**
+  - Changed from generic "photo.on.rectangle.angled" icon
+  - Now using "brain.head.profile" icon (matches Memoria's memory theme)
+  - Better visual identity for the app
 
 - ✅ **Critical Learning Documented: Expo Go vs Development Build**
   - Issue: `expo-dev-client` installed but no development build exists
@@ -22,7 +33,9 @@
   - Documented in LEARNINGS.md to prevent future errors
 
 **Files Modified**:
-- `LEARNINGS.md` - Added Expo Go vs Development Build section with `--go` flag usage
+- `components/FeedbackModal.tsx` - Added keyboard avoiding behavior
+- `app/(auth)/login.tsx` - Updated login screen icon to brain icon
+- `LEARNINGS.md` - Added Expo Go vs Development Build section
 
 **Next Steps**:
 - Continue testing on physical device via Expo Go
