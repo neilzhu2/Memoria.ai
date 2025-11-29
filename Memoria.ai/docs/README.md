@@ -9,6 +9,11 @@ Memoria.ai/
 ├── ROADMAP.md              # Future features and development phases
 └── docs/
     ├── README.md           # This file
+    ├── WEB_APP_INDEX.md    # Web app strategy navigation (START HERE)
+    ├── WEB_APP_DECISION_SUMMARY.md         # 6-page executive summary
+    ├── WEB_APP_STRATEGIC_ANALYSIS.md       # 60-page comprehensive analysis
+    ├── WEB_APP_ROADMAP_VISUAL.md           # 15-page timeline roadmap
+    ├── WEB_APP_IMPLEMENTATION_CHECKLIST.md # 25-page step-by-step guide
     └── archive/
         └── 2025-10-OCT.md  # October session logs (features, UI plan)
 ```
@@ -81,6 +86,29 @@ Memoria.ai/
 
 ---
 
+## 🌐 Web App Strategy Documentation (New: Nov 28, 2025)
+
+### Quick Start
+**Want to know about adding a web app?** → Read [`WEB_APP_INDEX.md`](WEB_APP_INDEX.md)
+
+**Key Documents**:
+1. **WEB_APP_INDEX.md** - Navigation hub, start here
+2. **WEB_APP_DECISION_SUMMARY.md** - 5-min executive summary (6 pages)
+3. **WEB_APP_STRATEGIC_ANALYSIS.md** - Full analysis (60 pages)
+4. **WEB_APP_ROADMAP_VISUAL.md** - Timeline roadmap (15 pages)
+5. **WEB_APP_IMPLEMENTATION_CHECKLIST.md** - Step-by-step guide (25 pages)
+
+**TL;DR**: Build web app, but NOT NOW. Defer to Month 7-10 post-launch (Q3 2026).
+
+**Decision Triggers** (build web when 2 of 3 met):
+- 30%+ of mobile users request web access
+- 100+ MAU with 40%+ retention on mobile
+- $100K+ funding OR second developer hired
+
+**Next Review**: Q2 2026 (April-June)
+
+---
+
 ## 🎯 Documentation Philosophy
 
 **WORKLOG**: "What's happening now?"
@@ -100,4 +128,20 @@ Memoria.ai/
 
 ---
 
-**Last Updated**: November 9, 2025
+---
+
+## 📚 Additional Resources
+
+### Strategic Planning
+- **Web App Strategy**: See `WEB_APP_INDEX.md` for comprehensive web expansion analysis
+- **Product Roadmap**: See `/ROADMAP.md` for 8-phase mobile development plan
+- **Competitive Analysis**: See `WEB_APP_STRATEGIC_ANALYSIS.md` Appendix A (Duolingo case study)
+
+### Technical Reference
+- **Design System**: `/constants/DesignTokens.ts` and `/constants/Colors.ts`
+- **Architecture**: React Native (Expo), TypeScript, Supabase backend
+- **Platform Files**: Use `.native.tsx` (mobile) and `.web.tsx` (web) conventions
+
+---
+
+**Last Updated**: November 28, 2025
