@@ -5,6 +5,7 @@ import * as FileSystem from 'expo-file-system';
 import { MemoryItem, MemoryStats, SmartExportConfig } from '@/types/memory';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
+import Analytics from '@/services/analytics';
 
 interface RecordingContextType {
   // Recording controls
@@ -275,6 +276,13 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
       console.log('[addMemory] SUCCESS - Memory saved and state updated');
       console.log('[addMemory] Total memories now:', updatedMemories.length);
+
+      // Track analytics
+      Analytics.track('recording_saved', {
+        duration_seconds: data.duration,
+        has_transcription: !!data.transcription,
+        has_theme: !!data.theme,
+      });
 
       return newMemory;
     } catch (error) {
