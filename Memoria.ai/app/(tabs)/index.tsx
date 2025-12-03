@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { PanGestureHandler, State, HandlerStateChangeEvent, PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
@@ -17,48 +18,31 @@ import { RecordingFlowContainer } from '@/components/RecordingFlowContainer';
 import { Colors } from '@/constants/Colors';
 import { DesignTokens } from '@/constants/DesignTokens';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import topicsService, { RecordingTopic, TopicCategory } from '@/services/topics';
 
-const DAILY_TOPICS = [
+// Fallback topics if service fails to load
+const FALLBACK_TOPICS = [
   {
-    id: 1,
-    title: "Talk about your first job",
-    description: "Share memories about your early career experiences, colleagues, and what you learned."
+    id: 'fallback-1',
+    category_id: null,
+    prompt: "Talk about your first job",
+    difficulty_level: 'easy' as const,
+    tags: ['career', 'work'],
   },
   {
-    id: 2,
-    title: "Describe your childhood home",
-    description: "Paint a picture of where you grew up, the rooms, the neighborhood, and special memories."
+    id: 'fallback-2',
+    category_id: null,
+    prompt: "Describe your childhood home",
+    difficulty_level: 'easy' as const,
+    tags: ['childhood', 'home'],
   },
   {
-    id: 3,
-    title: "Share a family tradition",
-    description: "Tell us about a special tradition your family had and why it was meaningful."
+    id: 'fallback-3',
+    category_id: null,
+    prompt: "Share a family tradition",
+    difficulty_level: 'medium' as const,
+    tags: ['family', 'traditions'],
   },
-  {
-    id: 4,
-    title: "Your most memorable vacation",
-    description: "Recall a trip that left a lasting impression and the adventures you had."
-  },
-  {
-    id: 5,
-    title: "A person who influenced you",
-    description: "Describe someone who made a significant impact on your life and how they changed you."
-  },
-  {
-    id: 6,
-    title: "Your wedding day",
-    description: "Share the joy, excitement, and special moments from one of life's biggest celebrations."
-  },
-  {
-    id: 7,
-    title: "A challenge you overcame",
-    description: "Tell the story of a difficult time and how you found the strength to get through it."
-  },
-  {
-    id: 8,
-    title: "Your proudest achievement",
-    description: "Reflect on an accomplishment that filled you with pride and satisfaction."
-  }
 ];
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -75,6 +59,12 @@ const HomeScreen = React.memo(function HomeScreen() {
   const colorScheme = useColorScheme();
   const { recordingTrigger, selectedThemeFromTrigger } = useRecording();
 
+  // Topics state
+  const [topics, setTopics] = useState<RecordingTopic[]>(FALLBACK_TOPICS);
+  const [categories, setCategories] = useState<TopicCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [isLoadingTopics, setIsLoadingTopics] = useState(true);
+
   // Simple, reliable navigation state
   const [navState, setNavState] = useState<NavigationState>({
     currentIndex: 0,
@@ -86,6 +76,36 @@ const HomeScreen = React.memo(function HomeScreen() {
   const [showRecordingFlow, setShowRecordingFlow] = useState(false);
   const [skipThemeSelection, setSkipThemeSelection] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<{id: string; title: string} | undefined>();
+
+  // Load topics and categories on mount
+  useEffect(() => {
+    const loadTopicsAndCategories = async () => {
+      try {
+        setIsLoadingTopics(true);
+        const [loadedTopics, loadedCategories] = await Promise.all([
+          topicsService.getAllTopics(),
+          topicsService.getCategories(),
+        ]);
+
+        if (loadedTopics.length > 0) {
+          setTopics(loadedTopics);
+        } else {
+          // Use fallback if no topics loaded
+          setTopics(FALLBACK_TOPICS);
+        }
+
+        setCategories(loadedCategories);
+      } catch (error) {
+        console.error('Error loading topics:', error);
+        // Use fallback on error
+        setTopics(FALLBACK_TOPICS);
+      } finally {
+        setIsLoadingTopics(false);
+      }
+    };
+
+    loadTopicsAndCategories();
+  }, []);
 
   // Listen for recording trigger from tab bar
   React.useEffect(() => {
@@ -132,7 +152,7 @@ const HomeScreen = React.memo(function HomeScreen() {
       leftIndex = history[historyPosition - 1];
     } else {
       // Would create new previous card
-      leftIndex = (currentIndex - 1 + DAILY_TOPICS.length) % DAILY_TOPICS.length;
+      leftIndex = (currentIndex - 1 + topics.length) % topics.length;
     }
 
     // Right card: where left swipe (forward) will go
@@ -142,15 +162,15 @@ const HomeScreen = React.memo(function HomeScreen() {
       rightIndex = history[historyPosition + 1];
     } else {
       // Would create new next card
-      rightIndex = (currentIndex + 1) % DAILY_TOPICS.length;
+      rightIndex = (currentIndex + 1) % topics.length;
     }
 
     return {
-      left: DAILY_TOPICS[leftIndex],
-      right: DAILY_TOPICS[rightIndex],
-      current: DAILY_TOPICS[currentIndex]
+      left: topics[leftIndex],
+      right: topics[rightIndex],
+      current: topics[currentIndex]
     };
-  }, [navState]);
+  }, [navState, topics]);
 
   const backgroundCards = getBackgroundCards();
 
@@ -171,7 +191,7 @@ const HomeScreen = React.memo(function HomeScreen() {
           };
         } else {
           // Create new forward entry
-          const nextIndex = (currentIndex + 1) % DAILY_TOPICS.length;
+          const nextIndex = (currentIndex + 1) % topics.length;
           return {
             ...prevState,
             currentIndex: nextIndex,
@@ -191,7 +211,7 @@ const HomeScreen = React.memo(function HomeScreen() {
           };
         } else {
           // Create new backward entry
-          const prevIndex = (currentIndex - 1 + DAILY_TOPICS.length) % DAILY_TOPICS.length;
+          const prevIndex = (currentIndex - 1 + topics.length) % topics.length;
           return {
             currentIndex: prevIndex,
             history: [prevIndex, ...history],
@@ -200,7 +220,7 @@ const HomeScreen = React.memo(function HomeScreen() {
         }
       }
     });
-  }, []);
+  }, [topics.length]);
 
   // Check if we're at the edge (first or last card)
   const isAtEdge = useCallback((direction: 'forward' | 'backward'): boolean => {
@@ -211,9 +231,9 @@ const HomeScreen = React.memo(function HomeScreen() {
       return currentIndex === 0 && historyPosition === 0;
     } else {
       // At last card and no forward history
-      return currentIndex === DAILY_TOPICS.length - 1 && historyPosition === history.length - 1;
+      return currentIndex === topics.length - 1 && historyPosition === history.length - 1;
     }
-  }, [navState]);
+  }, [navState, topics.length]);
 
   // Gesture handler
   const onPanHandlerStateChange = useCallback((event: HandlerStateChangeEvent<PanGestureHandlerEventPayload>) => {
@@ -306,14 +326,14 @@ const HomeScreen = React.memo(function HomeScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Green button on card should skip theme selection and go straight to recording
     // Pass the current topic as the selected theme
-    const currentTopic = DAILY_TOPICS[navState.currentIndex];
+    const currentTopic = topics[navState.currentIndex];
     setSelectedTopic({
-      id: currentTopic.id.toString(),
-      title: currentTopic.title
+      id: currentTopic.id,
+      title: currentTopic.prompt
     });
     setSkipThemeSelection(true);
     setShowRecordingFlow(true);
-  }, [navState.currentIndex]);
+  }, [navState.currentIndex, topics]);
 
   return (
     <View
@@ -357,11 +377,13 @@ const HomeScreen = React.memo(function HomeScreen() {
                   : DesignTokens.colors.neutral[100],
               }]}>
                 <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-                  {backgroundCards.left.title}
+                  {backgroundCards.left.prompt}
                 </Text>
-                <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-                  {backgroundCards.left.description}
-                </Text>
+                {backgroundCards.left.category && (
+                  <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
+                    {backgroundCards.left.category.icon} {backgroundCards.left.category.display_name}
+                  </Text>
+                )}
                 <View style={styles.topicActions}>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
@@ -403,11 +425,13 @@ const HomeScreen = React.memo(function HomeScreen() {
                   : DesignTokens.colors.neutral[100],
               }]}>
                 <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-                  {backgroundCards.right.title}
+                  {backgroundCards.right.prompt}
                 </Text>
-                <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-                  {backgroundCards.right.description}
-                </Text>
+                {backgroundCards.right.category && (
+                  <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
+                    {backgroundCards.right.category.icon} {backgroundCards.right.category.display_name}
+                  </Text>
+                )}
                 <View style={styles.topicActions}>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
@@ -461,11 +485,13 @@ const HomeScreen = React.memo(function HomeScreen() {
                   : DesignTokens.colors.neutral[100],  // Using updated lighter neutral
               }]}>
                 <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-                  {backgroundCards.current.title}
+                  {backgroundCards.current.prompt}
                 </Text>
-                <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-                  {backgroundCards.current.description}
-                </Text>
+                {backgroundCards.current.category && (
+                  <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
+                    {backgroundCards.current.category.icon} {backgroundCards.current.category.display_name}
+                  </Text>
+                )}
                 <View style={styles.topicActions}>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
@@ -608,6 +634,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 16,
+    flex: 1,
+  },
+  topicCategory: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+    opacity: 0.9,
   },
   topicDescription: {
     fontSize: 16,
