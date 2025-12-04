@@ -464,30 +464,43 @@ const HomeScreen = React.memo(function HomeScreen() {
                   : DesignTokens.colors.neutral[100],
               }]}>
                 <View style={styles.topicContent}>
+                  {/* Category Badge at Top */}
+                  {backgroundCards.left.category && (
+                    <View style={[styles.categoryBadge, {
+                      backgroundColor: Colors[colorScheme ?? 'light'].elderlyTabActive + '20',
+                      borderColor: Colors[colorScheme ?? 'light'].elderlyTabActive + '40',
+                    }]}>
+                      <Text style={styles.categoryBadgeIcon}>
+                        {backgroundCards.left.category.icon}
+                      </Text>
+                      <Text style={[styles.categoryBadgeText, { color: Colors[colorScheme ?? 'light'].elderlyTabActive }]}>
+                        {backgroundCards.left.category.display_name}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Main Question - Large and Prominent */}
                   <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
                     {backgroundCards.left.prompt}
                   </Text>
+
+                  {/* Subtle Description */}
                   <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
                     {getTopicDescription(backgroundCards.left.difficulty_level)}
                   </Text>
-                  {backgroundCards.left.category && (
-                    <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
-                      {backgroundCards.left.category.icon} {backgroundCards.left.category.display_name}
-                    </Text>
-                  )}
                 </View>
                 <View style={styles.topicActions}>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
                     disabled
                   >
-                    <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].elderlyError} />
+                    <IconSymbol name="xmark" size={28} color={Colors[colorScheme ?? 'light'].elderlyError} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.recordButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
                     disabled
                   >
-                    <IconSymbol name="mic.fill" size={24} color={Colors[colorScheme ?? 'light'].primary} />
+                    <IconSymbol name="mic.fill" size={28} color={Colors[colorScheme ?? 'light'].primary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -517,30 +530,43 @@ const HomeScreen = React.memo(function HomeScreen() {
                   : DesignTokens.colors.neutral[100],
               }]}>
                 <View style={styles.topicContent}>
+                  {/* Category Badge at Top */}
+                  {backgroundCards.right.category && (
+                    <View style={[styles.categoryBadge, {
+                      backgroundColor: Colors[colorScheme ?? 'light'].elderlyTabActive + '20',
+                      borderColor: Colors[colorScheme ?? 'light'].elderlyTabActive + '40',
+                    }]}>
+                      <Text style={styles.categoryBadgeIcon}>
+                        {backgroundCards.right.category.icon}
+                      </Text>
+                      <Text style={[styles.categoryBadgeText, { color: Colors[colorScheme ?? 'light'].elderlyTabActive }]}>
+                        {backgroundCards.right.category.display_name}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Main Question - Large and Prominent */}
                   <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
                     {backgroundCards.right.prompt}
                   </Text>
+
+                  {/* Subtle Description */}
                   <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
                     {getTopicDescription(backgroundCards.right.difficulty_level)}
                   </Text>
-                  {backgroundCards.right.category && (
-                    <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
-                      {backgroundCards.right.category.icon} {backgroundCards.right.category.display_name}
-                    </Text>
-                  )}
                 </View>
                 <View style={styles.topicActions}>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
                     disabled
                   >
-                    <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].elderlyError} />
+                    <IconSymbol name="xmark" size={28} color={Colors[colorScheme ?? 'light'].elderlyError} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.recordButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
                     disabled
                   >
-                    <IconSymbol name="mic.fill" size={24} color={Colors[colorScheme ?? 'light'].primary} />
+                    <IconSymbol name="mic.fill" size={28} color={Colors[colorScheme ?? 'light'].primary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -582,17 +608,30 @@ const HomeScreen = React.memo(function HomeScreen() {
                   : DesignTokens.colors.neutral[100],  // Using updated lighter neutral
               }]}>
                 <View style={styles.topicContent}>
+                  {/* Category Badge at Top */}
+                  {backgroundCards.current.category && (
+                    <View style={[styles.categoryBadge, {
+                      backgroundColor: Colors[colorScheme ?? 'light'].elderlyTabActive + '20',
+                      borderColor: Colors[colorScheme ?? 'light'].elderlyTabActive + '40',
+                    }]}>
+                      <Text style={styles.categoryBadgeIcon}>
+                        {backgroundCards.current.category.icon}
+                      </Text>
+                      <Text style={[styles.categoryBadgeText, { color: Colors[colorScheme ?? 'light'].elderlyTabActive }]}>
+                        {backgroundCards.current.category.display_name}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Main Question - Large and Prominent */}
                   <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
                     {backgroundCards.current.prompt}
                   </Text>
+
+                  {/* Subtle Description */}
                   <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
                     {getTopicDescription(backgroundCards.current.difficulty_level)}
                   </Text>
-                  {backgroundCards.current.category && (
-                    <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
-                      {backgroundCards.current.category.icon} {backgroundCards.current.category.display_name}
-                    </Text>
-                  )}
                 </View>
                 <View style={styles.topicActions}>
                   <TouchableOpacity
@@ -600,14 +639,14 @@ const HomeScreen = React.memo(function HomeScreen() {
                     onPress={handleSkipPress}
                     accessibilityLabel="Skip this topic"
                   >
-                    <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].elderlyError} />
+                    <IconSymbol name="xmark" size={28} color={Colors[colorScheme ?? 'light'].elderlyError} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.recordButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
                     onPress={handleRecordPress}
                     accessibilityLabel="Record about this topic"
                   >
-                    <IconSymbol name="mic.fill" size={24} color={Colors[colorScheme ?? 'light'].primary} />
+                    <IconSymbol name="mic.fill" size={28} color={Colors[colorScheme ?? 'light'].primary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -733,38 +772,57 @@ const styles = StyleSheet.create({
   },
   topicContent: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',  // Changed from 'center' for top-to-bottom flow
+    paddingTop: 8,  // Add some top padding
   },
+  // Category Badge Styles
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',  // Center the badge horizontally
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 24,  // Space before question
+    gap: 8,
+  },
+  categoryBadgeIcon: {
+    fontSize: 18,
+  },
+  categoryBadgeText: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  // Question Text - Larger and More Prominent
   topicTitle: {
-    fontSize: 24,
+    fontSize: 28,  // Increased from 24 for elderly users
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 16,  // Increased spacing
+    lineHeight: 36,  // Better line height for readability
+    paddingHorizontal: 8,  // Slight padding for better text flow
   },
   topicDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,  // Slightly increased from 14
+    lineHeight: 22,
     textAlign: 'center',
-    opacity: 0.7,
-    marginBottom: 12,
-  },
-  topicCategory: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
+    opacity: 0.6,  // Slightly more subtle
     marginTop: 8,
-    opacity: 0.9,
+    paddingHorizontal: 12,
   },
   topicActions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 24,  // Increased spacing from content
+    paddingTop: 16,  // Extra padding for separation
   },
   topicActionButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,  // Increased from 56 for better touch targets
+    height: 64,  // Increased from 56 for better touch targets
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
@@ -845,10 +903,11 @@ const styles = StyleSheet.create({
   categoryTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 6,
+    paddingHorizontal: 18,  // Increased from 16 for better spacing
+    paddingVertical: 12,    // Increased from 10 for better touch targets
+    minHeight: 48,          // Ensure minimum touch target size
+    borderRadius: 24,       // Increased from 20 to match larger padding
+    gap: 8,                 // Increased from 6 for better spacing
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -861,10 +920,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   categoryTabEmoji: {
-    fontSize: 16,
+    fontSize: 18,  // Increased from 16 for better visibility
   },
   categoryTabText: {
-    fontSize: 15,
+    fontSize: 16,  // Increased from 15 for elderly users
     fontWeight: '600',
   },
 });
