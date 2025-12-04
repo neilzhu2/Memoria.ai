@@ -1,11 +1,49 @@
 # Memoria Development Worklog
 
 **Last Updated**: December 4, 2025
-**Version**: 1.1.9
+**Version**: 1.2.0
 
 ---
 
-## 📋 Latest Session Summary (Dec 4, 2025)
+## 📋 Latest Session Summary (Dec 4, 2025 - Evening)
+
+**Focus**: Home Page UI Polish for Elderly Users
+
+**Completed Today**:
+- ✅ **Topic Card Redesign (2 hours)**
+  - Increased question text size from 24pt to 28pt with 36pt line height
+  - Moved category badge to top of card with prominent border styling
+  - Changed layout from centered to top-to-bottom flow for better hierarchy
+  - Enlarged action buttons from 56×56 to 64×64 for better touch targets
+  - Increased icon sizes from 24pt to 28pt for improved visibility
+  - Added more spacing and padding throughout for better readability
+
+- ✅ **Category Filter Enhancement (30 min)**
+  - Increased filter tabs to 48pt minimum height (better touch targets)
+  - Enlarged text from 15pt to 16pt for better readability
+  - Enlarged emoji from 16pt to 18pt for better visibility
+  - Improved spacing and padding for elderly-friendly interaction
+  - "All Topics" filter already present and functional
+
+**Files Modified**:
+- `app/(tabs)/index.tsx` - Complete topic card redesign + category filter improvements
+
+**UI Improvements Breakdown**:
+- 🎨 **Visual Hierarchy**: Top-to-bottom flow (category → question → description → actions)
+- 📏 **Typography**: Larger, bolder text with better line height for readability
+- 🎯 **Touch Targets**: All interactive elements meet 48pt+ minimum for elderly users
+- 💅 **Spacing**: Generous padding and margins for clearer content separation
+- 🏷️ **Category Badge**: Prominent positioning at top with border and themed colors
+
+**Phase Alignment**: ROADMAP Phase 2 - UI Polish & Elderly Optimization
+
+**Time Invested**: ~2.5 hours
+**Status**: Ready for user testing on device
+**Commit**: `c527296` - feat(ui): Improve topic cards for elderly users
+
+---
+
+## 📋 Session Summary (Dec 4, 2025 - Afternoon)
 
 **Focus**: Category Display & UI Integration
 
