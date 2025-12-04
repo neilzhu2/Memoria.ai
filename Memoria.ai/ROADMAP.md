@@ -1,7 +1,7 @@
 # Memoria.ai Development Roadmap
 
-**Last Updated**: November 9, 2025
-**Current Phase**: Phase 1 - Clean Schema & Core Features
+**Last Updated**: December 4, 2025
+**Current Phase**: Phase 1 - Clean Schema & Core Features (Near Completion)
 
 ---
 
@@ -66,19 +66,30 @@
 ### 🔄 Phase 1: Clean Schema & Core Features (Nov 2025 - Current)
 **Goal**: Clean up codebase, add essential features, prepare for UI polish
 
-**In Progress**:
+**Completed**:
 - [x] Fix user isolation bug (Oct 25)
 - [x] Fix AsyncStorage corruption (Nov 2-4)
 - [x] Code cleanup (deleted 14 duplicate folders, Nov 9)
 - [x] Organize future features (`src/` → `future-features/`, Nov 9)
 - [x] Document roadmap and cleanup plan
+- [x] **Topics System Implementation** (Dec 3-4)
+  - [x] Database schema with 3 tables (categories, topics, history)
+  - [x] 50 curated topics across 10 categories
+  - [x] Offline-first topics service with caching
+  - [x] Smart topic rotation (30-day no-repeat window)
+  - [x] Category filtering UI on home screen
+  - [x] Category badges in memories list
+  - [x] Category display in memory detail view
+- [x] Verify RLS policies (Nov 29)
+- [x] Analytics infrastructure setup (Nov 29)
+
+**Remaining**:
 - [ ] **Profile image upload/change** ← NEXT
   - [ ] Setup Supabase Storage bucket for avatars
   - [ ] Image picker UI (camera + photo library)
   - [ ] Image upload and cropping
   - [ ] Display avatar in profile
 - [ ] Clean Supabase test data
-- [ ] Verify RLS policies
 - [ ] Document final schema
 
 **Timeline**: 1-2 weeks (mid-Nov 2025)

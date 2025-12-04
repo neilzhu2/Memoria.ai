@@ -262,6 +262,16 @@ export default function MyLifeScreen() {
             >
               {item.title}
             </Text>
+            {item.category && (
+              <View style={[styles.categoryBadge, { backgroundColor: Colors[colorScheme ?? 'light'].elderlyTabActive + '20' }]}>
+                {item.category.icon && (
+                  <Text style={styles.categoryIcon}>{item.category.icon}</Text>
+                )}
+                <Text style={[styles.categoryText, { color: Colors[colorScheme ?? 'light'].elderlyTabActive }]}>
+                  {item.category.display_name}
+                </Text>
+              </View>
+            )}
           </View>
           <Text style={[styles.memoryDate, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
             {formatDate(item.date)}
@@ -703,14 +713,28 @@ const styles = StyleSheet.create({
   },
   memoryTitleContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    flexDirection: 'column',
+    gap: 6,
   },
   memoryTitle: {
     fontSize: 16,
     fontWeight: '600',
-    flex: 1,
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    alignSelf: 'flex-start',
+  },
+  categoryIcon: {
+    fontSize: 12,
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   editButton: {
     width: 44,

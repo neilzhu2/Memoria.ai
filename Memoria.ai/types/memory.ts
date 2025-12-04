@@ -5,6 +5,14 @@
  * smart export functionality, and memory statistics.
  */
 
+// Topic category for display purposes
+export interface MemoryCategory {
+  id: string;
+  name: string;
+  display_name: string;
+  icon: string | null;
+}
+
 // Core memory data structure
 export interface MemoryItem {
   id: string;
@@ -19,6 +27,8 @@ export interface MemoryItem {
   familyMembers: string[];
   createdAt: Date;
   updatedAt: Date;
+  topicId?: string; // Optional: ID of the recording topic used
+  category?: MemoryCategory; // Optional: Category information for display
 }
 
 // Memory statistics for dashboard

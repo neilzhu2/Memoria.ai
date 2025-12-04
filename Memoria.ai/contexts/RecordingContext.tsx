@@ -103,10 +103,21 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
       const startTime = Date.now();
 
-      // Create the SELECT query with timeout
+      // Create the SELECT query with timeout, including category information
       const selectPromise = supabase
         .from('memories')
-        .select('*')
+        .select(`
+          *,
+          recording_topics:topic_id (
+            id,
+            category:topic_categories (
+              id,
+              name,
+              display_name,
+              icon
+            )
+          )
+        `)
         .eq('user_id', userId)  // Filter by user_id
         .order('created_at', { ascending: false });
 
@@ -137,20 +148,36 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       if (data) {
         console.log('[loadMemories] Transforming data to MemoryItem format...');
         // Transform database records to MemoryItem format
-        const transformedMemories: MemoryItem[] = data.map((record: any) => ({
-          id: record.id,
-          title: record.title,
-          description: record.description || '',
-          audioPath: record.audio_url,  // Map audio_url to audioPath
-          duration: record.duration,
-          date: new Date(record.date),
-          tags: record.theme ? [record.theme] : [],  // Map theme to tags array
-          transcription: record.transcription,
-          isShared: record.is_shared || false,
-          familyMembers: [],  // Not stored in DB yet
-          createdAt: new Date(record.created_at),
-          updatedAt: new Date(record.updated_at),
-        }));
+        const transformedMemories: MemoryItem[] = data.map((record: any) => {
+          // Extract category from nested recording_topics relationship
+          const category = record.recording_topics?.category
+            ? (Array.isArray(record.recording_topics.category)
+              ? record.recording_topics.category[0]
+              : record.recording_topics.category)
+            : null;
+
+          return {
+            id: record.id,
+            title: record.title,
+            description: record.description || '',
+            audioPath: record.audio_url,  // Map audio_url to audioPath
+            duration: record.duration,
+            date: new Date(record.date),
+            tags: record.theme ? [record.theme] : [],  // Map theme to tags array
+            transcription: record.transcription,
+            isShared: record.is_shared || false,
+            familyMembers: [],  // Not stored in DB yet
+            createdAt: new Date(record.created_at),
+            updatedAt: new Date(record.updated_at),
+            topicId: record.topic_id || undefined,
+            category: category ? {
+              id: category.id,
+              name: category.name,
+              display_name: category.display_name,
+              icon: category.icon,
+            } : undefined,
+          };
+        });
 
         console.log('[loadMemories] Setting state with', transformedMemories.length, 'memories');
         setMemories(transformedMemories);

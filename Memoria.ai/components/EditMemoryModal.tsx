@@ -365,6 +365,21 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
                     .padStart(2, '0')}
                 </Text>
               </View>
+              {memory.category && (
+                <View style={styles.metadataRow}>
+                  <Text style={[styles.metadataLabel, { color: borderColor }]}>
+                    Category:
+                  </Text>
+                  <View style={[styles.categoryBadge, { backgroundColor: tintColor + '20' }]}>
+                    {memory.category.icon && (
+                      <Text style={styles.categoryIcon}>{memory.category.icon}</Text>
+                    )}
+                    <Text style={[styles.categoryText, { color: tintColor }]}>
+                      {memory.category.display_name}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Delete Button */}
@@ -485,6 +500,21 @@ const styles = StyleSheet.create({
   metadataValue: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  categoryIcon: {
+    fontSize: 14,
+  },
+  categoryText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   // Audio playback styles
   audioSection: {

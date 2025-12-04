@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { PanGestureHandler, State, HandlerStateChangeEvent, PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
@@ -55,6 +56,20 @@ interface NavigationState {
   historyPosition: number;
 }
 
+// Helper function to generate topic descriptions based on difficulty
+const getTopicDescription = (difficulty: 'easy' | 'medium' | 'deep'): string => {
+  switch (difficulty) {
+    case 'easy':
+      return 'A simple question to get you started';
+    case 'medium':
+      return 'Share more details about this memory';
+    case 'deep':
+      return 'Reflect deeply on this experience';
+    default:
+      return 'Share your thoughts';
+  }
+};
+
 const HomeScreen = React.memo(function HomeScreen() {
   const colorScheme = useColorScheme();
   const { recordingTrigger, selectedThemeFromTrigger } = useRecording();
@@ -77,6 +92,9 @@ const HomeScreen = React.memo(function HomeScreen() {
   const [skipThemeSelection, setSkipThemeSelection] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<{id: string; title: string} | undefined>();
 
+  // Store all topics separately from filtered topics
+  const [allTopics, setAllTopics] = useState<RecordingTopic[]>(FALLBACK_TOPICS);
+
   // Load topics and categories on mount
   useEffect(() => {
     const loadTopicsAndCategories = async () => {
@@ -88,9 +106,11 @@ const HomeScreen = React.memo(function HomeScreen() {
         ]);
 
         if (loadedTopics.length > 0) {
+          setAllTopics(loadedTopics);
           setTopics(loadedTopics);
         } else {
           // Use fallback if no topics loaded
+          setAllTopics(FALLBACK_TOPICS);
           setTopics(FALLBACK_TOPICS);
         }
 
@@ -98,6 +118,7 @@ const HomeScreen = React.memo(function HomeScreen() {
       } catch (error) {
         console.error('Error loading topics:', error);
         // Use fallback on error
+        setAllTopics(FALLBACK_TOPICS);
         setTopics(FALLBACK_TOPICS);
       } finally {
         setIsLoadingTopics(false);
@@ -106,6 +127,22 @@ const HomeScreen = React.memo(function HomeScreen() {
 
     loadTopicsAndCategories();
   }, []);
+
+  // Filter topics when category selection changes
+  useEffect(() => {
+    if (selectedCategory) {
+      const filtered = allTopics.filter(topic => topic.category_id === selectedCategory);
+      setTopics(filtered);
+    } else {
+      setTopics(allTopics);
+    }
+    // Reset navigation when category changes
+    setNavState({
+      currentIndex: 0,
+      history: [0],
+      historyPosition: 0
+    });
+  }, [selectedCategory, allTopics]);
 
   // Listen for recording trigger from tab bar
   React.useEffect(() => {
@@ -351,6 +388,56 @@ const HomeScreen = React.memo(function HomeScreen() {
         </Text>
       </View>
 
+      {/* Category Filter Tabs */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoryScrollView}
+        contentContainerStyle={styles.categoryScrollContent}
+      >
+        <TouchableOpacity
+          style={[
+            styles.categoryTab,
+            !selectedCategory && styles.categoryTabActive,
+            { backgroundColor: !selectedCategory ? Colors[colorScheme ?? 'light'].tint : Colors[colorScheme ?? 'light'].backgroundPaper }
+          ]}
+          onPress={async () => {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setSelectedCategory(undefined);
+          }}
+        >
+          <Text style={[
+            styles.categoryTabText,
+            { color: !selectedCategory ? '#FFFFFF' : Colors[colorScheme ?? 'light'].text }
+          ]}>
+            All Topics
+          </Text>
+        </TouchableOpacity>
+
+        {categories.map((category) => (
+          <TouchableOpacity
+            key={category.id}
+            style={[
+              styles.categoryTab,
+              selectedCategory === category.id && styles.categoryTabActive,
+              { backgroundColor: selectedCategory === category.id ? Colors[colorScheme ?? 'light'].tint : Colors[colorScheme ?? 'light'].backgroundPaper }
+            ]}
+            onPress={async () => {
+              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setSelectedCategory(category.id);
+            }}
+          >
+            <Text style={styles.categoryTabEmoji}>{category.icon}</Text>
+            <Text style={[
+              styles.categoryTabText,
+              { color: selectedCategory === category.id ? '#FFFFFF' : Colors[colorScheme ?? 'light'].text }
+            ]}>
+              {category.display_name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       {/* Topic Cards - Single Card with Swipe Support */}
       <View style={styles.topicCardsContainer}>
         <View style={styles.cardStack}>
@@ -376,14 +463,19 @@ const HomeScreen = React.memo(function HomeScreen() {
                   ? DesignTokens.colors.neutral[700]
                   : DesignTokens.colors.neutral[100],
               }]}>
-                <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-                  {backgroundCards.left.prompt}
-                </Text>
-                {backgroundCards.left.category && (
-                  <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
-                    {backgroundCards.left.category.icon} {backgroundCards.left.category.display_name}
+                <View style={styles.topicContent}>
+                  <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                    {backgroundCards.left.prompt}
                   </Text>
-                )}
+                  <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
+                    {getTopicDescription(backgroundCards.left.difficulty_level)}
+                  </Text>
+                  {backgroundCards.left.category && (
+                    <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
+                      {backgroundCards.left.category.icon} {backgroundCards.left.category.display_name}
+                    </Text>
+                  )}
+                </View>
                 <View style={styles.topicActions}>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
@@ -424,14 +516,19 @@ const HomeScreen = React.memo(function HomeScreen() {
                   ? DesignTokens.colors.neutral[700]
                   : DesignTokens.colors.neutral[100],
               }]}>
-                <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-                  {backgroundCards.right.prompt}
-                </Text>
-                {backgroundCards.right.category && (
-                  <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
-                    {backgroundCards.right.category.icon} {backgroundCards.right.category.display_name}
+                <View style={styles.topicContent}>
+                  <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                    {backgroundCards.right.prompt}
                   </Text>
-                )}
+                  <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
+                    {getTopicDescription(backgroundCards.right.difficulty_level)}
+                  </Text>
+                  {backgroundCards.right.category && (
+                    <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
+                      {backgroundCards.right.category.icon} {backgroundCards.right.category.display_name}
+                    </Text>
+                  )}
+                </View>
                 <View style={styles.topicActions}>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
@@ -484,14 +581,19 @@ const HomeScreen = React.memo(function HomeScreen() {
                   ? DesignTokens.colors.neutral[700]
                   : DesignTokens.colors.neutral[100],  // Using updated lighter neutral
               }]}>
-                <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
-                  {backgroundCards.current.prompt}
-                </Text>
-                {backgroundCards.current.category && (
-                  <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
-                    {backgroundCards.current.category.icon} {backgroundCards.current.category.display_name}
+                <View style={styles.topicContent}>
+                  <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                    {backgroundCards.current.prompt}
                   </Text>
-                )}
+                  <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
+                    {getTopicDescription(backgroundCards.current.difficulty_level)}
+                  </Text>
+                  {backgroundCards.current.category && (
+                    <Text style={[styles.topicCategory, { color: Colors[colorScheme ?? 'light'].tint }]}>
+                      {backgroundCards.current.category.icon} {backgroundCards.current.category.display_name}
+                    </Text>
+                  )}
+                </View>
                 <View style={styles.topicActions}>
                   <TouchableOpacity
                     style={[styles.topicActionButton, styles.skipButton, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
@@ -629,27 +731,29 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'space-between',
   },
+  topicContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   topicTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 16,
-    flex: 1,
+    marginBottom: 8,
+  },
+  topicDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    opacity: 0.7,
+    marginBottom: 12,
   },
   topicCategory: {
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 8,
     opacity: 0.9,
-  },
-  topicDescription: {
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
-    opacity: 0.8,
-    flex: 1,
   },
   topicActions: {
     flexDirection: 'row',
@@ -728,6 +832,39 @@ const styles = StyleSheet.create({
   },
   navButtonText: {
     fontSize: 18,
+    fontWeight: '600',
+  },
+  categoryScrollView: {
+    maxHeight: 52,
+    marginBottom: 20,
+  },
+  categoryScrollContent: {
+    paddingHorizontal: 4,
+    gap: 12,
+  },
+  categoryTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  categoryTabActive: {
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  categoryTabEmoji: {
+    fontSize: 16,
+  },
+  categoryTabText: {
+    fontSize: 15,
     fontWeight: '600',
   },
 });
