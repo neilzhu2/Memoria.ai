@@ -10,6 +10,7 @@ import { FloatingTabOverlay } from '@/components/FloatingTabOverlay';
 import { ThemeSelectionModal } from '@/components/ThemeSelectionModal';
 import { RecordingProvider, useRecording } from '@/contexts/RecordingContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
+import { MemoryProvider } from '@/contexts/MemoryContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -153,9 +154,11 @@ function TabLayoutContent() {
 export default function TabLayout() {
   return (
     <SettingsProvider>
-      <RecordingProvider>
-        <TabLayoutContent />
-      </RecordingProvider>
+      <MemoryProvider>
+        <RecordingProvider>
+          <TabLayoutContent />
+        </RecordingProvider>
+      </MemoryProvider>
     </SettingsProvider>
   );
 }
