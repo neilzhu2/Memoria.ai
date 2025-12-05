@@ -419,7 +419,10 @@ const HomeScreen = React.memo(function HomeScreen() {
           style={[
             styles.categoryTab,
             !selectedCategory && styles.categoryTabActive,
-            { backgroundColor: !selectedCategory ? Colors[colorScheme ?? 'light'].tint : Colors[colorScheme ?? 'light'].backgroundPaper }
+            {
+              backgroundColor: !selectedCategory ? Colors[colorScheme ?? 'light'].tint : Colors[colorScheme ?? 'light'].backgroundPaper,
+              borderColor: !selectedCategory ? Colors[colorScheme ?? 'light'].elderlyTabActive : 'transparent'
+            }
           ]}
           onPress={async () => {
             await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -440,7 +443,10 @@ const HomeScreen = React.memo(function HomeScreen() {
             style={[
               styles.categoryTab,
               selectedCategory === category.id && styles.categoryTabActive,
-              { backgroundColor: selectedCategory === category.id ? Colors[colorScheme ?? 'light'].tint : Colors[colorScheme ?? 'light'].backgroundPaper }
+              {
+                backgroundColor: selectedCategory === category.id ? Colors[colorScheme ?? 'light'].tint : Colors[colorScheme ?? 'light'].backgroundPaper,
+                borderColor: selectedCategory === category.id ? Colors[colorScheme ?? 'light'].elderlyTabActive : 'transparent'
+              }
             ]}
             onPress={async () => {
               await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -458,30 +464,32 @@ const HomeScreen = React.memo(function HomeScreen() {
         ))}
       </ScrollView>
 
-      {/* Recording Status Filter - Checkbox */}
+      {/* Recording Status Filter - Toggle Switch */}
       <TouchableOpacity
         style={styles.recordingFilterCheckbox}
         onPress={async () => {
           await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           setShowUnrecordedOnly(!showUnrecordedOnly);
         }}
-        accessibilityRole="checkbox"
+        accessibilityRole="switch"
         accessibilityState={{ checked: showUnrecordedOnly }}
         accessibilityLabel="Show only unrecorded topics"
       >
         <View style={[
           styles.checkbox,
-          showUnrecordedOnly && styles.checkboxChecked,
           {
-            borderColor: Colors[colorScheme ?? 'light'].elderlyTabActive,
+            borderColor: showUnrecordedOnly
+              ? Colors[colorScheme ?? 'light'].elderlyTabActive
+              : Colors[colorScheme ?? 'light'].tabIconDefault + '60',
             backgroundColor: showUnrecordedOnly
               ? Colors[colorScheme ?? 'light'].elderlyTabActive
-              : Colors[colorScheme ?? 'light'].background,
+              : Colors[colorScheme ?? 'light'].backgroundPaper,
           }
         ]}>
-          {showUnrecordedOnly && (
-            <IconSymbol name="checkmark" size={18} color="#FFFFFF" />
-          )}
+          <View style={[
+            styles.checkboxKnob,
+            showUnrecordedOnly ? styles.checkboxKnobChecked : styles.checkboxKnobUnchecked,
+          ]} />
         </View>
         <Text style={[styles.checkboxLabel, { color: Colors[colorScheme ?? 'light'].text }]}>
           Show only unrecorded topics
@@ -920,8 +928,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   categoryScrollView: {
-    maxHeight: 52,
-    marginBottom: 20,
+    minHeight: 64,          // Changed from maxHeight: 52 to prevent clipping
+    marginBottom: 24,       // Increased from 20 for more separation
+    marginTop: 8,           // Add top margin for balance
   },
   categoryScrollContent: {
     paddingHorizontal: 4,
@@ -930,51 +939,80 @@ const styles = StyleSheet.create({
   categoryTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,  // Increased from 16 for better spacing
-    paddingVertical: 12,    // Increased from 10 for better touch targets
-    minHeight: 48,          // Ensure minimum touch target size
-    borderRadius: 24,       // Increased from 20 to match larger padding
-    gap: 8,                 // Increased from 6 for better spacing
+    paddingHorizontal: 24,  // Increased from 18 for better spacing
+    paddingVertical: 14,    // Increased from 12 for better touch targets
+    minHeight: 56,          // Increased from 48 (WCAG AAA touch target)
+    borderRadius: 28,       // Increased from 24 to match larger padding
+    gap: 10,                // Increased from 8 for better spacing
+    borderWidth: 2,
+    borderColor: 'transparent',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   categoryTabActive: {
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 2,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+    transform: [{ scale: 1.02 }],
   },
   categoryTabEmoji: {
-    fontSize: 18,  // Increased from 16 for better visibility
+    fontSize: 20,           // Increased from 18 for better visibility
   },
   categoryTabText: {
-    fontSize: 16,  // Increased from 15 for elderly users
+    fontSize: 17,           // Increased from 16 for elderly users
     fontWeight: '600',
+    letterSpacing: 0.3,     // Add letter spacing for readability
   },
-  // Recording Filter Checkbox Styles
+  // Recording Filter Checkbox Styles (Toggle Design)
   recordingFilterCheckbox: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    marginBottom: 12,
-    gap: 12,
+    paddingVertical: 14,
+    marginBottom: 20,       // Increased from 12 for more separation
+    gap: 16,                // Increased from 12
+    minHeight: 56,          // Ensure touch target
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: 12,
+    marginHorizontal: 4,
   },
   checkbox: {
-    width: 28,          // Large touch target for elderly
-    height: 28,
-    borderRadius: 6,
-    borderWidth: 2,
-    alignItems: 'center',
+    width: 56,              // Toggle width (2:1 ratio)
+    height: 32,             // Toggle height
+    borderRadius: 16,       // Fully rounded ends
+    borderWidth: 2.5,       // Thicker border for visibility
     justifyContent: 'center',
+    position: 'relative',
+  },
+  checkboxKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    position: 'absolute',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  checkboxKnobUnchecked: {
+    left: 4,
+  },
+  checkboxKnobChecked: {
+    left: 28,               // 56 - 24 - 4
   },
   checkboxChecked: {
     // backgroundColor applied inline based on theme
   },
   checkboxLabel: {
-    fontSize: 18,       // Readable size for elderly
+    fontSize: 18,           // Readable size for elderly
     fontWeight: '500',
+    flex: 1,                // Allow text to wrap if needed
+    lineHeight: 24,         // Better readability
   },
 });
