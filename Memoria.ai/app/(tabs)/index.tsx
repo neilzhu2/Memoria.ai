@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRecording } from '@/contexts/RecordingContext';
+import { useMemories } from '@/contexts/MemoryContext';
 import { RecordingFlowContainer } from '@/components/RecordingFlowContainer';
 import { Colors } from '@/constants/Colors';
 import { DesignTokens } from '@/constants/DesignTokens';
@@ -73,11 +74,13 @@ const getTopicDescription = (difficulty: 'easy' | 'medium' | 'deep'): string => 
 const HomeScreen = React.memo(function HomeScreen() {
   const colorScheme = useColorScheme();
   const { recordingTrigger, selectedThemeFromTrigger } = useRecording();
+  const { memories } = useMemories();
 
   // Topics state
   const [topics, setTopics] = useState<RecordingTopic[]>(FALLBACK_TOPICS);
   const [categories, setCategories] = useState<TopicCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [showUnrecordedOnly, setShowUnrecordedOnly] = useState(false);
   const [isLoadingTopics, setIsLoadingTopics] = useState(true);
 
   // Simple, reliable navigation state
@@ -94,6 +97,15 @@ const HomeScreen = React.memo(function HomeScreen() {
 
   // Store all topics separately from filtered topics
   const [allTopics, setAllTopics] = useState<RecordingTopic[]>(FALLBACK_TOPICS);
+
+  // Extract recorded topic IDs from memories
+  const recordedTopicIds = React.useMemo(() => {
+    return new Set(
+      memories
+        .filter(memory => memory.topicId) // Only include memories with a topic ID
+        .map(memory => memory.topicId!)
+    );
+  }, [memories]);
 
   // Load topics and categories on mount
   useEffect(() => {
@@ -128,21 +140,29 @@ const HomeScreen = React.memo(function HomeScreen() {
     loadTopicsAndCategories();
   }, []);
 
-  // Filter topics when category selection changes
+  // Filter topics when category selection or recording status filter changes
   useEffect(() => {
+    let filtered = allTopics;
+
+    // Filter by category if selected
     if (selectedCategory) {
-      const filtered = allTopics.filter(topic => topic.category_id === selectedCategory);
-      setTopics(filtered);
-    } else {
-      setTopics(allTopics);
+      filtered = filtered.filter(topic => topic.category_id === selectedCategory);
     }
-    // Reset navigation when category changes
+
+    // Filter by recording status if checkbox is checked
+    if (showUnrecordedOnly) {
+      filtered = filtered.filter(topic => !recordedTopicIds.has(topic.id));
+    }
+
+    setTopics(filtered);
+
+    // Reset navigation when filters change
     setNavState({
       currentIndex: 0,
       history: [0],
       historyPosition: 0
     });
-  }, [selectedCategory, allTopics]);
+  }, [selectedCategory, showUnrecordedOnly, allTopics, recordedTopicIds]);
 
   // Listen for recording trigger from tab bar
   React.useEffect(() => {
@@ -438,6 +458,36 @@ const HomeScreen = React.memo(function HomeScreen() {
         ))}
       </ScrollView>
 
+      {/* Recording Status Filter - Checkbox */}
+      <TouchableOpacity
+        style={styles.recordingFilterCheckbox}
+        onPress={async () => {
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setShowUnrecordedOnly(!showUnrecordedOnly);
+        }}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: showUnrecordedOnly }}
+        accessibilityLabel="Show only unrecorded topics"
+      >
+        <View style={[
+          styles.checkbox,
+          showUnrecordedOnly && styles.checkboxChecked,
+          {
+            borderColor: Colors[colorScheme ?? 'light'].elderlyTabActive,
+            backgroundColor: showUnrecordedOnly
+              ? Colors[colorScheme ?? 'light'].elderlyTabActive
+              : Colors[colorScheme ?? 'light'].background,
+          }
+        ]}>
+          {showUnrecordedOnly && (
+            <IconSymbol name="checkmark" size={18} color="#FFFFFF" />
+          )}
+        </View>
+        <Text style={[styles.checkboxLabel, { color: Colors[colorScheme ?? 'light'].text }]}>
+          Show only unrecorded topics
+        </Text>
+      </TouchableOpacity>
+
       {/* Topic Cards - Single Card with Swipe Support */}
       <View style={styles.topicCardsContainer}>
         <View style={styles.cardStack}>
@@ -482,11 +532,6 @@ const HomeScreen = React.memo(function HomeScreen() {
                   {/* Main Question - Large and Prominent */}
                   <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
                     {backgroundCards.left.prompt}
-                  </Text>
-
-                  {/* Subtle Description */}
-                  <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
-                    {getTopicDescription(backgroundCards.left.difficulty_level)}
                   </Text>
                 </View>
                 <View style={styles.topicActions}>
@@ -548,11 +593,6 @@ const HomeScreen = React.memo(function HomeScreen() {
                   {/* Main Question - Large and Prominent */}
                   <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
                     {backgroundCards.right.prompt}
-                  </Text>
-
-                  {/* Subtle Description */}
-                  <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
-                    {getTopicDescription(backgroundCards.right.difficulty_level)}
                   </Text>
                 </View>
                 <View style={styles.topicActions}>
@@ -626,11 +666,6 @@ const HomeScreen = React.memo(function HomeScreen() {
                   {/* Main Question - Large and Prominent */}
                   <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
                     {backgroundCards.current.prompt}
-                  </Text>
-
-                  {/* Subtle Description */}
-                  <Text style={[styles.topicDescription, { color: Colors[colorScheme ?? 'light'].text }]}>
-                    {getTopicDescription(backgroundCards.current.difficulty_level)}
                   </Text>
                 </View>
                 <View style={styles.topicActions}>
@@ -744,13 +779,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   cardStack: {
-    height: 400,
+    height: 460,  // Increased from 400 to accommodate taller cards (420px + padding)
     alignItems: 'center',
     justifyContent: 'center',
   },
   topicCard: {
     width: '90%',
-    height: 360,
+    height: 420,  // Increased from 360px for better breathing room
     borderRadius: 20,
     shadowColor: '#000000',
     shadowOpacity: 0.15,
@@ -803,14 +838,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,  // Increased spacing
     lineHeight: 36,  // Better line height for readability
     paddingHorizontal: 8,  // Slight padding for better text flow
-  },
-  topicDescription: {
-    fontSize: 15,  // Slightly increased from 14
-    lineHeight: 22,
-    textAlign: 'center',
-    opacity: 0.6,  // Slightly more subtle
-    marginTop: 8,
-    paddingHorizontal: 12,
   },
   topicActions: {
     flexDirection: 'row',
@@ -925,5 +952,29 @@ const styles = StyleSheet.create({
   categoryTabText: {
     fontSize: 16,  // Increased from 15 for elderly users
     fontWeight: '600',
+  },
+  // Recording Filter Checkbox Styles
+  recordingFilterCheckbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginBottom: 12,
+    gap: 12,
+  },
+  checkbox: {
+    width: 28,          // Large touch target for elderly
+    height: 28,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    // backgroundColor applied inline based on theme
+  },
+  checkboxLabel: {
+    fontSize: 18,       // Readable size for elderly
+    fontWeight: '500',
   },
 });
