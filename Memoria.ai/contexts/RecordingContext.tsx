@@ -229,6 +229,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         transcription: memoryData.transcription || null,
         theme: memoryData.tags?.[0] || null,  // Use first tag as theme
         is_shared: memoryData.isShared || false,
+        topic_id: memoryData.topicId || null,  // Save the topic ID for auto-dismiss
       };
       console.log('[addMemory] Insert data prepared:', {
         ...insertData,

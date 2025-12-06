@@ -320,6 +320,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         tags: selectedTheme ? [selectedTheme.id] : [],
         isShared: false,
         familyMembers: [],
+        topicId: selectedTheme?.id,  // Save topic ID for auto-dismiss
       };
 
       console.log('[saveRecording] Memory data prepared:', {

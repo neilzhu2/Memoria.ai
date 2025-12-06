@@ -8,6 +8,8 @@ import {
   Dimensions,
   ActivityIndicator,
   ScrollView,
+  Modal,
+  SafeAreaView,
 } from 'react-native';
 import { PanGestureHandler, State, HandlerStateChangeEvent, PanGestureHandlerEventPayload } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
@@ -21,6 +23,20 @@ import { Colors } from '@/constants/Colors';
 import { DesignTokens } from '@/constants/DesignTokens';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import topicsService, { RecordingTopic, TopicCategory } from '@/services/topics';
+
+// Helper function to format date for elderly-friendly badge display
+const formatBadgeDate = (date: Date): string => {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'today';
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+  return `${Math.floor(diffDays / 365)} years ago`;
+};
 
 // Fallback topics if service fails to load
 const FALLBACK_TOPICS = [
@@ -80,8 +96,9 @@ const HomeScreen = React.memo(function HomeScreen() {
   const [topics, setTopics] = useState<RecordingTopic[]>(FALLBACK_TOPICS);
   const [categories, setCategories] = useState<TopicCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
-  const [showUnrecordedOnly, setShowUnrecordedOnly] = useState(false);
+  const [showUnrecordedOnly, setShowUnrecordedOnly] = useState(true);
   const [isLoadingTopics, setIsLoadingTopics] = useState(true);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   // Simple, reliable navigation state
   const [navState, setNavState] = useState<NavigationState>({
@@ -105,6 +122,20 @@ const HomeScreen = React.memo(function HomeScreen() {
         .filter(memory => memory.topicId) // Only include memories with a topic ID
         .map(memory => memory.topicId!)
     );
+  }, [memories]);
+
+  // Map of topic IDs to their most recent recording date
+  const recordedTopicDates = React.useMemo(() => {
+    const dateMap = new Map<string, Date>();
+    memories
+      .filter(memory => memory.topicId)
+      .forEach(memory => {
+        const existing = dateMap.get(memory.topicId!);
+        if (!existing || memory.createdAt > existing) {
+          dateMap.set(memory.topicId!, memory.createdAt);
+        }
+      });
+    return dateMap;
   }, [memories]);
 
   // Load topics and categories on mount
@@ -398,103 +429,60 @@ const HomeScreen = React.memo(function HomeScreen() {
     >
       <StatusBar style="auto" />
 
-      {/* App Header */}
-      <View style={styles.header}>
-        <Text style={[styles.appName, { color: Colors[colorScheme ?? 'light'].tint }]}>
-          Memoria.ai
-        </Text>
-        <Text style={[styles.subtitle, { color: Colors[colorScheme ?? 'light'].tabIconDefault }]}>
-          Your personal memory keeper
-        </Text>
-      </View>
-
-      {/* Category Filter Tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryScrollView}
-        contentContainerStyle={styles.categoryScrollContent}
-      >
+      {/* Unified Filter Bar - Category Dropdown + Toggle */}
+      <View style={[styles.unifiedFilterBar, { backgroundColor: Colors[colorScheme ?? 'light'].backgroundPaper }]}>
+        {/* Left: Category Dropdown Button */}
         <TouchableOpacity
-          style={[
-            styles.categoryTab,
-            !selectedCategory && styles.categoryTabActive,
-            {
-              backgroundColor: !selectedCategory ? Colors[colorScheme ?? 'light'].tint : Colors[colorScheme ?? 'light'].backgroundPaper,
-              borderColor: !selectedCategory ? Colors[colorScheme ?? 'light'].elderlyTabActive : 'transparent'
-            }
-          ]}
+          style={[styles.categoryDropdownButton, { borderColor: Colors[colorScheme ?? 'light'].tabIconDefault + '30' }]}
           onPress={async () => {
             await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setSelectedCategory(undefined);
+            setShowCategoryModal(true);
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Select category"
+          accessibilityHint="Opens category selection menu"
         >
-          <Text style={[
-            styles.categoryTabText,
-            { color: !selectedCategory ? '#FFFFFF' : Colors[colorScheme ?? 'light'].text }
-          ]}>
-            All Topics
+          <Text style={styles.categoryIcon}>
+            {selectedCategory ? categories.find(c => c.id === selectedCategory)?.icon : '📂'}
           </Text>
+          <Text style={[styles.categoryName, { color: Colors[colorScheme ?? 'light'].text }]} numberOfLines={1}>
+            {selectedCategory ? categories.find(c => c.id === selectedCategory)?.display_name : 'All'}
+          </Text>
+          <IconSymbol name="chevron.down" size={18} color={Colors[colorScheme ?? 'light'].elderlyTabActive} />
         </TouchableOpacity>
 
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category.id}
-            style={[
-              styles.categoryTab,
-              selectedCategory === category.id && styles.categoryTabActive,
-              {
-                backgroundColor: selectedCategory === category.id ? Colors[colorScheme ?? 'light'].tint : Colors[colorScheme ?? 'light'].backgroundPaper,
-                borderColor: selectedCategory === category.id ? Colors[colorScheme ?? 'light'].elderlyTabActive : 'transparent'
-              }
-            ]}
-            onPress={async () => {
-              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setSelectedCategory(category.id);
-            }}
-          >
-            <Text style={styles.categoryTabEmoji}>{category.icon}</Text>
-            <Text style={[
-              styles.categoryTabText,
-              { color: selectedCategory === category.id ? '#FFFFFF' : Colors[colorScheme ?? 'light'].text }
-            ]}>
-              {category.display_name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Recording Status Filter - Toggle Switch */}
-      <TouchableOpacity
-        style={styles.recordingFilterCheckbox}
-        onPress={async () => {
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setShowUnrecordedOnly(!showUnrecordedOnly);
-        }}
-        accessibilityRole="switch"
-        accessibilityState={{ checked: showUnrecordedOnly }}
-        accessibilityLabel="Show only unrecorded topics"
-      >
-        <View style={[
-          styles.checkbox,
-          {
-            borderColor: showUnrecordedOnly
-              ? Colors[colorScheme ?? 'light'].elderlyTabActive
-              : Colors[colorScheme ?? 'light'].tabIconDefault + '60',
-            backgroundColor: showUnrecordedOnly
-              ? Colors[colorScheme ?? 'light'].elderlyTabActive
-              : Colors[colorScheme ?? 'light'].backgroundPaper,
-          }
-        ]}>
+        {/* Right: Toggle Switch */}
+        <TouchableOpacity
+          style={styles.toggleSection}
+          onPress={async () => {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowUnrecordedOnly(!showUnrecordedOnly);
+          }}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: showUnrecordedOnly }}
+          accessibilityLabel="Hide recorded topics"
+        >
           <View style={[
-            styles.checkboxKnob,
-            showUnrecordedOnly ? styles.checkboxKnobChecked : styles.checkboxKnobUnchecked,
-          ]} />
-        </View>
-        <Text style={[styles.checkboxLabel, { color: Colors[colorScheme ?? 'light'].text }]}>
-          Show only unrecorded topics
-        </Text>
-      </TouchableOpacity>
+            styles.checkbox,
+            {
+              borderColor: showUnrecordedOnly
+                ? Colors[colorScheme ?? 'light'].elderlyTabActive
+                : Colors[colorScheme ?? 'light'].tabIconDefault + '60',
+              backgroundColor: showUnrecordedOnly
+                ? Colors[colorScheme ?? 'light'].elderlyTabActive
+                : Colors[colorScheme ?? 'light'].backgroundPaper,
+            }
+          ]}>
+            <View style={[
+              styles.checkboxKnob,
+              showUnrecordedOnly ? styles.checkboxKnobChecked : styles.checkboxKnobUnchecked,
+            ]} />
+          </View>
+          <Text style={[styles.toggleLabel, { color: Colors[colorScheme ?? 'light'].text }]} numberOfLines={1}>
+            Hide Done
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Topic Cards - Single Card with Swipe Support */}
       <View style={styles.topicCardsContainer}>
@@ -671,6 +659,21 @@ const HomeScreen = React.memo(function HomeScreen() {
                     </View>
                   )}
 
+                  {/* Recorded Badge - Only show when toggle is OFF and topic is recorded */}
+                  {!showUnrecordedOnly && recordedTopicIds.has(backgroundCards.current.id) && (
+                    <View style={[styles.recordedBadge, {
+                      backgroundColor: Colors[colorScheme ?? 'light'].success + '15',
+                      borderColor: Colors[colorScheme ?? 'light'].success + '40',
+                    }]}>
+                      <Text style={styles.recordedBadgeIcon}>✓</Text>
+                      <Text style={[styles.recordedBadgeText, { color: Colors[colorScheme ?? 'light'].success }]}>
+                        Recorded {recordedTopicDates.get(backgroundCards.current.id)
+                          ? formatBadgeDate(recordedTopicDates.get(backgroundCards.current.id)!)
+                          : ''}
+                      </Text>
+                    </View>
+                  )}
+
                   {/* Main Question - Large and Prominent */}
                   <Text style={[styles.topicTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
                     {backgroundCards.current.prompt}
@@ -755,6 +758,120 @@ const HomeScreen = React.memo(function HomeScreen() {
         skipThemeSelection={skipThemeSelection}
         initialTheme={selectedTopic}
       />
+
+      {/* Category Selection Bottom Sheet Modal */}
+      <Modal
+        visible={showCategoryModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCategoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={async () => {
+              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowCategoryModal(false);
+            }}
+          />
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={[styles.modalContent, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
+                  Select Category
+                </Text>
+                <TouchableOpacity
+                  onPress={async () => {
+                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowCategoryModal(false);
+                  }}
+                  style={styles.modalCloseButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close category selection"
+                >
+                  <IconSymbol name="xmark.circle.fill" size={32} color={Colors[colorScheme ?? 'light'].tabIconDefault} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Category Options */}
+              <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+                {/* All Topics Option */}
+                <TouchableOpacity
+                  style={[
+                    styles.categoryOption,
+                    !selectedCategory && styles.categoryOptionActive,
+                    {
+                      backgroundColor: !selectedCategory
+                        ? Colors[colorScheme ?? 'light'].tint
+                        : Colors[colorScheme ?? 'light'].backgroundPaper,
+                      borderColor: !selectedCategory
+                        ? Colors[colorScheme ?? 'light'].elderlyTabActive
+                        : Colors[colorScheme ?? 'light'].tabIconDefault + '30',
+                    }
+                  ]}
+                  onPress={async () => {
+                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setSelectedCategory(undefined);
+                    setShowCategoryModal(false);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="All topics"
+                >
+                  <Text style={styles.categoryOptionEmoji}>📂</Text>
+                  <Text style={[
+                    styles.categoryOptionText,
+                    { color: !selectedCategory ? '#FFFFFF' : Colors[colorScheme ?? 'light'].text }
+                  ]}>
+                    All
+                  </Text>
+                  {!selectedCategory && (
+                    <IconSymbol name="checkmark.circle.fill" size={24} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+
+                {/* Individual Categories */}
+                {categories.map((category) => (
+                  <TouchableOpacity
+                    key={category.id}
+                    style={[
+                      styles.categoryOption,
+                      selectedCategory === category.id && styles.categoryOptionActive,
+                      {
+                        backgroundColor: selectedCategory === category.id
+                          ? Colors[colorScheme ?? 'light'].tint
+                          : Colors[colorScheme ?? 'light'].backgroundPaper,
+                        borderColor: selectedCategory === category.id
+                          ? Colors[colorScheme ?? 'light'].elderlyTabActive
+                          : Colors[colorScheme ?? 'light'].tabIconDefault + '30',
+                      }
+                    ]}
+                    onPress={async () => {
+                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      setSelectedCategory(category.id);
+                      setShowCategoryModal(false);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={category.display_name}
+                  >
+                    <Text style={styles.categoryOptionEmoji}>{category.icon}</Text>
+                    <Text style={[
+                      styles.categoryOptionText,
+                      { color: selectedCategory === category.id ? '#FFFFFF' : Colors[colorScheme ?? 'light'].text }
+                    ]}>
+                      {category.display_name}
+                    </Text>
+                    {selectedCategory === category.id && (
+                      <IconSymbol name="checkmark.circle.fill" size={24} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </SafeAreaView>
+        </View>
+      </Modal>
     </View>
   );
 });
@@ -765,35 +882,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    paddingTop: 60,
-    paddingBottom: 100,
-  },
-  header: {
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 48,  // Increased from 40 for more breathing room
-  },
-  appName: {
-    fontSize: 28,        // Reduced from 36 for less prominence
-    fontWeight: '600',   // Reduced from 'bold' (700) to semibold
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,        // Reduced from 16
-    fontWeight: '400',
-    opacity: 0.6,        // Reduced from 0.8 for less prominence
+    paddingTop: 72,  // Increased from 60 for better balance without header
+    paddingBottom: 80,  // Reduced from 100 to give more room for nav buttons
   },
   topicCardsContainer: {
-    marginBottom: 32,
+    marginBottom: 20,  // Reduced from 32 to save space
   },
   cardStack: {
-    height: 460,  // Increased from 400 to accommodate taller cards (420px + padding)
+    height: 460,  // Reduced from 490 to create more room at bottom
     alignItems: 'center',
     justifyContent: 'center',
   },
   topicCard: {
     width: '90%',
-    height: 420,  // Increased from 360px for better breathing room
+    height: 420,  // Reduced from 450 to save vertical space
     borderRadius: 20,
     shadowColor: '#000000',
     shadowOpacity: 0.15,
@@ -809,7 +911,7 @@ const styles = StyleSheet.create({
   },
   topicCardInner: {
     flex: 1,
-    padding: 32,  // Increased from 24 for more breathing room (modern aesthetic)
+    padding: 40,  // Increased from 32 for generous breathing room
     borderRadius: 18,
     justifyContent: 'space-between',
   },
@@ -837,6 +939,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: 0.5,
+  },
+  // Recorded Badge Styles
+  recordedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 20,
+    gap: 6,
+  },
+  recordedBadgeIcon: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  recordedBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   // Question Text - Larger and More Prominent
   topicTitle: {
@@ -908,13 +1031,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderRadius: 12,
-    minHeight: 56,
+    borderRadius: 16,  // Increased from 12 for modern, softer feel
+    minHeight: 64,     // Increased from 56 for WCAG AAA optimal
     flex: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },  // Increased from 2 for depth
+    shadowOpacity: 0.08,  // Reduced from 0.1 for softer, modern shadow
+    shadowRadius: 12,     // Increased from 4 for softer spread
     elevation: 2,
   },
   navButtonLeft: {
@@ -1014,5 +1137,133 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,                // Allow text to wrap if needed
     lineHeight: 24,         // Better readability
+  },
+  // Unified Filter Bar Styles
+  unifiedFilterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 20,
+    borderRadius: 16,
+    gap: 12,
+    minHeight: 68,          // Compact 68px height (saves 90px vs old layout)
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  categoryDropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: 10,
+    minHeight: 48,
+    flex: 1,                // Take available space on left
+    maxWidth: '60%',        // Leave room for toggle
+  },
+  categoryIcon: {
+    fontSize: 22,
+  },
+  categoryName: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,                // Allow text to take available space
+  },
+  toggleSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 48,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  // Category Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    maxHeight: '75%',       // Bottom sheet takes up 75% of screen
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  modalCloseButton: {
+    padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalScrollView: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  categoryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    marginBottom: 12,
+    borderRadius: 16,
+    borderWidth: 2,
+    gap: 16,
+    minHeight: 72,          // Large touch target for elderly (WCAG AAA+)
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  categoryOptionActive: {
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  categoryOptionEmoji: {
+    fontSize: 28,           // Large emoji for visibility
+  },
+  categoryOptionText: {
+    fontSize: 19,           // Large text for elderly readability
+    fontWeight: '600',
+    flex: 1,
+    letterSpacing: 0.3,
   },
 });

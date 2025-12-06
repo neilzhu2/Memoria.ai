@@ -1,11 +1,66 @@
 # Memoria Development Worklog
 
-**Last Updated**: December 4, 2025
-**Version**: 1.2.0
+**Last Updated**: December 5, 2025
+**Version**: 1.2.1
 
 ---
 
-## 📋 Latest Session Summary (Dec 4, 2025 - Evening)
+## 📋 Latest Session Summary (Dec 5, 2025 - Late Night)
+
+**Focus**: Auto-Dismiss Pattern & Filter UI Optimization
+
+**Completed Today**:
+- ✅ **Unified Filter Bar (90 min)** - Space-optimized layout
+  - Combined category dropdown + toggle into single 68px row (saved 90px)
+  - Changed "All Topics" → "All" dropdown label (fits better)
+  - Changed "Unrecorded" → "Hide Done" toggle label (clearer action)
+  - Implemented iOS bottom sheet modal for category selection
+  - Removed header space waste per user feedback
+
+- ✅ **Auto-Dismiss Pattern Implementation (2 hours)**
+  - Default: Hide recorded topics automatically (`useState(true)`)
+  - Toggle: "Hide Done" to show/hide recorded topics
+  - Visual Badge: "✓ Recorded X days ago" when toggle OFF
+  - Elderly-friendly date format (today, yesterday, X days ago, etc.)
+  - Tinder/Stories-style mental model (swipe = dismiss from queue)
+
+- 🐛 **Critical Bug Fixes (1 hour)**
+  - Fixed: topicId not being saved when recording
+    - Added `topic_id` to RecordingContext.tsx insert (line 232)
+    - Added `topicId` to SimpleRecordingScreen.tsx memoryData (line 323)
+  - Fixed: topicId already loading correctly from database (line 172)
+
+**Files Modified**:
+- `app/(tabs)/index.tsx` - Unified filter bar, auto-dismiss logic, recorded badge UI
+- `contexts/RecordingContext.tsx` - Add topic_id to memory insert
+- `components/SimpleRecordingScreen.tsx` - Add topicId to memoryData
+- `app/(tabs)/_layout.tsx` - MemoryProvider fix (earlier session)
+
+**Technical Details**:
+- `recordedTopicIds` useMemo: Set of topic IDs from memories with topicId
+- `recordedTopicDates` useMemo: Map of topic ID → most recent recording date
+- `formatBadgeDate()` helper: Elderly-friendly date formatting
+- Filter logic: `filter(topic => !recordedTopicIds.has(topic.id))`
+- Badge styles: 56x32px toggle, green success badge with 18px border radius
+
+**UX Decision**:
+- Hybrid auto-dismiss: Default hide recorded, toggle to show all with badges
+- Mental model matches Tinder/Instagram Stories (unlimited swipe queue)
+- Re-recording via Memories tab (Phase 4 - planned)
+
+**Phase Status**:
+- ✅ Phase 1: Toggle fix + auto-dismiss default
+- ✅ Phase 2: Visual status badges on cards
+- ⏳ Phase 3: Category badges in Memories tab (pending)
+- ⏳ Phase 4: Topic grouping + re-recording (pending)
+
+**Time Invested**: ~4 hours
+**Status**: Ready for testing with NEW recordings
+**Next**: User to test recording → verify auto-dismiss works
+
+---
+
+## 📋 Session Summary (Dec 4, 2025 - Evening)
 
 **Focus**: Home Page UI Polish for Elderly Users
 
