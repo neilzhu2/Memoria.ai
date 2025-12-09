@@ -1,11 +1,78 @@
 # Memoria Development Worklog
 
-**Last Updated**: December 5, 2025
-**Version**: 1.2.1
+**Last Updated**: December 9, 2025
+**Version**: 1.2.2
 
 ---
 
-## 📋 Latest Session Summary (Dec 5, 2025 - Late Night)
+## 📋 Latest Session Summary (Dec 9, 2025)
+
+**Focus**: Auto-Dismiss & Usage Count Debugging + Database Triggers
+
+**Completed Today**:
+- ✅ **Fixed Auto-Dismiss Not Working (1.5 hours)**
+  - **Root cause**: Home screen using `useMemories()` (mock context) instead of `useRecording()` (real Supabase data)
+  - Fixed: Changed `app/(tabs)/index.tsx` line 92 to use `useRecording()` for memories
+  - Removed unused import of `useMemories()` from MemoryContext
+  - Auto-dismiss now correctly detects recorded topics from database
+
+- ✅ **Fixed topicId Not Being Included in Memory Object (30 min)**
+  - Added `topicId: data.topic_id || undefined` to memory transformation in RecordingContext.tsx:299
+  - This ensures topicId is available in the app state for auto-dismiss logic
+
+- ✅ **Integrated Topic History Tracking (30 min)**
+  - Added `topicsService` import to RecordingContext.tsx
+  - Added call to `topicsService.markTopicAsUsed()` after memory saved (line 320)
+  - Updates `user_topic_history` table with `was_used = true` and `memory_id`
+
+- ✅ **Created Database Triggers for usage_count (2 hours)**
+  - Created comprehensive trigger system in `supabase/migrations/add_usage_count_trigger.sql`
+  - **Sync function**: `sync_all_topic_usage_counts()` - recalculates all counts from scratch
+  - **INSERT trigger**: Auto-increment usage_count when memory created
+  - **DELETE trigger**: Auto-decrement usage_count when memory deleted
+  - **UPDATE trigger**: Adjust counts when memory's topic_id changes
+  - Added `SECURITY DEFINER` to bypass RLS (critical fix - triggers were failing silently)
+  - All triggers now working correctly
+
+- ✅ **Cleaned Up Duplicate Topics (1 hour)**
+  - Found all 50 topics were duplicated (100 total) due to migration running twice
+  - Created migration `supabase/migrations/delete_duplicate_topics.sql`
+  - Kept oldest copy of each topic, deleted duplicates
+  - Ran sync function to fix usage_counts after cleanup
+  - Result: 50 unique topics, correct usage_counts
+
+- ✅ **End-to-End Testing**
+  - Verified INSERT trigger: Record memory → usage_count increments automatically ✅
+  - Verified DELETE trigger: Delete memory → usage_count decrements ✅
+  - Verified auto-dismiss: Topic disappears/shows badge after recording ✅
+  - Verified manual sync: `sync_all_topic_usage_counts()` fixes any drift ✅
+
+**Files Modified**:
+- `app/(tabs)/index.tsx` - Fixed to use useRecording() instead of useMemories()
+- `contexts/RecordingContext.tsx` - Added topicId to memory object, added markTopicAsUsed call, imported topicsService
+
+**Files Created**:
+- `supabase/migrations/add_usage_count_trigger.sql` - Complete trigger system with sync function
+- `supabase/migrations/delete_duplicate_topics.sql` - Cleanup migration for duplicates
+
+**Technical Details**:
+- **RLS Issue**: Initial triggers failed silently because users don't have UPDATE permission on `recording_topics`
+- **Solution**: Added `SECURITY DEFINER` + `SET search_path = public` to all trigger functions
+- **Sync Function**: Can be manually called anytime to verify/fix usage_counts: `SELECT sync_all_topic_usage_counts();`
+- **Trigger Flow**: memories INSERT/UPDATE/DELETE → automatic usage_count adjustments
+
+**Critical Learnings**:
+- Always add `SECURITY DEFINER` to trigger functions that update other tables with RLS
+- Context matters: Mock contexts (MemoryContext) vs real Supabase contexts (RecordingContext)
+- Database triggers need proper permissions or they fail silently
+- Sync functions are essential for data integrity verification
+
+**Time Invested**: ~5.5 hours
+**Status**: ✅ All features working - auto-dismiss, usage tracking, database triggers operational
+
+---
+
+## 📋 Session Summary (Dec 5, 2025 - Late Night)
 
 **Focus**: Auto-Dismiss Pattern & Filter UI Optimization
 

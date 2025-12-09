@@ -17,7 +17,6 @@ import * as Haptics from 'expo-haptics';
 
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRecording } from '@/contexts/RecordingContext';
-import { useMemories } from '@/contexts/MemoryContext';
 import { RecordingFlowContainer } from '@/components/RecordingFlowContainer';
 import { Colors } from '@/constants/Colors';
 import { DesignTokens } from '@/constants/DesignTokens';
@@ -89,8 +88,7 @@ const getTopicDescription = (difficulty: 'easy' | 'medium' | 'deep'): string => 
 
 const HomeScreen = React.memo(function HomeScreen() {
   const colorScheme = useColorScheme();
-  const { recordingTrigger, selectedThemeFromTrigger } = useRecording();
-  const { memories } = useMemories();
+  const { recordingTrigger, selectedThemeFromTrigger, memories } = useRecording();
 
   // Topics state
   const [topics, setTopics] = useState<RecordingTopic[]>(FALLBACK_TOPICS);

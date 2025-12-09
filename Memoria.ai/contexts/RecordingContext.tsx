@@ -6,6 +6,7 @@ import { MemoryItem, MemoryStats, SmartExportConfig } from '@/types/memory';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import Analytics from '@/services/analytics';
+import topicsService from '@/services/topics';
 
 interface RecordingContextType {
   // Recording controls
@@ -295,6 +296,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         familyMembers: [],  // Not stored in DB yet
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),
+        topicId: data.topic_id || undefined,  // Include topic ID
       };
 
       console.log('[addMemory] Updating local state...');
@@ -311,6 +313,12 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         has_transcription: !!data.transcription,
         has_theme: !!data.theme,
       });
+
+      // Mark topic as used for history tracking
+      if (data.topic_id) {
+        console.log('[addMemory] Marking topic as used:', data.topic_id);
+        await topicsService.markTopicAsUsed(data.topic_id, data.id);
+      }
 
       return newMemory;
     } catch (error) {
