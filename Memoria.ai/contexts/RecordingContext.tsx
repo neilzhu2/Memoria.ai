@@ -241,10 +241,22 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       const startTime = Date.now();
 
       // Insert into Supabase with timeout
+      // Include category data in the response
       const insertPromise = supabase
         .from('memories')
         .insert(insertData)
-        .select()
+        .select(`
+          *,
+          recording_topics:topic_id (
+            id,
+            category:topic_categories (
+              id,
+              name,
+              display_name,
+              icon
+            )
+          )
+        `)
         .single();
 
       // Add a 30 second timeout
@@ -283,6 +295,14 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
       // Transform to MemoryItem and add to local state
       console.log('[addMemory] Transforming to MemoryItem...');
+
+      // Extract category from nested recording_topics relationship
+      const category = data.recording_topics?.category
+        ? (Array.isArray(data.recording_topics.category)
+          ? data.recording_topics.category[0]
+          : data.recording_topics.category)
+        : null;
+
       const newMemory: MemoryItem = {
         id: data.id,
         title: data.title,
@@ -297,6 +317,12 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),
         topicId: data.topic_id || undefined,  // Include topic ID
+        category: category ? {
+          id: category.id,
+          name: category.name,
+          display_name: category.display_name,
+          icon: category.icon,
+        } : undefined,
       };
 
       console.log('[addMemory] Updating local state...');
