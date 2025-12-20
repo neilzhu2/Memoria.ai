@@ -51,6 +51,12 @@ const CAF_RECORDING_PRESET = {
 interface MemoryTheme {
   id: string;
   title: string;
+  category?: {
+    id: string;
+    name: string;
+    display_name: string;
+    icon: string | null;
+  };
 }
 
 interface SimpleRecordingScreenProps {
@@ -505,6 +511,18 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
           </TouchableOpacity>
 
           <View style={styles.headerTitleContainer}>
+            {/* Category Badge */}
+            {selectedTheme?.category && (
+              <View style={[styles.categoryBadge, {
+                backgroundColor: Colors[colorScheme ?? 'light'].highlight + '20',
+                borderColor: Colors[colorScheme ?? 'light'].highlight + '40'
+              }]}>
+                <Text style={styles.categoryIcon}>{selectedTheme.category.icon}</Text>
+                <Text style={[styles.categoryName, { color: Colors[colorScheme ?? 'light'].highlight }]}>
+                  {selectedTheme.category.display_name}
+                </Text>
+              </View>
+            )}
             <Text style={[styles.headerTitle, { color: textColor }]}>
               {isSaving || recordingState === 'stopped' ? 'Saving...' : 'New Recording'}
             </Text>
@@ -599,6 +617,23 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  categoryIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  categoryName: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   listButton: {
     width: 44,

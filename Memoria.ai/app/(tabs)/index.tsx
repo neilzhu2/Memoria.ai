@@ -415,7 +415,8 @@ const HomeScreen = React.memo(function HomeScreen() {
     const currentTopic = topics[navState.currentIndex];
     setSelectedTopic({
       id: currentTopic.id,
-      title: currentTopic.prompt
+      title: currentTopic.prompt,
+      category: currentTopic.category
     });
     setSkipThemeSelection(true);
     setShowRecordingFlow(true);
