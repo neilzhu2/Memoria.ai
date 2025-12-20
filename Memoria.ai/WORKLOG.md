@@ -1,11 +1,43 @@
 # Memoria Development Worklog
 
 **Last Updated**: December 9, 2025
-**Version**: 1.2.2
+**Version**: 1.2.3
 
 ---
 
-## 📋 Latest Session Summary (Dec 9, 2025)
+## 📋 Latest Session Summary (Dec 9, 2025 - Continued)
+
+**Focus**: Category Display Polish
+
+**Completed**:
+- ✅ **Fixed Missing Category Badges on New Recordings (30 min)**
+  - Problem: New recordings didn't show category badges immediately in Memories tab
+  - Root cause: addMemory() wasn't fetching category data from database
+  - Fixed: Added category join to INSERT query (same as loadMemories)
+  - Result: Category badges now appear immediately after recording ✅
+
+- ✅ **Added Category Badge to Recording Screen (30 min)**
+  - Display category badge in recording screen header
+  - Shows category icon + name above "New Recording" title
+  - Helps users know which topic category they're recording for
+  - Honey gold styling consistent with app theme
+
+**Files Modified**:
+- `contexts/RecordingContext.tsx` - Added category join to addMemory INSERT query
+- `components/SimpleRecordingScreen.tsx` - Added category badge UI with styles
+- `app/(tabs)/index.tsx` - Pass category data when opening recording screen
+
+**UI Enhancement**:
+- Category badge positioned above "New Recording" header title
+- Honey gold background (20% opacity) with border (40% opacity)
+- Icon + category name for clear context
+
+**Time Invested**: ~1 hour
+**Status**: ✅ Category badges working everywhere - home screen, recording screen, memories list
+
+---
+
+## 📋 Session Summary (Dec 9, 2025 - Morning)
 
 **Focus**: Auto-Dismiss & Usage Count Debugging + Database Triggers
 
