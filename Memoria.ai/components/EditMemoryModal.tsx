@@ -353,7 +353,13 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
           >
             {/* Audio Playback Section */}
             {memory.audioPath && (
-              <View style={[styles.section, styles.audioSection]}>
+              <View
+                style={[
+                  styles.section,
+                  styles.audioSection,
+                  isHeroCollapsed && { marginBottom: 12 },
+                ]}
+              >
                 {/* Progress and Time */}
                 <View style={styles.progressSection}>
                   <Text style={[styles.timeText, { color: textColor }]}>
@@ -406,8 +412,19 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
             )}
 
             {/* Title Field */}
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: textColor }]}>
+            <View
+              style={[
+                styles.section,
+                isHeroCollapsed && { marginBottom: 12 },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.sectionLabel,
+                  { color: textColor },
+                  isHeroCollapsed && { marginBottom: 8 },
+                ]}
+              >
                 Title <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
@@ -428,7 +445,13 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
 
             {/* Transcription Field */}
             <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: textColor }]}>
+              <Text
+                style={[
+                  styles.sectionLabel,
+                  { color: textColor },
+                  isHeroCollapsed && { marginBottom: 8 },
+                ]}
+              >
                 Transcription
               </Text>
               <TextInput
