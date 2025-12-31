@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -12,6 +12,8 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Animated,
+  Keyboard,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -37,6 +39,10 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
   const [transcription, setTranscription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isHeroCollapsed, setIsHeroCollapsed] = useState(false);
+
+  // Animated value for hero section height
+  const heroHeight = useRef(new Animated.Value(1)).current; // 1 = full, 0 = collapsed
 
   // Audio playback
   const {
@@ -70,8 +76,43 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
   useEffect(() => {
     if (!visible) {
       stopPlayback();
+      // Reset hero to expanded state when modal closes
+      setIsHeroCollapsed(false);
+      heroHeight.setValue(1);
     }
   }, [visible]);
+
+  // Keyboard listeners for hero collapse/expand
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setIsHeroCollapsed(true);
+        Animated.timing(heroHeight, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setIsHeroCollapsed(false);
+        Animated.timing(heroHeight, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, [heroHeight]);
 
   // Track changes
   useEffect(() => {
@@ -208,6 +249,19 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
               <IconSymbol name="xmark" size={24} color={textColor} />
             </TouchableOpacity>
 
+            {/* Compact title - shown when hero is collapsed */}
+            {isHeroCollapsed && (
+              <View style={styles.compactTitleContainer}>
+                <Text
+                  style={[styles.compactTitle, { color: textColor }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {memory.title || 'Untitled Memory'}
+                </Text>
+              </View>
+            )}
+
             <TouchableOpacity
               style={styles.saveButton}
               onPress={handleSave}
@@ -234,10 +288,24 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
             </TouchableOpacity>
           </View>
 
-          {/* Hero Memory Section - Matches recording screen pattern */}
-          <View style={[styles.memoryHeroSection, {
-            borderBottomColor: borderColor + '20'
-          }]}>
+          {/* Hero Memory Section - Animated collapsible */}
+          <Animated.View
+            style={[
+              styles.memoryHeroSection,
+              {
+                borderBottomColor: borderColor + '20',
+                maxHeight: heroHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 200], // 0px when collapsed, 200px when full
+                }),
+                opacity: heroHeight.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0, 0.5, 1], // Fade out as it collapses
+                }),
+                overflow: 'hidden',
+              },
+            ]}
+          >
             {/* Category Badge - Small and subtle */}
             {memory.category && (
               <View style={[styles.categoryBadgeHero, {
@@ -271,7 +339,7 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
                 day: 'numeric'
               })}
             </Text>
-          </View>
+          </Animated.View>
 
           <ScrollView
             style={styles.content}
@@ -442,6 +510,18 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  compactTitleContainer: {
+    position: 'absolute',
+    left: 72,
+    right: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   memoryHeroSection: {
     paddingHorizontal: 32,
