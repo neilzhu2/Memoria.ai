@@ -549,7 +549,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       onRequestClose={onClose}
     >
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
-        {/* Header */}
+        {/* Header - Clean with just close and done buttons */}
         <View style={[styles.header, { borderBottomColor: borderColor + '40' }]}>
           <TouchableOpacity
             style={styles.closeButton}
@@ -558,44 +558,6 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
           >
             <IconSymbol name="xmark" size={24} color={textColor} />
           </TouchableOpacity>
-
-          <View style={styles.headerTitleContainer}>
-            {/* Category Badge */}
-            {selectedTheme?.category && (
-              <View style={[styles.categoryBadge, {
-                backgroundColor: Colors[colorScheme ?? 'light'].highlight + '20',
-                borderColor: Colors[colorScheme ?? 'light'].highlight + '40'
-              }]}>
-                <Text style={styles.categoryIcon}>{selectedTheme.category.icon}</Text>
-                <Text style={[styles.categoryName, { color: Colors[colorScheme ?? 'light'].highlight }]}>
-                  {selectedTheme.category.display_name}
-                </Text>
-              </View>
-            )}
-
-            {/* Topic Prompt with animation */}
-            {selectedTheme?.title ? (
-              <Animated.Text
-                style={[
-                  styles.topicPrompt,
-                  {
-                    color: borderColor,
-                    opacity: Animated.multiply(fadeAnim, promptOpacity),
-                    transform: [{ scale: scaleAnim }],
-                  },
-                ]}
-                numberOfLines={3}
-                ellipsizeMode="tail"
-                accessibilityLabel={`Recording prompt: ${selectedTheme.title}`}
-              >
-                {selectedTheme.title}
-              </Animated.Text>
-            ) : (
-              <Text style={[styles.headerTitle, { color: textColor }]}>
-                {isSaving || recordingState === 'stopped' ? 'Saving...' : 'New Recording'}
-              </Text>
-            )}
-          </View>
 
           {/* Done button - visible when recording or paused */}
           {(recordingState === 'recording' || recordingState === 'paused') && (
@@ -612,7 +574,40 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
           ) : null}
         </View>
 
-        {/* Theme indicator removed - simplified design per wireframe */}
+        {/* Hero Topic Prompt Section */}
+        {selectedTheme && (
+          <View style={styles.topicSection}>
+            {/* Category Badge - Small and subtle */}
+            {selectedTheme.category && (
+              <View style={[styles.categoryBadgeHero, {
+                backgroundColor: goldColor + '20',
+                borderColor: goldColor + '40'
+              }]}>
+                <Text style={styles.categoryIconHero}>{selectedTheme.category.icon}</Text>
+                <Text style={[styles.categoryNameHero, { color: goldColor }]}>
+                  {selectedTheme.category.display_name}
+                </Text>
+              </View>
+            )}
+
+            {/* Hero Prompt - Large and prominent */}
+            <Animated.Text
+              style={[
+                styles.topicPromptHero,
+                {
+                  color: textColor,
+                  opacity: Animated.multiply(fadeAnim, promptOpacity),
+                  transform: [{ scale: scaleAnim }],
+                },
+              ]}
+              numberOfLines={5}
+              ellipsizeMode="tail"
+              accessibilityLabel={`Recording prompt: ${selectedTheme.title}`}
+            >
+              {selectedTheme.title}
+            </Animated.Text>
+          </View>
+        )}
 
         {/* Main recording area */}
         <View style={styles.recordingArea}>
@@ -665,6 +660,36 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  topicSection: {
+    paddingHorizontal: 32,
+    paddingTop: 32,
+    paddingBottom: 24,
+    alignItems: 'center',
+  },
+  categoryBadgeHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  categoryIconHero: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  categoryNameHero: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  topicPromptHero: {
+    fontSize: 28,
+    lineHeight: 39,
+    fontWeight: '600',
+    textAlign: 'center',
+    maxWidth: '90%',
   },
   closeButton: {
     width: 44,
@@ -748,8 +773,9 @@ const styles = StyleSheet.create({
   recordingArea: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: 24,
+    paddingTop: 20,
   },
   buttonContainer: {
     alignItems: 'center',
