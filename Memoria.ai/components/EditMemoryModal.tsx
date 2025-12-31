@@ -197,7 +197,7 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
           style={styles.keyboardAvoid}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          {/* Header */}
+          {/* Header - Clean with just close and save buttons */}
           <View style={[styles.header, { borderBottomColor: borderColor }]}>
             <TouchableOpacity
               style={styles.closeButton}
@@ -207,25 +207,6 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
             >
               <IconSymbol name="xmark" size={24} color={textColor} />
             </TouchableOpacity>
-
-            <View style={styles.headerCenter}>
-              <Text style={[styles.headerTitle, { color: textColor }]}>
-                Edit Memory
-              </Text>
-              {memory.category && (
-                <View style={[styles.categoryBadgeHeader, {
-                  backgroundColor: tintColor + '12',
-                  borderColor: tintColor + '25'
-                }]}>
-                  {memory.category.icon && (
-                    <Text style={styles.categoryIcon}>{memory.category.icon}</Text>
-                  )}
-                  <Text style={[styles.categoryTextHeader, { color: tintColor }]}>
-                    {memory.category.display_name}
-                  </Text>
-                </View>
-              )}
-            </View>
 
             <TouchableOpacity
               style={styles.saveButton}
@@ -251,6 +232,45 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
                 </Text>
               )}
             </TouchableOpacity>
+          </View>
+
+          {/* Hero Memory Section - Matches recording screen pattern */}
+          <View style={[styles.memoryHeroSection, {
+            borderBottomColor: borderColor + '20'
+          }]}>
+            {/* Category Badge - Small and subtle */}
+            {memory.category && (
+              <View style={[styles.categoryBadgeHero, {
+                backgroundColor: tintColor + '12',
+                borderColor: tintColor + '25'
+              }]}>
+                {memory.category.icon && (
+                  <Text style={styles.categoryIconHero}>
+                    {memory.category.icon}
+                  </Text>
+                )}
+                <Text style={[styles.categoryNameHero, { color: tintColor }]}>
+                  {memory.category.display_name}
+                </Text>
+              </View>
+            )}
+
+            {/* Memory Title - Hero size */}
+            <Text
+              style={[styles.memoryTitleHero, { color: textColor }]}
+              numberOfLines={3}
+              ellipsizeMode="tail"
+            >
+              {memory.title || 'Untitled Memory'}
+            </Text>
+
+            {/* Recording date indicator */}
+            <Text style={[styles.recordingDateBadge, { color: borderColor }]}>
+              Recorded {memory.date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+              })}
+            </Text>
           </View>
 
           <ScrollView
@@ -423,30 +443,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  headerCenter: {
-    flex: 1,
+  memoryHeroSection: {
+    paddingHorizontal: 32,
+    paddingTop: 24,
+    paddingBottom: 20,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  categoryBadgeHeader: {
+  categoryBadgeHero: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
-    gap: 5,
-    marginTop: 4,
+    marginBottom: 12,
   },
-  categoryTextHeader: {
+  categoryIconHero: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  categoryNameHero: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  memoryTitleHero: {
+    fontSize: 24,
+    lineHeight: 34,
+    fontWeight: '600',
+    textAlign: 'center',
+    maxWidth: '90%',
+  },
+  recordingDateBadge: {
     fontSize: 13,
     fontWeight: '500',
+    marginTop: 12,
   },
   saveButton: {
     minWidth: 56,
