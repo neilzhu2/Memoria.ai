@@ -5,24 +5,31 @@
 
 ---
 
-## 🔧 Development Setup (IMPORTANT)
+## 🔧 Development Setup (CRITICAL - READ FIRST)
+
+**ALWAYS USE THIS COMMAND TO START DEV SERVER**:
+```bash
+npx expo start --go --tunnel
+```
 
 **Testing Environment**:
-- **App Type**: Expo Go (NOT dev build)
+- **App Type**: Expo Go ONLY (NOT dev build)
 - **Connection Mode**: Tunnel mode REQUIRED
-- **Dev Server Command**: `npm start` (without `--localhost` flag)
 - **Why**: User tests on physical device using Expo Go app via tunnel
-- **Note**: User will explicitly indicate when dev build is available for testing
+- **Important**: User will EXPLICITLY tell you when dev build becomes available
+- **Until then**: NEVER NEVER NEVER attempt dev builds or iOS simulator
 
-**DO NOT**:
-- ❌ Use `npm start -- --localhost` (breaks tunnel connection)
-- ❌ Use `npm start -- --ios` (attempts dev build which isn't available)
-- ❌ Try to launch iOS simulator automatically
+**NEVER DO**:
+- ❌ NEVER use `npm start -- --localhost` (breaks tunnel)
+- ❌ NEVER use `npm start -- --ios` (tries to launch dev build)
+- ❌ NEVER use `npx expo run:ios` (dev build not available)
+- ❌ NEVER try to launch iOS simulator
+- ❌ NEVER assume dev build is ready
 
-**DO**:
-- ✅ Use `npm start` for tunnel mode
-- ✅ Wait for QR code for user to scan with Expo Go
-- ✅ Use `npm start -- --clear` if cache needs clearing
+**ALWAYS DO**:
+- ✅ Use `npx expo start --go --tunnel` (ONLY correct command)
+- ✅ Wait for tunnel to connect and QR code to appear
+- ✅ User scans QR code with Expo Go app on physical device
 
 ---
 
