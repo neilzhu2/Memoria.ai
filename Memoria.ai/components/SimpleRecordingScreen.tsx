@@ -8,6 +8,8 @@ import {
   SafeAreaView,
   Dimensions,
   Modal,
+  Animated,
+  Easing,
 } from 'react-native';
 import {
   useAudioRecorder,
@@ -93,6 +95,11 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   const [savedMemory, setSavedMemory] = useState<MemoryItem | null>(null);
   const [waveformData, setWaveformData] = useState<number[]>([]);
 
+  // Animation values for topic prompt
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const promptOpacity = useRef(new Animated.Value(1)).current;
+
   // Timer ref
   const timerInterval = useRef<NodeJS.Timeout | null>(null);
 
@@ -145,6 +152,48 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       requestPermissionsAndStart();
     }
   }, [visible]);
+
+  // Fade-in animation for topic prompt on mount
+  useEffect(() => {
+    if (visible && selectedTheme?.title) {
+      // Reset animations
+      fadeAnim.setValue(0);
+      scaleAnim.setValue(0.95);
+
+      // Start fade-in animation
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, selectedTheme?.title]);
+
+  // Adjust opacity when paused vs recording
+  useEffect(() => {
+    if (recordingState === 'paused') {
+      Animated.timing(promptOpacity, {
+        toValue: 0.6,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    } else if (recordingState === 'recording') {
+      Animated.timing(promptOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [recordingState]);
 
   const requestPermissionsAndStart = async () => {
     try {
@@ -523,9 +572,29 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
                 </Text>
               </View>
             )}
-            <Text style={[styles.headerTitle, { color: textColor }]}>
-              {isSaving || recordingState === 'stopped' ? 'Saving...' : 'New Recording'}
-            </Text>
+
+            {/* Topic Prompt with animation */}
+            {selectedTheme?.title ? (
+              <Animated.Text
+                style={[
+                  styles.topicPrompt,
+                  {
+                    color: borderColor,
+                    opacity: Animated.multiply(fadeAnim, promptOpacity),
+                    transform: [{ scale: scaleAnim }],
+                  },
+                ]}
+                numberOfLines={3}
+                ellipsizeMode="tail"
+                accessibilityLabel={`Recording prompt: ${selectedTheme.title}`}
+              >
+                {selectedTheme.title}
+              </Animated.Text>
+            ) : (
+              <Text style={[styles.headerTitle, { color: textColor }]}>
+                {isSaving || recordingState === 'stopped' ? 'Saving...' : 'New Recording'}
+              </Text>
+            )}
           </View>
 
           {/* Done button - visible when recording or paused */}
@@ -634,6 +703,16 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  topicPrompt: {
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '500',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 8,
+    paddingBottom: 20,
+    maxWidth: '85%',
   },
   listButton: {
     width: 44,
