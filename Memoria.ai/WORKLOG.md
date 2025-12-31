@@ -1,7 +1,28 @@
 # Memoria Development Worklog
 
-**Last Updated**: December 9, 2025
+**Last Updated**: December 30, 2025
 **Version**: 1.2.3
+
+---
+
+## 🔧 Development Setup (IMPORTANT)
+
+**Testing Environment**:
+- **App Type**: Expo Go (NOT dev build)
+- **Connection Mode**: Tunnel mode REQUIRED
+- **Dev Server Command**: `npm start` (without `--localhost` flag)
+- **Why**: User tests on physical device using Expo Go app via tunnel
+- **Note**: User will explicitly indicate when dev build is available for testing
+
+**DO NOT**:
+- ❌ Use `npm start -- --localhost` (breaks tunnel connection)
+- ❌ Use `npm start -- --ios` (attempts dev build which isn't available)
+- ❌ Try to launch iOS simulator automatically
+
+**DO**:
+- ✅ Use `npm start` for tunnel mode
+- ✅ Wait for QR code for user to scan with Expo Go
+- ✅ Use `npm start -- --clear` if cache needs clearing
 
 ---
 
