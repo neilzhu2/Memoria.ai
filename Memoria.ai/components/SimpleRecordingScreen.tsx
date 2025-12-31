@@ -577,18 +577,34 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         {/* Hero Topic Prompt Section */}
         {selectedTheme && (
           <View style={styles.topicSection}>
-            {/* Category Badge - Small and subtle */}
-            {selectedTheme.category && (
-              <View style={[styles.categoryBadgeHero, {
-                backgroundColor: goldColor + '20',
-                borderColor: goldColor + '40'
-              }]}>
-                <Text style={styles.categoryIconHero}>{selectedTheme.category.icon}</Text>
-                <Text style={[styles.categoryNameHero, { color: goldColor }]}>
-                  {selectedTheme.category.display_name}
-                </Text>
-              </View>
-            )}
+            {/* Badges Row - Horizontal layout for spatial efficiency */}
+            <View style={styles.badgesRow}>
+              {/* Category Badge */}
+              {selectedTheme.category && (
+                <View style={[styles.categoryBadgeHero, {
+                  backgroundColor: goldColor + '20',
+                  borderColor: goldColor + '40'
+                }]}>
+                  <Text style={styles.categoryIconHero}>{selectedTheme.category.icon}</Text>
+                  <Text style={[styles.categoryNameHero, { color: goldColor }]}>
+                    {selectedTheme.category.display_name}
+                  </Text>
+                </View>
+              )}
+
+              {/* Status Badge - Shows when recording is not idle */}
+              {recordingState !== 'idle' && (
+                <View style={[styles.statusBadgeHero, {
+                  backgroundColor: successColor + '15',
+                  borderColor: successColor + '30'
+                }]}>
+                  <IconSymbol name="checkmark" size={12} color={successColor} />
+                  <Text style={[styles.statusTextHero, { color: successColor }]}>
+                    Recorded today
+                  </Text>
+                </View>
+              )}
+            </View>
 
             {/* Hero Prompt - Large and prominent */}
             <Animated.Text
@@ -663,9 +679,17 @@ const styles = StyleSheet.create({
   },
   topicSection: {
     paddingHorizontal: 32,
-    paddingTop: 32,
-    paddingBottom: 24,
+    paddingTop: 24,
+    paddingBottom: 20,
     alignItems: 'center',
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+    flexWrap: 'wrap',
   },
   categoryBadgeHero: {
     flexDirection: 'row',
@@ -674,13 +698,25 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    marginBottom: 16,
   },
   categoryIconHero: {
     fontSize: 14,
     marginRight: 6,
   },
   categoryNameHero: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  statusBadgeHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 4,
+  },
+  statusTextHero: {
     fontSize: 14,
     fontWeight: '600',
   },
