@@ -343,7 +343,12 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
 
           <ScrollView
             style={styles.content}
-            contentContainerStyle={styles.contentContainer}
+            contentContainerStyle={[
+              styles.contentContainer,
+              {
+                paddingTop: isHeroCollapsed ? 0 : 20,
+              },
+            ]}
             keyboardShouldPersistTaps="handled"
           >
             {/* Audio Playback Section */}
@@ -574,7 +579,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 20, // Dynamic in component based on hero state
   },
   section: {
     marginBottom: 28,
