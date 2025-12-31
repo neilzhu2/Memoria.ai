@@ -208,9 +208,24 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
               <IconSymbol name="xmark" size={24} color={textColor} />
             </TouchableOpacity>
 
-            <Text style={[styles.headerTitle, { color: textColor }]}>
-              Edit Memory
-            </Text>
+            <View style={styles.headerCenter}>
+              <Text style={[styles.headerTitle, { color: textColor }]}>
+                Edit Memory
+              </Text>
+              {memory.category && (
+                <View style={[styles.categoryBadgeHeader, {
+                  backgroundColor: tintColor + '12',
+                  borderColor: tintColor + '25'
+                }]}>
+                  {memory.category.icon && (
+                    <Text style={styles.categoryIcon}>{memory.category.icon}</Text>
+                  )}
+                  <Text style={[styles.categoryTextHeader, { color: tintColor }]}>
+                    {memory.category.display_name}
+                  </Text>
+                </View>
+              )}
+            </View>
 
             <TouchableOpacity
               style={styles.saveButton}
@@ -365,21 +380,6 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
                     .padStart(2, '0')}
                 </Text>
               </View>
-              {memory.category && (
-                <View style={styles.metadataRow}>
-                  <Text style={[styles.metadataLabel, { color: borderColor }]}>
-                    Category:
-                  </Text>
-                  <View style={[styles.categoryBadge, { backgroundColor: tintColor + '20' }]}>
-                    {memory.category.icon && (
-                      <Text style={styles.categoryIcon}>{memory.category.icon}</Text>
-                    )}
-                    <Text style={[styles.categoryText, { color: tintColor }]}>
-                      {memory.category.display_name}
-                    </Text>
-                  </View>
-                </View>
-              )}
             </View>
 
             {/* Delete Button */}
@@ -424,10 +424,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    flex: 1,
     fontSize: 20,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  categoryBadgeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 5,
+    marginTop: 4,
+  },
+  categoryTextHeader: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   saveButton: {
     minWidth: 56,
