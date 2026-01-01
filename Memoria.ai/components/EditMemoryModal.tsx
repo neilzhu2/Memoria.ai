@@ -358,7 +358,7 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
             contentContainerStyle={[
               styles.contentContainer,
               {
-                paddingTop: isHeroCollapsed ? 0 : 20,
+                paddingTop: isHeroCollapsed ? 24 : 20,
               },
             ]}
             keyboardShouldPersistTaps="handled"
