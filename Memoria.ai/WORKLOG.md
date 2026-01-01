@@ -7,11 +7,13 @@
 
 ## 🔮 Next Session Planning
 
-**Topic for Tomorrow (Jan 2, 2026)**: Multi-Agent Collaboration Strategy
-- Discuss how to collaborate with different Claude Code agents on the same project folder
-- Explore workflow patterns for specialized agents (UI/UX, backend, mobile, etc.)
-- Document best practices for context sharing and handoffs between agents
-- Consider agent specialization strategies for complex features
+**Topic for Tomorrow (Jan 2, 2026)**: Multi-AI Collaboration Strategy
+- **Discuss**: How to collaborate with different AI coding assistants (Gemini, Cursor, GitHub Copilot, etc.) on the same project
+- **Context Handoffs**: Best practices for passing work between Claude Code → Gemini (or other AIs) when context limits reached
+- **Documentation Patterns**: What to document so other AIs can pick up seamlessly
+- **Version Control**: Git strategies for multi-AI workflows
+- **Tool Specialization**: When to use which AI tool (Claude for architecture, Gemini for [X], etc.)
+- **Continuity**: Maintaining project consistency across different AI assistants
 
 ---
 
