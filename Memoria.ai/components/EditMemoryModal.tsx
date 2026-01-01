@@ -294,9 +294,21 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
               styles.memoryHeroSection,
               {
                 borderBottomColor: borderColor + '20',
+                borderBottomWidth: heroHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, StyleSheet.hairlineWidth], // Hide border when collapsed
+                }),
                 maxHeight: heroHeight.interpolate({
                   inputRange: [0, 1],
                   outputRange: [0, 200], // 0px when collapsed, 200px when full
+                }),
+                paddingTop: heroHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 24], // Animate padding to 0 when collapsed
+                }),
+                paddingBottom: heroHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 20], // Animate padding to 0 when collapsed
                 }),
                 opacity: heroHeight.interpolate({
                   inputRange: [0, 0.5, 1],
