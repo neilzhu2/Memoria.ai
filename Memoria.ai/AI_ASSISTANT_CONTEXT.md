@@ -8,14 +8,15 @@
 This document tells you **WHERE** to find current information, not what that information is. Always read the source files for up-to-date details.
 
 ### Quick Start
-1. **Current status & next steps**: Read `WORKLOG.md` (always current)
-2. **iOS issues**: Read `docs/ios-build-troubleshooting.md`
-3. **Project setup**: Read `package.json` and `app.json`
+1. **What was just done + immediate next steps**: Read `WORKLOG.md` (tactical, session-by-session)
+2. **Long-term priorities & feature roadmap**: Read `ROADMAP.md` (strategic, maintained proactively)
+3. **iOS issues**: Read `docs/ios-build-troubleshooting.md`
+4. **Project setup**: Read `package.json` and `app.json`
 
-### Important: What NOT to Trust
-- ⚠️ `ROADMAP.md` - May be outdated, priorities change frequently
-- ⚠️ `docs/archive/` - Historical only, do not use for current status
-- ✅ `WORKLOG.md` - **ALWAYS CURRENT** - Check here first for latest status
+### Document Purposes
+- ✅ **`WORKLOG.md`** - Tactical: Recent work, immediate next actions (updated after each session)
+- ✅ **`ROADMAP.md`** - Strategic: Feature priorities, long-term phases (maintained proactively)
+- ⚠️ **`docs/archive/`** - Historical only, reference but don't use for current status
 
 ## Project Quick Facts
 
@@ -81,12 +82,16 @@ See `package.json` for all available scripts. Most common:
 
 ## AI Assistant Quick Rules
 
-1. **Check `WORKLOG.md` FIRST** for current status and priorities
-2. **iOS issues**: Start with `docs/ios-build-troubleshooting.md`
-3. **Never trust** `ROADMAP.md` for current priorities (use `WORKLOG.md`)
+1. **Check `WORKLOG.md` FIRST** for recent work and immediate next steps (tactical)
+2. **Check `ROADMAP.md`** for feature priorities and long-term plan (strategic)
+3. **iOS issues**: Start with `docs/ios-build-troubleshooting.md`
 4. **iOS working directory**: `/Users/lihanzhu/Desktop/Memoria/Memoria.ai/ios`
 5. **UX changes**: Follow `docs/accessibility-guidelines.md` (elderly-friendly: large fonts, generous touch targets)
 6. **Security**: Never commit `.env.local`, use app-specific passwords for Apple ID
+
+### Document Maintenance
+- **WORKLOG.md** - Update after EVERY session with what was done + next actions
+- **ROADMAP.md** - Update proactively when priorities or features change
 
 ## Claude Code CLI Info
 
