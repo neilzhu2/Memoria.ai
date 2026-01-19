@@ -53,35 +53,51 @@ Memoria.ai/
 
 ## Current Project Status
 
-### Active Work
-**iOS Deployment with Paid Apple Developer Account**
+### Active Work: iOS Deployment & MVP Completion
 
-**Current Stage**: Transitioning from free Apple ID to Individual Apple Developer account (wife's account)
+**Current Focus**: Preparing for TestFlight Beta Launch
 
-**Next Action** (User will execute):
-- Try **Option 1**: Use app-specific password + change bundle identifier
-- See `docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md` for step-by-step instructions
+**Immediate Next Steps** (In Order):
+1. ✅ **Bundle ID Setup** (DONE TODAY - Jan 18, 2026)
+   - Documentation created: `docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md`
+   - User will coordinate with wife for app-specific password
+   - Will change bundle identifier to enable dev build with paid account
 
-**Recent Challenges Resolved**:
-1. Individual Apple Developer accounts cannot share certificate access (even to Admins)
-2. Bundle identifier `com.anonymous.memoriaai` conflicts across different teams
-3. Security concern: App-specific passwords solve credential sharing without exposing main password
+2. **Dev Build to Physical Device** (NEXT)
+   - Build app to iPhone using wife's paid Apple Developer account
+   - Test on physical device (currently testing via Expo Go)
 
-### Recent Major Work
-1. **Home Page UX Improvements** (Jan 2026)
-   - Auto-dismiss pattern for topic cards
-   - Unified filter bar implementation
-   - Expert-recommended UI polish
+3. **API Integration - Recording & Transcription** (PRIORITY)
+   - Implement recording functionality (expo-speech-recognition or cloud service)
+   - Add transcription API integration
+   - Enable core voice journaling features
 
-2. **iOS Build System Stabilization** (Dec 2025 - Jan 2026)
-   - Resolved ExpoFileSystem duplicate file errors
-   - Fixed RCT-Folly coroutine header issues
-   - Documented 8 common iOS build issues with solutions
+4. **UX Refinement** (PRE-LAUNCH)
+   - Polish recording UX flow
+   - Refine record reviewing/playback UX
+   - Final UI tweaks for elderly users
 
-3. **Web App Research** (Late 2025)
-   - Comprehensive PWA feasibility analysis
-   - React Native Web compatibility assessment
-   - Technical architecture proposals
+5. **TestFlight Beta Launch**
+   - Deploy to TestFlight for beta testing
+   - Test via Userbrain and other channels
+   - Gather feedback before App Store submission
+
+### What's Already Complete
+- ✅ Profile image upload feature (completed Nov 2025)
+- ✅ Date of birth picker in profile settings
+- ✅ Home page UX improvements (auto-dismiss, filter bar)
+- ✅ iOS build system stabilization (8 issues documented and resolved)
+- ✅ Topics system with 50 curated prompts and smart rotation
+- ✅ Core CRUD operations (create, read, update, delete memories)
+- ✅ Authentication and user data isolation
+- ✅ Supabase backend integration
+- ✅ Design system with elderly-optimized UI
+
+### What's NOT Prioritized (Deferred Post-Launch)
+- ❌ Internationalization (i18n) - will revisit after MVP validation
+- ❌ Web app development - deferred to Q3 2026 pending mobile validation
+- ❌ Family sharing features - post-launch enhancement
+- ❌ Advanced analytics - basic tracking sufficient for MVP
 
 ## Apple Developer Account Context
 
