@@ -1,11 +1,107 @@
 # Memoria Development Worklog
 
-**Last Updated**: January 1, 2026
+**Last Updated**: January 18, 2026
 **Version**: 1.2.4
 
 ---
 
-## 🔮 Next Session Planning
+## 🔮 Next Action (User Will Execute)
+
+**Try Option 1: App-Specific Password + Bundle ID Change**
+- Wife generates app-specific password at https://appleid.apple.com
+- User adds account to Xcode using app-specific password
+- User changes bundle identifier from `com.anonymous.memoriaai` to unique ID (suggested: `com.memoriaai.app`)
+- User builds to iPhone
+- See `docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md` for detailed step-by-step instructions
+
+---
+
+## 📋 Latest Session Summary (Jan 18, 2026)
+
+**Focus**: iOS Deployment - Paid Apple Developer Account Documentation
+
+**Context**: Transitioning from free Apple ID (7-day certificates) to wife's Individual Apple Developer account ($99/year) for production deployment. User raised security concern about not sharing wife's Apple ID password.
+
+**Challenge Identified**:
+- **Individual Account Limitation**: Individual Apple Developer accounts CANNOT delegate certificate access, even to users with Admin role in App Store Connect
+- **Bundle Identifier Conflict**: `com.anonymous.memoriaai` already registered to user's free Apple ID team, cannot be used by wife's paid team
+- **Security Requirement**: Must find way to build app without user knowing wife's password
+
+**Solution Researched & Documented**:
+- **App-Specific Passwords**: Official Apple solution that allows Xcode access without sharing main Apple ID password
+  - Only works for development tools (Xcode, etc.)
+  - Cannot access iCloud, email, or personal data
+  - Can be revoked anytime
+  - Requires Two-Factor Authentication
+- **Bundle Identifier Change**: Simple change in Xcode to unique identifier
+
+**Documentation Created**:
+1. ✅ **AI_ASSISTANT_CONTEXT.md** (Project root)
+   - Master supervisory document for ALL AI assistants (Claude, Gemini, Codex, etc.)
+   - Project overview (React Native Expo voice journaling app)
+   - Complete documentation index with links to all key docs
+   - Current project status and next action clearly noted
+   - Technical decisions, common commands, security considerations
+   - Quick navigation table to all documentation
+   - Replaces the non-existent `claude.md` (Claude Code CLI uses `.claude/agents/` directory structure instead)
+
+2. ✅ **docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md**
+   - Comprehensive step-by-step guide for Option 1 (recommended approach)
+   - Part A: Wife generates app-specific password
+   - Part B: User adds account to Xcode
+   - Part C: Change bundle identifier in Xcode
+   - Part D: (Optional) Manual bundle ID registration
+   - Part E: Build and deploy to device
+   - Includes security best practices, troubleshooting, workflow summary
+   - Documents what Admin role CAN and CANNOT do on Individual accounts
+
+3. ✅ **docs/ios-build-troubleshooting.md** (Updated)
+   - Added Issue 8: Deploying with Paid Apple Developer Account
+   - Documents challenges encountered (Individual account limitations, bundle ID conflict)
+   - Provides two solutions (app-specific password vs change bundle ID)
+   - Explains workflow with Individual account
+   - Updated last modified date to January 18, 2026
+
+**Key Technical Learnings**:
+- Individual vs Organization Apple Developer accounts have fundamentally different certificate access models
+- Admin role in App Store Connect ≠ Certificate access (separate systems)
+- App-specific passwords are the secure solution for team collaboration on Individual accounts
+- Bundle identifiers are globally unique per team (cannot share across different Apple Developer teams)
+
+**Files Created**:
+- `AI_ASSISTANT_CONTEXT.md` - Master AI context document (project root)
+- `docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md` - Detailed setup guide
+
+**Files Modified**:
+- `docs/ios-build-troubleshooting.md` - Added Issue 8
+- `WORKLOG.md` - This file
+
+**Claude Code CLI Directory Clarification**:
+- **User asked**: "why is AI_ASSISTANT_CONTEXT.md not a sibling of .claude but inside memoria.ai?"
+- **Answer**: It IS a sibling - both are at project root
+  ```
+  /Users/lihanzhu/Desktop/Memoria/Memoria.ai/
+  ├── .claude/                    # Claude CLI config (sibling)
+  ├── AI_ASSISTANT_CONTEXT.md     # Master AI context (sibling)
+  ├── docs/
+  └── ...
+  ```
+- **Why no `claude.md`**: Claude Code CLI doesn't use a single `claude.md` file. Instead:
+  - Settings: `.claude/settings.local.json`
+  - Agents: `.claude/agents/` directory (e.g., `ios-react-native-expert.md`)
+  - Project context: New `AI_ASSISTANT_CONTEXT.md` serves this purpose for ALL AI assistants
+
+**Pending User Action**:
+- User explicitly stated: "I have not done anything yet, but once I come back, i'll try option 1 first"
+- Complete documentation ready for execution
+- Step-by-step instructions provided in `docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md`
+
+**Time Invested**: ~1.5 hours
+**Status**: Documentation complete - Ready for user to execute Option 1
+
+---
+
+## 🔮 Previous Session Planning
 
 **Topic for Tomorrow (Jan 2, 2026)**: Multi-AI Collaboration Strategy
 - **Discuss**: How to collaborate with different AI coding assistants (Gemini, Cursor, GitHub Copilot, etc.) on the same project
