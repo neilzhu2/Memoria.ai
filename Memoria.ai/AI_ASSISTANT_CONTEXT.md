@@ -1,7 +1,28 @@
 # AI Assistant Context - Memoria.ai Project
 
-**Last Updated**: January 18, 2026
-**Purpose**: Navigation map for ALL AI assistants (Claude, Gemini, Codex, etc.)
+**Last Updated**: February 2, 2026
+**Purpose**: Single source of truth for ALL AI assistants (Claude, Gemini, Codex, etc.)
+
+> **Note**: `CLAUDE.md` points here. All detailed instructions live in this file.
+
+---
+
+## iOS Development - ALWAYS READ FIRST
+
+**Before any iOS build, Metro, or device connection work:**
+1. Read `docs/IOS_BUILD_TROUBLESHOOTING.md` - comprehensive guide with 11+ documented issues
+2. This file contains solutions for: codegen errors, Metro connection issues, tunnel mode, network isolation, and more
+
+### Common Issues Quick Reference
+
+| Symptom | Solution |
+|---------|----------|
+| Codegen TypeError during pod install | Fresh npm install (may need to run twice) |
+| Phone shows "No development servers found" | Use tunnel mode or check `docs/IOS_BUILD_TROUBLESHOOTING.md` |
+| RCTFatal crash on app launch | Codegen failed - rebuild with fresh node_modules |
+| Tunnel URL doesn't work on WiFi | Try cellular data on phone |
+
+---
 
 ## How to Use This File
 
@@ -10,7 +31,7 @@ This document tells you **WHERE** to find current information, not what that inf
 ### Quick Start
 1. **What was just done + immediate next steps**: Read `WORKLOG.md` (tactical, session-by-session)
 2. **Long-term priorities & feature roadmap**: Read `ROADMAP.md` (strategic, maintained proactively)
-3. **iOS issues**: Read `docs/ios-build-troubleshooting.md`
+3. **iOS build/Metro issues**: Read `docs/IOS_BUILD_TROUBLESHOOTING.md` (comprehensive, 11+ issues documented)
 4. **Project setup**: Read `package.json` and `app.json`
 
 ### Document Purposes
@@ -35,8 +56,9 @@ This document tells you **WHERE** to find current information, not what that inf
   - Recent work history
 
 ### iOS Development
-- **`docs/ios-build-troubleshooting.md`** - 8 documented iOS build issues & solutions
+- **`docs/IOS_BUILD_TROUBLESHOOTING.md`** - **PRIMARY** - 11+ documented issues (codegen, Metro connection, tunnel mode)
 - **`docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md`** - Paid account setup (app-specific passwords)
+- **`docs/ios-build-troubleshooting.md`** - Original notes (may be outdated, use IOS_BUILD_TROUBLESHOOTING.md instead)
 - **`ios/Podfile`** - iOS dependencies and build fixes (heavily commented)
 - **`ios/` directory** - Xcode workspace (working directory for iOS builds)
 
@@ -84,7 +106,7 @@ See `package.json` for all available scripts. Most common:
 
 1. **Check `WORKLOG.md` FIRST** for recent work and immediate next steps (tactical)
 2. **Check `ROADMAP.md`** for feature priorities and long-term plan (strategic)
-3. **iOS issues**: Start with `docs/ios-build-troubleshooting.md`
+3. **iOS build/Metro issues**: Start with `docs/IOS_BUILD_TROUBLESHOOTING.md` (comprehensive guide)
 4. **iOS working directory**: `/Users/lihanzhu/Desktop/Memoria/Memoria.ai/ios`
 5. **UX changes**: Follow `docs/accessibility-guidelines.md` (elderly-friendly: large fonts, generous touch targets)
 6. **Security**: Never commit `.env.local`, use app-specific passwords for Apple ID
@@ -95,9 +117,9 @@ See `package.json` for all available scripts. Most common:
 
 ## Claude Code CLI Info
 
+- **`CLAUDE.md`**: Project instructions read at session start (iOS troubleshooting reference)
 - **Agent directory**: `.claude/agents/` (e.g., `ios-react-native-expert.md`)
 - **Settings**: `.claude/settings.local.json`
-- **Why no `claude.md`?**: Claude CLI uses directory structure, not a single file
 - **This file**: Works for ALL AI assistants (Claude, Gemini, Codex, etc.)
 
 ---
