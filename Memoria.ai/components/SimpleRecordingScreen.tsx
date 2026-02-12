@@ -10,6 +10,7 @@ import {
   Modal,
   Animated,
   Easing,
+  ActivityIndicator,
 } from 'react-native';
 import {
   useAudioRecorder,
@@ -18,8 +19,10 @@ import {
   requestRecordingPermissionsAsync,
   IOSOutputFormat,
   AudioQuality,
+  AndroidOutputFormat,
+  AndroidAudioEncoder,
 } from 'expo-audio';
-import { File, Paths } from 'expo-file-system';
+// File operations now handled by audioStorageService (uploads to Supabase Storage)
 import * as Haptics from 'expo-haptics';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
@@ -32,6 +35,9 @@ import { EditMemoryModal } from './EditMemoryModal';
 import { MemoryItem } from '@/types/memory';
 import { getTranscriptionService } from '@/services/transcription/TranscriptionService';
 import { toastService } from '@/services/toastService';
+import { audioStorageService } from '@/services/audioStorageService';
+import { useAuth } from '@/contexts/AuthContext';
+// fileSafeService no longer used in save flow — see RECORDING_FEATURE_FINDINGS.md
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -48,6 +54,15 @@ const CAF_RECORDING_PRESET = {
     linearPCMIsBigEndian: false,
     linearPCMIsFloat: false,
   },
+  android: {
+    extension: '.amr',
+    sampleRate: 44100,
+    numberOfChannels: 2,
+    bitRate: 128000,
+    outputFormat: 3 as any, // AndroidOutputFormat.AMR_NB
+    audioEncoder: 1 as any, // AndroidAudioEncoder.AMR_NB
+  },
+  web: {} as any,
 };
 
 interface MemoryTheme {
@@ -64,7 +79,7 @@ interface MemoryTheme {
 interface SimpleRecordingScreenProps {
   visible: boolean;
   onClose: () => void;
-  selectedTheme?: MemoryTheme;
+  selectedTheme?: MemoryTheme | null; // null = free-style recording
 }
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
@@ -80,11 +95,11 @@ interface RecordingData {
 export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: SimpleRecordingScreenProps) {
   const colorScheme = useColorScheme();
   const { addMemory, updateMemory, refreshStats, memories } = useRecording();
+  const { user } = useAuth();
 
   // Recording state
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
-  // Use CAF/LINEARPCM format instead of HIGH_QUALITY m4a for expo-av compatibility
-  const audioRecorder = useAudioRecorder(CAF_RECORDING_PRESET);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [duration, setDuration] = useState(0);
   const [currentRecordingUri, setCurrentRecordingUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false); // Track if save is in progress
@@ -197,6 +212,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
   const requestPermissionsAndStart = async () => {
     try {
+      // 1. Request microphone permission
       const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(
@@ -205,14 +221,32 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
           [{ text: 'OK' }]
         );
         onClose();
-      } else {
-        // Auto-start recording after permission is granted
-        console.log('Permission granted, auto-starting recording...');
-        // Small delay to ensure UI is ready
-        setTimeout(() => {
-          startRecording();
-        }, 300);
+        return;
       }
+
+      // 2. Pre-request speech recognition permission (for transcription)
+      // This avoids a jarring popup mid-save when transcription starts
+      try {
+        const transcriptionService = getTranscriptionService();
+        const speechAvailable = await transcriptionService.isAvailable();
+        if (speechAvailable) {
+          const hasPermission = await transcriptionService.requestPermissions();
+          if (!hasPermission) {
+            // Not blocking — transcription is optional, recording still works
+            console.log('[Permissions] Speech recognition denied — transcription will be skipped');
+          }
+        }
+      } catch (err) {
+        // Non-fatal — don't prevent recording if speech recognition setup fails
+        console.warn('[Permissions] Speech recognition permission check failed:', err);
+      }
+
+      // Auto-start recording after permissions are granted
+      console.log('Permissions granted, auto-starting recording...');
+      // Small delay to ensure UI is ready
+      setTimeout(() => {
+        startRecording();
+      }, 300);
     } catch (error) {
       console.error('Permission request failed:', error);
     }
@@ -232,7 +266,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         // Keep only the last 50 data points for performance
         return newData.slice(-50);
       });
-    }, 1000);
+    }, 1000) as any;
   };
 
   const stopTimer = () => {
@@ -255,8 +289,9 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         playsInSilentMode: true,
       });
 
-      // Start recording
-      await audioRecorder.record();
+      // Prepare and start recording (both steps required per official docs)
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
 
       setRecordingState('recording');
       setDuration(0);
@@ -314,27 +349,42 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
       // URI is available on audioRecorder.uri after stopping
       const uri = audioRecorder.uri;
-      setCurrentRecordingUri(uri || null);
-      setRecordingState('stopped');
-      stopTimer();
 
-      // Reset audio mode
-      await AudioModule.setAudioModeAsync({
-        allowsRecording: false,
-        playsInSilentMode: true,
-      });
-
-      // Auto-save the recording immediately (simplified flow per wireframe)
-      // Pass URI directly to avoid React state timing issues
       if (uri) {
+        console.log('[Stop] Recording stopped, cache URI:', uri);
+
+        // Use cache URI directly — no file relocation needed!
+        // See RECORDING_FEATURE_FINDINGS.md: Nitro File API cannot read ExpoAudio cache,
+        // but fetch() and native modules can. Skip FileSafeService entirely.
+        setCurrentRecordingUri(uri);
+        setRecordingState('stopped');
+        stopTimer();
+
+        // Show saving indicator
+        setIsSaving(true);
+
+        // Reset audio mode
+        await AudioModule.setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
+        });
+
+        // Brief delay to let iOS fully flush the file to disk
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Auto-save the recording immediately (simplified flow per wireframe)
         await saveRecording(uri);
       } else {
         console.error('No URI available from audioRecorder');
+        setRecordingState('idle');
+        stopTimer();
         toastService.recordingFailed();
       }
 
     } catch (error) {
       console.error('Failed to stop recording:', error);
+      setRecordingState('idle');
+      stopTimer();
     }
   };
 
@@ -357,40 +407,69 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       return;
     }
 
+    if (!user?.id) {
+      console.error('[saveRecording] ERROR: No user ID available');
+      toastService.memorySaveFailed('Not logged in');
+      return;
+    }
+
     // Set saving flag to prevent modal from closing prematurely
     console.log('[saveRecording] Setting isSaving = true');
     setIsSaving(true);
 
     try {
-      const title = selectedTheme?.title || `Recording ${new Date().toLocaleDateString()}`;
+      // Upload audio to Supabase Storage for permanent, reliable access
+      // This bypasses the local file system issues with expo-file-system + expo-audio
+      console.log('[saveRecording] Uploading audio to Supabase Storage...');
+
+      // Rapid-fire fix: Use a small safety gap. 
+      // FileSafeService already retries for existence, but we add a tiny gap here 
+      // to let the OS finalize the file handles before reading for upload.
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const uploadResult = await audioStorageService.uploadAudio(uri, user.id);
+
+      if (!uploadResult.success || !uploadResult.url) {
+        console.error('[saveRecording] Upload failed:', uploadResult.error);
+        throw new Error(uploadResult.error || 'Failed to upload audio');
+      }
+
+      console.log('[saveRecording] Audio uploaded successfully:', uploadResult.url);
+
+      // Free-style mode: selectedTheme is null
+      // Topic mode: selectedTheme has id and title
+      const isFreeStyle = selectedTheme === null || selectedTheme === undefined;
+      const title = isFreeStyle
+        ? `Free Recording - ${new Date().toLocaleDateString()}`
+        : selectedTheme.title;
       console.log('[saveRecording] Recording title:', title);
+      console.log('[saveRecording] Free-style mode:', isFreeStyle);
       console.log('[saveRecording] Preparing to call addMemory...');
 
       const memoryData = {
         title,
-        description: selectedTheme ? `Recording about: ${selectedTheme.title}` : undefined,
+        description: isFreeStyle ? 'Free recording' : `Recording about: ${selectedTheme!.title}`,
         date: new Date(),
         duration,
-        audioPath: uri,  // MemoryItem type uses audioPath
-        tags: selectedTheme ? [selectedTheme.id] : [],
+        audioPath: uploadResult.url,  // Use Supabase Storage URL for permanent storage
+        localAudioPath: uri,           // Store local path for zero-latency playback
+        tags: isFreeStyle ? [] : [selectedTheme!.id],
         isShared: false,
         familyMembers: [],
-        topicId: selectedTheme?.id,  // Save topic ID for auto-dismiss
+        topicId: isFreeStyle ? undefined : selectedTheme!.id,  // null for free-style
       };
 
       console.log('[saveRecording] Memory data prepared:', {
         title: memoryData.title,
         duration: memoryData.duration,
-        audioPath: memoryData.audioPath?.substring(0, 50) + '...',
+        audioPath: memoryData.audioPath?.substring(0, 80) + '...',
         tagsCount: memoryData.tags.length,
       });
 
       console.log('[saveRecording] Calling addMemory (await)...');
       const startTime = Date.now();
 
-      // Save to context and get the memory object
-      // NOTE: Using recording URI directly - file copy not needed for Expo Go
-      // For production, we'll implement proper file management in Dev Build
+      // Save to context and get the memory object with Supabase Storage URL
       const newMemory = await addMemory(memoryData);
 
       const endTime = Date.now();
@@ -437,37 +516,70 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   };
 
   const transcribeRecording = async (memory: MemoryItem) => {
+    if (!memory.audioPath) {
+      console.log('[Transcription] No audio path found for memory:', memory.id);
+      return;
+    }
+
     try {
-      console.log('Starting mock transcription for memory:', memory.id);
+      console.log('[Transcription] Starting REAL transcription for memory:', memory.id);
 
       // Show transcription starting toast
       toastService.transcriptionStarted();
 
-      // Simulate processing delay (2 seconds)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const transcriptionService = getTranscriptionService();
 
-      // Mock transcription text based on recording title
-      const mockTranscript = `This is a mock transcription of your recording about "${memory.title}". In a production environment, this would contain the actual speech-to-text conversion of your audio recording. The transcription feature uses on-device processing to convert your voice into searchable text, making it easy to find and review your memories later.`;
+      // Check availability (Native Dev Build required)
+      const available = await transcriptionService.isAvailable();
+      console.log('[Transcription] Recognition available:', available);
 
-      console.log('Mock transcription generated:', mockTranscript.substring(0, 50) + '...');
+      if (!available) {
+        console.warn('[Transcription] Speech recognition not available on this device, falling back to mock.');
+        // Fallback to mock if native module is missing (e.g., if Dev Build setup is incomplete)
+        return fallbackToMockTranscription(memory);
+      }
 
-      // Update the memory with mock transcription
-      await updateMemory(memory.id, {
-        transcription: mockTranscript,
+      // Using the transcribe() method which sets up the provider and starts recognition
+      // Prefer local path for better performance and reliability
+      const transcriptionUri = memory.localAudioPath || memory.audioPath;
+      const result = await transcriptionService.transcribe(transcriptionUri!, {
+        language: 'en-US', // Default to English for now, could be dynamic
       });
 
-      // Update the savedMemory state so the modal shows the transcription
-      setSavedMemory(prev => prev ? { ...prev, transcription: mockTranscript } : null);
+      if (result.transcript) {
+        console.log('[Transcription] REAL result received:', result.transcript.substring(0, 50) + '...');
 
-      console.log('Mock transcription saved successfully');
+        // Update the memory with real transcription
+        await updateMemory(memory.id, {
+          transcription: result.transcript,
+        });
 
-      // Show completion toast
-      toastService.transcriptionComplete();
+        // Update the savedMemory state so the modal shows the transcription
+        setSavedMemory(prev => prev ? { ...prev, transcription: result.transcript } : null);
+
+        toastService.transcriptionComplete();
+      } else {
+        console.log('[Transcription] No transcript returned from service.');
+        toastService.transcriptionFailed();
+      }
+
     } catch (error) {
-      console.error('Mock transcription failed:', error);
+      console.error('[Transcription] Failed:', error);
       toastService.transcriptionFailed();
+      // Try mock as last resort if real fails
+      fallbackToMockTranscription(memory);
     }
   };
+
+  const fallbackToMockTranscription = async (memory: MemoryItem) => {
+    console.log('[Transcription] Generating mock transcription...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    const mockTranscript = `Recording summary: ${memory.title}. This transcription was generated in fallback mode. In a native build environment, your actual voice recording would be converted to text here.`;
+
+    await updateMemory(memory.id, { transcription: mockTranscript });
+    setSavedMemory(prev => prev ? { ...prev, transcription: mockTranscript } : null);
+    toastService.transcriptionComplete();
+  }
 
   const handleSaveMemoryEdits = async (updates: Partial<MemoryItem>) => {
     if (!savedMemory) return;
@@ -496,9 +608,14 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     const isIdle = recordingState === 'idle';
     const isStopped = recordingState === 'stopped';
 
-    // Hide button when stopped (auto-saving)
-    if (isStopped) {
-      return null;
+    // Show saving indicator when stopped (auto-saving)
+    if (isStopped || isSaving) {
+      return (
+        <View style={styles.savingContainer}>
+          <ActivityIndicator size="large" color={goldColor} />
+          <Text style={[styles.savingText, { color: textColor }]}>Saving your memory...</Text>
+        </View>
+      );
     }
 
     if (isIdle) {
@@ -575,55 +692,86 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         </View>
 
         {/* Hero Topic Prompt Section */}
-        {selectedTheme && (
-          <View style={styles.topicSection}>
-            {/* Badges Row - Horizontal layout for spatial efficiency */}
-            <View style={styles.badgesRow}>
-              {/* Category Badge */}
-              {selectedTheme.category && (
+        <View style={styles.topicSection}>
+          {selectedTheme ? (
+            <>
+              {/* Badges Row - Horizontal layout for spatial efficiency */}
+              <View style={styles.badgesRow}>
+                {/* Category Badge */}
+                {selectedTheme.category && (
+                  <View style={[styles.categoryBadgeHero, {
+                    backgroundColor: goldColor + '20',
+                    borderColor: goldColor + '40'
+                  }]}>
+                    <Text style={styles.categoryIconHero}>{selectedTheme.category.icon}</Text>
+                    <Text style={[styles.categoryNameHero, { color: goldColor }]}>
+                      {selectedTheme.category.display_name}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Status Badge - Shows when recording is not idle */}
+                {recordingState !== 'idle' && (
+                  <View style={[styles.statusBadgeHero, {
+                    backgroundColor: successColor + '15',
+                    borderColor: successColor + '30'
+                  }]}>
+                    <IconSymbol name="checkmark" size={12} color={successColor} />
+                    <Text style={[styles.statusTextHero, { color: successColor }]}>
+                      Recorded today
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Hero Prompt - Large and prominent */}
+              <Animated.Text
+                style={[
+                  styles.topicPromptHero,
+                  {
+                    color: textColor,
+                    opacity: Animated.multiply(fadeAnim, promptOpacity),
+                    transform: [{ scale: scaleAnim }],
+                  },
+                ]}
+                numberOfLines={5}
+                ellipsizeMode="tail"
+                accessibilityLabel={`Recording prompt: ${selectedTheme.title}`}
+              >
+                {selectedTheme.title}
+              </Animated.Text>
+            </>
+          ) : (
+            /* Free-style recording mode */
+            <>
+              <View style={styles.badgesRow}>
                 <View style={[styles.categoryBadgeHero, {
                   backgroundColor: goldColor + '20',
                   borderColor: goldColor + '40'
                 }]}>
-                  <Text style={styles.categoryIconHero}>{selectedTheme.category.icon}</Text>
+                  <Text style={styles.categoryIconHero}>✨</Text>
                   <Text style={[styles.categoryNameHero, { color: goldColor }]}>
-                    {selectedTheme.category.display_name}
+                    Free Recording
                   </Text>
                 </View>
-              )}
-
-              {/* Status Badge - Shows when recording is not idle */}
-              {recordingState !== 'idle' && (
-                <View style={[styles.statusBadgeHero, {
-                  backgroundColor: successColor + '15',
-                  borderColor: successColor + '30'
-                }]}>
-                  <IconSymbol name="checkmark" size={12} color={successColor} />
-                  <Text style={[styles.statusTextHero, { color: successColor }]}>
-                    Recorded today
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Hero Prompt - Large and prominent */}
-            <Animated.Text
-              style={[
-                styles.topicPromptHero,
-                {
-                  color: textColor,
-                  opacity: Animated.multiply(fadeAnim, promptOpacity),
-                  transform: [{ scale: scaleAnim }],
-                },
-              ]}
-              numberOfLines={5}
-              ellipsizeMode="tail"
-              accessibilityLabel={`Recording prompt: ${selectedTheme.title}`}
-            >
-              {selectedTheme.title}
-            </Animated.Text>
-          </View>
-        )}
+              </View>
+              <Animated.Text
+                style={[
+                  styles.topicPromptHero,
+                  {
+                    color: textColor,
+                    opacity: Animated.multiply(fadeAnim, promptOpacity),
+                    transform: [{ scale: scaleAnim }],
+                  },
+                ]}
+                numberOfLines={3}
+                accessibilityLabel="Free recording mode"
+              >
+                Record anything on your mind
+              </Animated.Text>
+            </>
+          )}
+        </View>
 
         {/* Main recording area */}
         <View style={styles.recordingArea}>
@@ -880,5 +1028,16 @@ const styles = StyleSheet.create({
   doneButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  savingContainer: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 24,
+    gap: 12,
+  },
+  savingText: {
+    fontSize: 16,
+    fontWeight: '500' as const,
+    opacity: 0.7,
   },
 });

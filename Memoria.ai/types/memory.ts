@@ -21,6 +21,7 @@ export interface MemoryItem {
   date: Date;
   duration: number; // in seconds
   audioPath?: string;
+  localAudioPath?: string;
   transcription?: string;
   tags: string[];
   isShared: boolean;

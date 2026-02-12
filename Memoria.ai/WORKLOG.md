@@ -1,6 +1,6 @@
 # Memoria Development Worklog
 
-**Last Updated**: January 19, 2026
+**Last Updated**: February 11, 2026
 **Version**: 1.2.4
 
 ---
@@ -9,23 +9,25 @@
 
 **Current Focus**: Get to TestFlight ASAP for market-fit research
 
-1. **NOW** → **iOS Dev Build to iPhone** (User executing)
-   - Wife generates app-specific password at https://appleid.apple.com
-   - User adds account to Xcode using app-specific password
-   - User changes bundle identifier from `com.anonymous.memoriaai` to unique ID
-   - User builds to iPhone
-   - See `docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md` for detailed steps
+1. ✅ **iOS Dev Build to iPhone** (Completed Feb 10, 2026)
+   - Wife generated app-specific password at https://appleid.apple.com
+   - User added account to Xcode using app-specific password
+   - User changed bundle identifier to unique ID
+   - User built to iPhone successfully
+   - See `docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md` for details
 
-2. **NEXT** → **Recording Function Implementation** (After dev build works)
-   - Finish recording implementation
-   - Polish recording UX
+2. ✅ **Audio Recording & Playback** (Completed Feb 11, 2026)
+   - Recording saves, uploads to Supabase, and plays back correctly
+   - Signed URLs for secure private-bucket playback
+   - Speech recognition permissions requested upfront
+   - See `RECORDING_FEATURE_FINDINGS.md` for full debugging journey (8 rounds)
 
-3. **THEN** → **Transcription Implementation**
+3. **NOW** → **Transcription Implementation**
    - Implement transcription API (expo-speech-recognition or cloud)
    - Test transcription accuracy
 
 4. **THEN** → **UX Polish**
-   - Final UX refinements
+   - Essential UX refinements
    - Address critical UX issues
 
 5. **THEN** → **TestFlight Beta Launch**
@@ -38,7 +40,48 @@
 
 ---
 
-## 📋 Latest Session Summary (Jan 20, 2026)
+## 📋 Latest Session Summary (Feb 11, 2026)
+
+**Focus**: 🎉 **MILESTONE — Recording Feature Fully Working End-to-End**
+
+**Context**: Recording, saving, uploading, playback, and editing all confirmed working on physical iPhone device.
+
+**Completed Work**:
+- **Fixed recording flow**: Added missing `prepareToRecordAsync()`, switched to `RecordingPresets.HIGH_QUALITY`
+- **Fixed Supabase upload**: Corrected bucket name (`audio-recordings`), removed non-existent `local_audio_path` column
+- **Fixed edit modal save**: Added 30-second timeout to `updateMemory` to prevent hanging
+- **Implemented signed URLs**: Secure playback from private Supabase Storage bucket (1-hour expiry)
+- **Improved permission UX**: Speech recognition permission now requested alongside mic permission at recording start
+- **Fixed playback edge case**: Added `isLoaded` check in `stopPlayback` to prevent "sound not loaded" error
+- **UX polish**: Changed skip forward/backward from 10s to 5s for more granular scrubbing
+
+**Key Files Modified**:
+- `components/SimpleRecordingScreen.tsx` — recording flow + permission timing
+- `services/audioStorageService.ts` — signed URLs + bucket fix
+- `contexts/RecordingContext.tsx` — DB schema fix + update timeout
+- `hooks/useAudioPlayback.ts` — signed URL resolution + skip interval + stop guard
+- `components/EditMemoryModal.tsx` — skip button labels (10→5s)
+
+**Documentation**: Full debugging journey in `RECORDING_FEATURE_FINDINGS.md` (8 rounds of fixes).
+
+---
+
+## 📋 Previous Session Summary (Feb 10, 2026)
+
+**Focus**: iOS Dev Build Completion & Documentation Sync
+
+**Context**: User confirmed successful deployment of iOS Dev Build to physical device.
+
+**Completed Work**:
+1. ✅ **iOS Dev Build Deployment**: Successfully moved past the `com.anonymous` bundle ID and deployed to physical iPhone via wife's paid developer account.
+2. ✅ **Tamagui Removal Audit**: Verified that Tamagui has been completely stripped from `package.json` and components, resolving significant build-time technical debt.
+3. ✅ **Documentation Sync**: Updated `ROADMAP.md` and `WORKLOG.md` to reflect these major milestones.
+
+**Immediate Next Action**: Fix the "Audio Playback Deadlock" using the capabilities of the new native Development Build.
+
+---
+
+## 📋 Session Summary (Jan 20, 2026)
 
 **Focus**: Roadmap Clarification & TestFlight-Focused Planning
 

@@ -1,20 +1,21 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 
 import { MemoryItem, MemoryStats, SmartExportConfig } from '@/types/memory';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import Analytics from '@/services/analytics';
 import topicsService from '@/services/topics';
+import { validateUUID } from '@/lib/uuid';
 
 interface RecordingContextType {
   // Recording controls
-  triggerRecording: (theme?: { id: string; title: string }) => void;
+  triggerRecording: (theme?: { id: string; title: string } | null) => void;
   isRecording: boolean;
   setIsRecording: (recording: boolean) => void;
   recordingTrigger: number;
-  selectedThemeFromTrigger?: { id: string; title: string };
+  selectedThemeFromTrigger?: { id: string; title: string } | null;
 
   // Memory management
   memoryCount: number;
@@ -43,7 +44,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth(); // Get current user from AuthContext
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTrigger, setRecordingTrigger] = useState(0);
-  const [selectedThemeFromTrigger, setSelectedThemeFromTrigger] = useState<{ id: string; title: string } | undefined>();
+  const [selectedThemeFromTrigger, setSelectedThemeFromTrigger] = useState<{ id: string; title: string } | null | undefined>();
   const [memoryCount, setMemoryCount] = useState(0);
   const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [memoryStats, setMemoryStats] = useState<MemoryStats>({
@@ -122,9 +123,9 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId)  // Filter by user_id
         .order('created_at', { ascending: false });
 
-      // Add a 30 second timeout
+      // Add a 60 second timeout (increased for slow mobile/tunnel connections)
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Supabase SELECT timeout after 30 seconds')), 30000)
+        setTimeout(() => reject(new Error('Supabase SELECT timeout after 60 seconds')), 60000)
       );
 
       console.log('[loadMemories] Executing SELECT query (30s timeout)...');
@@ -162,6 +163,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
             title: record.title,
             description: record.description || '',
             audioPath: record.audio_url,  // Map audio_url to audioPath
+            localAudioPath: undefined, // Not stored in DB — only set in-memory during recording session
             duration: record.duration,
             date: new Date(record.date),
             tags: record.theme ? [record.theme] : [],  // Map theme to tags array
@@ -194,8 +196,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const triggerRecording = (theme?: { id: string; title: string }) => {
-    // Store the theme if provided
+  const triggerRecording = (theme?: { id: string; title: string } | null) => {
+    // Store the theme if provided (null means free-style recording)
     setSelectedThemeFromTrigger(theme);
     // Increment trigger to signal a new recording should start
     setRecordingTrigger(prev => prev + 1);
@@ -220,7 +222,15 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
     try {
       console.log('[addMemory] Preparing Supabase insert...');
-      const insertData = {
+
+      // Validate topic_id is a valid UUID before inserting
+      // This prevents "invalid input syntax for type uuid" errors
+      const validatedTopicId = validateUUID(memoryData.topicId);
+      if (memoryData.topicId && !validatedTopicId) {
+        console.warn('[addMemory] Invalid topic_id format, setting to null:', memoryData.topicId);
+      }
+
+      const insertData: any = {
         user_id: user.id,
         title: memoryData.title,
         description: memoryData.description || null,
@@ -230,8 +240,12 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         transcription: memoryData.transcription || null,
         theme: memoryData.tags?.[0] || null,  // Use first tag as theme
         is_shared: memoryData.isShared || false,
-        topic_id: memoryData.topicId || null,  // Save the topic ID for auto-dismiss
+        topic_id: validatedTopicId,  // Use validated UUID (null if invalid)
       };
+
+      // NOTE: local_audio_path is NOT stored in the database.
+      // It is preserved in-memory only (see newMemory.localAudioPath below).
+
       console.log('[addMemory] Insert data prepared:', {
         ...insertData,
         audio_url: insertData.audio_url?.substring(0, 50) + '...',
@@ -259,12 +273,12 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         `)
         .single();
 
-      // Add a 30 second timeout
+      // Add a 60 second timeout (increased for slow mobile/tunnel connections)
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Supabase insert timeout after 30 seconds')), 30000)
+        setTimeout(() => reject(new Error('Supabase insert timeout after 60 seconds')), 60000)
       );
 
-      console.log('[addMemory] Waiting for Supabase response (30s timeout)...');
+      console.log('[addMemory] Waiting for Supabase response (60s timeout)...');
       const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
 
       const endTime = Date.now();
@@ -308,6 +322,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         title: data.title,
         description: data.description || '',
         audioPath: data.audio_url,  // Map audio_url to audioPath for MemoryItem
+        localAudioPath: memoryData.localAudioPath, // Preserve local path
         duration: data.duration,
         date: new Date(data.date),
         tags: data.theme ? [data.theme] : [],  // Map theme to tags array
@@ -368,14 +383,17 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       // Find the memory to get the audio path for file deletion
       const memory = memories.find(m => m.id === memoryId);
 
-      // Delete audio file from filesystem if it exists
-      if (memory?.audioPath) {
+      // Delete audio file from filesystem if it exists (using Expo SDK 54 File API)
+      if (memory?.localAudioPath || memory?.audioPath) {
         try {
-          const fileInfo = await FileSystem.getInfoAsync(memory.audioPath);
-          if (fileInfo.exists) {
-            console.log('RecordingContext: Deleting audio file:', memory.audioPath);
-            await FileSystem.deleteAsync(memory.audioPath);
-            console.log('RecordingContext: Audio file deleted successfully');
+          const pathToDelete = memory.localAudioPath || memory.audioPath;
+          // Only delete local files
+          if (pathToDelete?.startsWith('file://')) {
+            const file = new File(pathToDelete);
+            if (file.exists) {
+              console.log('RecordingContext: Deleting audio file:', pathToDelete);
+              file.delete();
+            }
           }
         } catch (fileError) {
           console.error('RecordingContext: Error deleting audio file:', fileError);
@@ -426,12 +444,18 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       if (updates.transcription !== undefined) dbUpdates.transcription = updates.transcription;
       if (updates.isShared !== undefined) dbUpdates.is_shared = updates.isShared;
 
-      // Update in Supabase
-      const { error } = await supabase
+      // Update in Supabase with timeout (tunnel connections can hang)
+      const updatePromise = supabase
         .from('memories')
         .update(dbUpdates)
         .eq('id', memoryId)
         .eq('user_id', user.id);  // Ensure user can only update their own memories
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Supabase update timeout after 30 seconds')), 30000)
+      );
+
+      const { error } = await Promise.race([updatePromise, timeoutPromise]) as any;
 
       if (error) {
         console.error('RecordingContext: Error updating memory:', error);

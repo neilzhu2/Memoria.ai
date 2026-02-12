@@ -94,12 +94,12 @@
   - [x] iOS deployment documentation
 
 **Immediate Next Steps** (Path to TestFlight):
-1. [ ] **iOS Dev Build to Physical Device** ← NOW (User executing)
-   - [ ] Setup app-specific password from wife's Apple Developer account
-   - [ ] Add account to Xcode
-   - [ ] Change bundle identifier to unique ID
-   - [ ] Build to iPhone via Xcode
-   - [ ] See `docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md`
+1. [x] **iOS Dev Build to Physical Device** (Completed Feb 10, 2026)
+   - [x] Setup app-specific password from wife's Apple Developer account
+   - [x] Add account to Xcode
+   - [x] Change bundle identifier to unique ID
+   - [x] Build to iPhone via Xcode
+   - [x] See `docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md`
 
 2. [ ] **Recording Function Implementation** (After dev build)
    - [ ] Finish recording implementation
@@ -343,7 +343,7 @@
 | Profile Images | Nov 2025 | ✅ Done |
 | Topics System | Dec 2025 | ✅ Done |
 | Documentation | Jan 2026 | ✅ Done |
-| **iOS Dev Build** | **Jan 2026** | **🔄 In Progress** |
+| **iOS Dev Build** | **Feb 2026** | ✅ Done |
 | **Recording Implementation** | **Feb 2026** | **⏳ Next** |
 | **Transcription API** | **Feb 2026** | **⏳ Planned** |
 | **UX Polish** | **Feb 2026** | **⏳ Planned** |

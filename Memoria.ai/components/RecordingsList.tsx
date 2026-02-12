@@ -162,7 +162,7 @@ export function RecordingsList({ visible, onClose }: RecordingsListProps) {
 
               <TouchableOpacity
                 style={[styles.controlButton, styles.playPauseButton, { backgroundColor: tintColor }]}
-                onPress={() => memory.audioPath && togglePlayPause(memory.id, memory.audioPath)}
+                onPress={() => memory.audioPath && togglePlayPause(memory.id, memory.audioPath, memory.localAudioPath)}
                 accessibilityLabel={isPlaying ? "Pause" : "Play"}
               >
                 <IconSymbol

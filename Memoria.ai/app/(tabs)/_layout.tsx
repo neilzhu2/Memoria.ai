@@ -37,12 +37,12 @@ function TabLayoutContent() {
     setShowThemeModal(true);
   };
 
-  const handleThemeSelect = (theme: any) => {
-    console.log('Tab layout - theme selected:', theme.title);
+  const handleThemeSelect = (theme: { id: string; title: string } | null) => {
+    console.log('Tab layout - theme selected:', theme ? theme.title : 'Free Recording');
     setShowThemeModal(false);
     // Navigate to the index screen and trigger recording with selected theme
     router.push('/');
-    // Trigger the recording flow with the selected theme
+    // Trigger the recording flow with the selected theme (null = free-style)
     triggerRecording(theme);
   };
 

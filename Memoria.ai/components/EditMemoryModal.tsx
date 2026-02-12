@@ -395,14 +395,14 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
                   <TouchableOpacity
                     style={[styles.audioControlButton, { backgroundColor: tintColor + '20' }]}
                     onPress={skipBackward}
-                    accessibilityLabel="Rewind 10 seconds"
+                    accessibilityLabel="Rewind 5 seconds"
                   >
-                    <IconSymbol name="gobackward.10" size={28} color={tintColor} />
+                    <IconSymbol name="gobackward.5" size={28} color={tintColor} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[styles.audioControlButton, styles.playPauseButton, { backgroundColor: tintColor }]}
-                    onPress={() => memory.audioPath && togglePlayPause(memory.id, memory.audioPath)}
+                    onPress={() => memory.audioPath && togglePlayPause(memory.id, memory.audioPath, memory.localAudioPath)}
                     accessibilityLabel={isPlaying ? "Pause" : "Play"}
                   >
                     <IconSymbol
@@ -415,9 +415,9 @@ export function EditMemoryModal({ visible, memory, onSave, onDelete, onClose, is
                   <TouchableOpacity
                     style={[styles.audioControlButton, { backgroundColor: tintColor + '20' }]}
                     onPress={skipForward}
-                    accessibilityLabel="Forward 10 seconds"
+                    accessibilityLabel="Forward 5 seconds"
                   >
-                    <IconSymbol name="goforward.10" size={28} color={tintColor} />
+                    <IconSymbol name="goforward.5" size={28} color={tintColor} />
                   </TouchableOpacity>
                 </View>
               </View>

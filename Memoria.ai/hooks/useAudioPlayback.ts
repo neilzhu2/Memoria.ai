@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
 import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { audioStorageService } from '@/services/audioStorageService';
 
 export interface AudioPlaybackState {
   playingSound: Audio.Sound | null;
@@ -17,7 +18,7 @@ export interface AudioPlaybackState {
 }
 
 export interface AudioPlaybackControls {
-  togglePlayPause: (id: string, audioPath: string) => Promise<void>;
+  togglePlayPause: (id: string, audioPath: string, localAudioPath?: string) => Promise<void>;
   stopPlayback: () => Promise<void>;
   skipBackward: () => Promise<void>;
   skipForward: () => Promise<void>;
@@ -45,8 +46,11 @@ export function useAudioPlayback() {
   const stopPlayback = async () => {
     try {
       if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.setPositionAsync(0);
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          await soundRef.current.stopAsync();
+          await soundRef.current.setPositionAsync(0);
+        }
       }
       setPlayingId(null);
       setIsPlaying(false);
@@ -57,7 +61,7 @@ export function useAudioPlayback() {
     }
   };
 
-  const togglePlayPause = async (id: string, audioPath: string) => {
+  const togglePlayPause = async (id: string, audioPath: string, localAudioPath?: string) => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -79,8 +83,22 @@ export function useAudioPlayback() {
       }
 
       // Load and play new audio
-      if (audioPath) {
-        console.log('[Playback] Loading new audio:', audioPath);
+      let uriToPlay = localAudioPath || audioPath;
+      if (uriToPlay) {
+        // For Supabase Storage URLs, generate a fresh signed URL for secure access
+        if (!localAudioPath && audioStorageService.isSupabaseUrl(uriToPlay)) {
+          const signedUrl = await audioStorageService.getSignedPlaybackUrl(uriToPlay);
+          if (signedUrl) {
+            uriToPlay = signedUrl;
+          } else {
+            console.warn('[Playback] Could not generate signed URL, falling back to stored URL');
+          }
+        }
+
+        console.log('[Playback] Loading audio:', {
+          uri: uriToPlay.substring(0, 60) + '...',
+          type: localAudioPath ? 'LOCAL' : 'REMOTE (signed)'
+        });
 
         // Configure audio mode for playback
         await Audio.setAudioModeAsync({
@@ -101,9 +119,9 @@ export function useAudioPlayback() {
         }
 
         // Create and load new sound
-        console.log('[Playback] Creating new sound with URI:', audioPath);
+        console.log('[Playback] Creating new sound with URI:', uriToPlay);
         const { sound, status } = await Audio.Sound.createAsync(
-          { uri: audioPath },
+          { uri: uriToPlay },
           { shouldPlay: true },
           (status) => {
             // Update playback position and duration via status updates
@@ -145,7 +163,7 @@ export function useAudioPlayback() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const status = await soundRef.current.getStatusAsync();
       if (status.isLoaded) {
-        const newPosition = Math.max(0, status.positionMillis - 10000); // 10 seconds
+        const newPosition = Math.max(0, status.positionMillis - 5000); // 5 seconds
         await soundRef.current.setPositionAsync(newPosition);
       }
     } catch (error) {
@@ -161,7 +179,7 @@ export function useAudioPlayback() {
       if (status.isLoaded) {
         const newPosition = Math.min(
           status.durationMillis || 0,
-          status.positionMillis + 10000 // 10 seconds
+          status.positionMillis + 5000 // 5 seconds
         );
         await soundRef.current.setPositionAsync(newPosition);
       }

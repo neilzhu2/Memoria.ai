@@ -4,13 +4,19 @@ import { SimpleRecordingScreen } from './SimpleRecordingScreen';
 interface MemoryTheme {
   id: string;
   title: string;
+  category?: {
+    id: string;
+    name: string;
+    display_name: string;
+    icon: string | null;
+  };
 }
 
 interface RecordingFlowContainerProps {
   visible: boolean;
   onClose: () => void;
   skipThemeSelection?: boolean;
-  initialTheme?: MemoryTheme;
+  initialTheme?: MemoryTheme | null; // null = free-style recording
 }
 
 export function RecordingFlowContainer({
@@ -21,7 +27,7 @@ export function RecordingFlowContainer({
 }: RecordingFlowContainerProps) {
   // Always skip theme selection - simplified flow
   const [showRecordingScreen, setShowRecordingScreen] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState<MemoryTheme | undefined>();
+  const [selectedTheme, setSelectedTheme] = useState<MemoryTheme | null | undefined>();
 
   // Reset state when visible changes
   useEffect(() => {
