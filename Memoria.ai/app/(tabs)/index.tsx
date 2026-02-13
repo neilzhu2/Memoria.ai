@@ -26,15 +26,16 @@ import topicsService, { RecordingTopic, TopicCategory } from '@/services/topics'
 // Helper function to format date for elderly-friendly badge display
 const formatBadgeDate = (date: Date): string => {
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  // Use calendar dates (midnight-to-midnight) instead of 24h time diff
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const recordDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((today.getTime() - recordDate.getTime()) / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) return 'today';
   if (diffDays === 1) return 'yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-  return `${Math.floor(diffDays / 365)} years ago`;
+  // For older recordings, show the actual date (e.g. "Feb 5")
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
 // Fallback topics if service fails to load
@@ -108,7 +109,7 @@ const HomeScreen = React.memo(function HomeScreen() {
   // Recording flow state
   const [showRecordingFlow, setShowRecordingFlow] = useState(false);
   const [skipThemeSelection, setSkipThemeSelection] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<{id: string; title: string} | undefined>();
+  const [selectedTopic, setSelectedTopic] = useState<{ id: string; title: string } | undefined>();
 
   // Store all topics separately from filtered topics
   const [allTopics, setAllTopics] = useState<RecordingTopic[]>(FALLBACK_TOPICS);
@@ -795,7 +796,11 @@ const HomeScreen = React.memo(function HomeScreen() {
               </View>
 
               {/* Category Options */}
-              <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={styles.modalScrollView}
+                contentContainerStyle={styles.modalScrollViewContent}
+                showsVerticalScrollIndicator={false}
+              >
                 {/* All Topics Option */}
                 <TouchableOpacity
                   style={[
@@ -1234,6 +1239,9 @@ const styles = StyleSheet.create({
   modalScrollView: {
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  modalScrollViewContent: {
+    paddingBottom: 80, // Substantial padding to ensure last item is visible above any footer/tabs
   },
   categoryOption: {
     flexDirection: 'row',

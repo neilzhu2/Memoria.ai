@@ -710,8 +710,8 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
                   </View>
                 )}
 
-                {/* Status Badge - Shows when recording is not idle */}
-                {recordingState !== 'idle' && (
+                {/* Status Badge - Shows only after memory is saved */}
+                {savedMemory && (
                   <View style={[styles.statusBadgeHero, {
                     backgroundColor: successColor + '15',
                     borderColor: successColor + '30'

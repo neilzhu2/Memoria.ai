@@ -1,6 +1,6 @@
 # Memoria Development Worklog
 
-**Last Updated**: February 11, 2026
+**Last Updated**: February 12, 2026
 **Version**: 1.2.4
 
 ---
@@ -10,18 +10,7 @@
 **Current Focus**: Get to TestFlight ASAP for market-fit research
 
 1. ✅ **iOS Dev Build to iPhone** (Completed Feb 10, 2026)
-   - Wife generated app-specific password at https://appleid.apple.com
-   - User added account to Xcode using app-specific password
-   - User changed bundle identifier to unique ID
-   - User built to iPhone successfully
-   - See `docs/APPLE_DEVELOPER_ACCOUNT_SETUP.md` for details
-
 2. ✅ **Audio Recording & Playback** (Completed Feb 11, 2026)
-   - Recording saves, uploads to Supabase, and plays back correctly
-   - Signed URLs for secure private-bucket playback
-   - Speech recognition permissions requested upfront
-   - See `RECORDING_FEATURE_FINDINGS.md` for full debugging journey (8 rounds)
-
 3. **NOW** → **Transcription Implementation**
    - Implement transcription API (expo-speech-recognition or cloud)
    - Test transcription accuracy
@@ -31,16 +20,27 @@
    - Address critical UX issues
 
 5. **THEN** → **TestFlight Beta Launch**
-   - Configure TestFlight
-   - Push to TestFlight
-   - Market-fit research and user testing
-   - Collect feedback
-
-6. **AFTER TESTFLIGHT** → Discuss next steps based on user feedback
 
 ---
 
-## 📋 Latest Session Summary (Feb 11, 2026)
+## 📋 Latest Session Summary (Feb 12, 2026)
+
+**Focus**: 🎨 **UX/UI Polish & Badge Accuracy**
+
+**Context**: Refining the recording experience and fixing UI bugs in the Home and Recording screens.
+
+**Completed Work**:
+- **Fixed Category Modal Clipping**: Moved `paddingBottom` to `contentContainerStyle` and increased to `80px` to ensure the last item is never hidden by UI overlays.
+- **Improved Badge Accuracy**: Rewrote `formatBadgeDate` to use calendar-based logic (midnight-to-midnight) instead of 24h-time diff. "Recorded today" now correctly respects calendar days.
+- **Refined Badge Behavior**: The "Recorded today" badge in the recording screen now only appears *after* the recording is successfully saved, preventing premature status display.
+
+**Key Files Modified**:
+- `app/(tabs)/index.tsx` — calendar-based date logic + category modal padding
+- `components/SimpleRecordingScreen.tsx` — status badge condition fix
+
+---
+
+## 📋 Session Summary (Feb 11, 2026)
 
 **Focus**: 🎉 **MILESTONE — Recording Feature Fully Working End-to-End**
 
