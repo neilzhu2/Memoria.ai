@@ -94,7 +94,7 @@ interface RecordingData {
 
 export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: SimpleRecordingScreenProps) {
   const colorScheme = useColorScheme();
-  const { addMemory, updateMemory, refreshStats, memories } = useRecording();
+  const { addMemory, updateMemory, removeMemory, refreshStats, memories } = useRecording();
   const { user } = useAuth();
 
   // Recording state
@@ -120,6 +120,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
 
   // Track if recording has been stopped/unloaded
   const hasStoppedRecording = useRef(false);
+  const isSavingToDbRef = useRef(false);
 
   // Colors
   const backgroundColor = Colors[colorScheme ?? 'light'].background;
@@ -132,6 +133,10 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
   const goldColor = Colors[colorScheme ?? 'light'].highlight; // Honey gold for constructive actions
 
   useEffect(() => {
+    if (visible) {
+      isSavingToDbRef.current = false;
+    }
+
     console.log('[SimpleRecordingScreen] useEffect - visible changed:', {
       visible,
       isSaving,
@@ -344,7 +349,22 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-      await audioRecorder.stop();
+      // Guard: only skip if we never started recording
+      // Note: audioRecorder.isRecording is false when PAUSED, but we still need to stop()
+      if (recordingState === 'idle') {
+        console.warn('[Stop] recordingState is idle, nothing to stop');
+        return;
+      }
+
+      try {
+        await audioRecorder.stop();
+      } catch (stopErr) {
+        // OSStatus 561017449 = recorder not in recording state
+        console.warn('[Stop] audioRecorder.stop() threw (may already be stopped):', stopErr);
+        setRecordingState('idle');
+        stopTimer();
+        return;
+      }
       hasStoppedRecording.current = true; // Mark as stopped
 
       // URI is available on audioRecorder.uri after stopping
@@ -353,9 +373,6 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       if (uri) {
         console.log('[Stop] Recording stopped, cache URI:', uri);
 
-        // Use cache URI directly — no file relocation needed!
-        // See RECORDING_FEATURE_FINDINGS.md: Nitro File API cannot read ExpoAudio cache,
-        // but fetch() and native modules can. Skip FileSafeService entirely.
         setCurrentRecordingUri(uri);
         setRecordingState('stopped');
         stopTimer();
@@ -363,16 +380,13 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         // Show saving indicator
         setIsSaving(true);
 
-        // Reset audio mode
-        await AudioModule.setAudioModeAsync({
-          allowsRecording: false,
-          playsInSilentMode: true,
-        });
+        // Note: Don't call AudioModule.setAudioModeAsync here — it conflicts with
+        // expo-av playback. Let the playback hook manage its own audio session.
 
         // Brief delay to let iOS fully flush the file to disk
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Auto-save the recording immediately (simplified flow per wireframe)
+        // Auto-save the recording immediately
         await saveRecording(uri);
       } else {
         console.error('No URI available from audioRecorder');
@@ -382,8 +396,9 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       }
 
     } catch (error) {
-      console.error('Failed to stop recording:', error);
+      console.warn('stopRecording outer error:', error);
       setRecordingState('idle');
+      setIsSaving(false);
       stopTimer();
     }
   };
@@ -466,31 +481,36 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
         tagsCount: memoryData.tags.length,
       });
 
-      console.log('[saveRecording] Calling addMemory (await)...');
-      const startTime = Date.now();
+      // Create a "DRAFT" memory object instead of calling addMemory
+      // This prevents it from appearing in the memories list prematurely
+      const draftId = `draft-${Date.now()}`;
+      const newMemory: MemoryItem = {
+        id: draftId,
+        title,
+        description: isFreeStyle ? 'Free recording' : `Recording about: ${selectedTheme!.title}`,
+        date: new Date(),
+        duration,
+        audioPath: uploadResult.url,
+        localAudioPath: uri,
+        tags: isFreeStyle ? [] : [selectedTheme!.id],
+        isShared: false,
+        familyMembers: [],
+        topicId: isFreeStyle ? undefined : selectedTheme!.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      // Save to context and get the memory object with Supabase Storage URL
-      const newMemory = await addMemory(memoryData);
-
-      const endTime = Date.now();
-      console.log(`[saveRecording] addMemory completed in ${endTime - startTime}ms`);
-      console.log('[saveRecording] Memory saved successfully:', {
+      console.log('[saveRecording] Draft memory created successfully:', {
         id: newMemory.id,
         title: newMemory.title,
-        duration: newMemory.duration,
       });
-      console.log('[saveRecording] Total memories after save:', memories.length + 1);
 
       // Clear saving flag
       console.log('[saveRecording] Setting isSaving = false');
       setIsSaving(false);
 
-      // Show success toast
-      console.log('[saveRecording] Showing success toast');
-      toastService.memorySaved();
-
-      // Start transcription in the background
-      console.log('[saveRecording] Starting transcription...');
+      // Start transcription in the background for the draft
+      console.log('[saveRecording] Starting transcription for draft...');
       transcribeRecording(newMemory);
 
       // Show edit modal to review/edit the memory
@@ -498,7 +518,7 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       setSavedMemory(newMemory);
       setShowEditModal(true);
 
-      console.log('[saveRecording] SUCCESS - EditMemoryModal should now be visible');
+      console.log('[saveRecording] SUCCESS - EditMemoryModal should now be visible (with draft)');
 
     } catch (error) {
       console.error('[saveRecording] ERROR - Failed to save recording:', {
@@ -549,13 +569,17 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       if (result.transcript) {
         console.log('[Transcription] REAL result received:', result.transcript.substring(0, 50) + '...');
 
-        // Update the memory with real transcription
-        await updateMemory(memory.id, {
-          transcription: result.transcript,
-        });
+        const isDraft = memory.id.startsWith('draft-');
 
-        // Update the savedMemory state so the modal shows the transcription
-        setSavedMemory(prev => prev ? { ...prev, transcription: result.transcript } : null);
+        if (!isDraft) {
+          // Update the persistent memory in DB
+          await updateMemory(memory.id, {
+            transcription: result.transcript,
+          });
+        }
+
+        // Update the local state (works for both draft and persistent)
+        setSavedMemory(prev => prev && prev.id === memory.id ? { ...prev, transcription: result.transcript } : prev);
 
         toastService.transcriptionComplete();
       } else {
@@ -576,28 +600,159 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
     await new Promise(resolve => setTimeout(resolve, 3000));
     const mockTranscript = `Recording summary: ${memory.title}. This transcription was generated in fallback mode. In a native build environment, your actual voice recording would be converted to text here.`;
 
-    await updateMemory(memory.id, { transcription: mockTranscript });
-    setSavedMemory(prev => prev ? { ...prev, transcription: mockTranscript } : null);
+    const isDraft = memory.id.startsWith('draft-');
+    if (!isDraft) {
+      await updateMemory(memory.id, { transcription: mockTranscript });
+    }
+
+    setSavedMemory(prev => prev && prev.id === memory.id ? { ...prev, transcription: mockTranscript } : prev);
     toastService.transcriptionComplete();
   }
 
   const handleSaveMemoryEdits = async (updates: Partial<MemoryItem>) => {
     if (!savedMemory) return;
 
-    console.log('handleSaveMemoryEdits - updating memory:', savedMemory.id);
-    console.log('Current memories count before update:', memories.length);
+    console.log('handleSaveMemoryEdits - updating/saving memory:', savedMemory.id);
+    console.log('Current memories count before save:', memories.length);
 
-    await updateMemory(savedMemory.id, updates);
+    const isDraft = savedMemory.id.startsWith('draft-');
 
-    console.log('Memory updated, refreshing stats...');
+    if (isDraft) {
+      // It's a draft! Perform the actual database insertion now.
+      console.log('[handleSaveMemoryEdits] Draft detected, calling addMemory...');
+      const memoryData = {
+        title: updates.title || savedMemory.title,
+        description: updates.description || savedMemory.description || '',
+        date: savedMemory.date,
+        duration: savedMemory.duration,
+        audioPath: savedMemory.audioPath!,
+        localAudioPath: savedMemory.localAudioPath,
+        tags: updates.tags || savedMemory.tags,
+        isShared: updates.isShared ?? savedMemory.isShared,
+        familyMembers: updates.familyMembers || savedMemory.familyMembers,
+        topicId: savedMemory.topicId,
+        transcription: updates.transcription || savedMemory.transcription,
+      };
+      await addMemory(memoryData);
+    } else {
+      // It's already in the DB, just update it.
+      await updateMemory(savedMemory.id, updates);
+    }
+
+    console.log('Memory saved/updated, refreshing stats...');
     refreshStats();
 
     console.log('Closing modals and recording screen...');
+    isSavingToDbRef.current = true;
     setShowEditModal(false);
     setSavedMemory(null);
     onClose(); // Close the recording screen after editing
 
     console.log('handleSaveMemoryEdits complete. Memories count:', memories.length);
+  };
+
+  const handleDiscardMemory = async () => {
+    if (!savedMemory) {
+      // No memory saved yet, just close everything
+      setShowEditModal(false);
+      setSavedMemory(null);
+      onClose();
+      return;
+    }
+
+    const isDraft = savedMemory.id.startsWith('draft-');
+
+    if (isDraft) {
+      console.log('handleDiscardMemory - draft memory, no DB deletion needed');
+    } else {
+      console.log('handleDiscardMemory - deleting persistent memory:', savedMemory.id);
+      try {
+        await removeMemory(savedMemory.id);
+        console.log('Memory deleted successfully');
+      } catch (error) {
+        console.error('Failed to delete memory during discard:', error);
+      }
+    }
+
+    // Reset ALL recording state so next session starts clean
+    setShowEditModal(false);
+    setSavedMemory(null);
+    setIsSaving(false);
+    setRecordingState('idle');
+    setDuration(0);
+    setCurrentRecordingUri(null);
+    toastService.recordingDiscarded();
+    onClose(); // Close the recording screen entirely
+  };
+
+  /**
+   * Handle X button on the recording screen.
+   * Always shows confirmation if recording or a memory was saved.
+   */
+  const handleCloseRecordingScreen = () => {
+    // If edit modal is showing, let it handle its own close
+    if (showEditModal) return;
+
+    // If recording, paused, stopped, or a memory exists — confirm discard
+    if (recordingState !== 'idle' || savedMemory) {
+      // Pause recording while the user decides
+      const wasRecording = recordingState === 'recording';
+      if (wasRecording && audioRecorder.isRecording) {
+        try { audioRecorder.pause(); } catch (e) { /* ignore */ }
+        setRecordingState('paused');
+        stopTimer();
+      }
+
+      Alert.alert(
+        'Discard Recording?',
+        'Are you sure you want to discard this recording?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => {
+              // Resume recording if it was active
+              if (wasRecording) {
+                try {
+                  audioRecorder.record();
+                  setRecordingState('recording');
+                  startTimer();
+                } catch (e) { /* ignore */ }
+              }
+            },
+          },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: async () => {
+              // Stop recorder if still active
+              try {
+                if (audioRecorder.isRecording) {
+                  await audioRecorder.stop();
+                }
+              } catch (e) {
+                console.warn('Failed to stop recorder on close:', e);
+              }
+
+              // Delete saved memory if one exists
+              if (savedMemory) {
+                await handleDiscardMemory();
+              } else {
+                setRecordingState('idle');
+                setDuration(0);
+                setCurrentRecordingUri(null);
+                toastService.recordingDiscarded();
+                onClose();
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // Idle state with no saved memory — just close
+    onClose();
   };
 
   // Removed discardRecording - auto-save flow per wireframe
@@ -663,14 +818,14 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
       visible={visible}
       animationType="slide"
       presentationStyle="fullScreen"
-      onRequestClose={onClose}
+      onRequestClose={handleCloseRecordingScreen}
     >
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
         {/* Header - Clean with just close and done buttons */}
         <View style={[styles.header, { borderBottomColor: borderColor + '40' }]}>
           <TouchableOpacity
             style={styles.closeButton}
-            onPress={onClose}
+            onPress={handleCloseRecordingScreen}
             accessibilityLabel="Close recording"
           >
             <IconSymbol name="xmark" size={24} color={textColor} />
@@ -805,7 +960,17 @@ export function SimpleRecordingScreen({ visible, onClose, selectedTheme }: Simpl
           visible={showEditModal}
           memory={savedMemory}
           onSave={handleSaveMemoryEdits}
-          onClose={() => setShowEditModal(false)}
+          onClose={() => {
+            // Just close the edit modal and recording screen
+            // Only show discard toast if we AREN'T in the middle of a successful save
+            if (!isSavingToDbRef.current) {
+              toastService.recordingDiscarded();
+            }
+            setShowEditModal(false);
+            setSavedMemory(null);
+            onClose();
+          }}
+          onDelete={handleDiscardMemory}
           isFirstTimeSave={true}
         />
       </SafeAreaView>

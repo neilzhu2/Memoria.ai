@@ -144,7 +144,56 @@ Our code was calling only `record()` without `prepareToRecordAsync()`.
 
 **Architecture decision:** Signed URLs provide security for private family recordings while being invisible to users (~50ms generation time). URLs expire after 1 hour, requiring fresh ones for each playback session.
 
-**Status:** 🔄 Testing.
+**Status:** ✅ Fixed.
+
+---
+
+## Round 9: expo-av vs expo-audio Session Conflict (Feb 2026)
+
+**Problem:** After recording with `expo-audio`'s `useAudioRecorder`, playback via `expo-av`'s `Audio.Sound` fails with **"audio session not activated"** on iOS. The two libraries fight over the native iOS audio session.
+
+**Failed attempts:**
+1. ❌ **`AudioModule.setAudioModeAsync` before `Audio.setAudioModeAsync`** — expo-audio's session config doesn't help expo-av
+2. ❌ **Re-activating session on resume** — `playAsync()` still fails
+3. ❌ **Unload and reload sound on failure** — creates infinite reload loop (sound loads but `isPlaying: false`, play fails, reload, repeat)
+4. ❌ **Removing `AudioModule.setAudioModeAsync` from `stopRecording`** — doesn't matter, the `useAudioRecorder` hook itself holds the session
+
+**Root Cause:** `expo-audio` (`useAudioRecorder`) and `expo-av` (`Audio.Sound`) use **different native audio session managers** on iOS. After recording, expo-audio holds the session in recording mode. expo-av cannot override or release it — the conflict is fundamental.
+
+**Solution:** Migrate playback from `expo-av` to `expo-audio`'s `createAudioPlayer` (imperative API). Since both recording and playback now use the same native module, there's no session conflict.
+
+**What we learned:**
+- **NEVER mix expo-audio and expo-av** in the same app for audio operations on iOS
+- The old expo-audio playback bug (Round 1: duration: NaN on file:// URIs) was specific to expo-audio 1.0.13. Current versions support file:// URIs via `{ uri: string }` source format
+- `useAudioPlayer` hook crashes with `Cannot create property 'current' on string` when used inside a custom hook that's consumed by multiple components (likely a `useReleasingSharedObject` conflict). Use `createAudioPlayer` (imperative API) instead and manage lifecycle with refs
+- expo-audio uses **seconds** for time; expo-av used **milliseconds** — the hook converts internally
+- **Always research FIRST after one failed fix attempt** — don't iterate blindly
+
+**Status:** ✅ Fixed.
+
+---
+
+## Round 10: Deferred Save Flow & Feedback Polish (Feb 2026)
+
+**Problem:** 
+1. Memories were syncing to the database immediately after recording, appearing in the "My Life" list before the user had a chance to review/discard them.
+2. Deletion/discard actions used the standard "info" blue toast, which didn't convey the destructive nature of the action.
+3. Playback volume was too low by default.
+
+**Solution:**
+- **Staged Save:** Recordings are now created as local "Draft" objects. The database insert is deferred until the user explicitly clicks "Save" in the Edit Modal.
+- **Transitory State:** Transcription and title updates happen on the local draft object first.
+- **Feedback Polish:** 
+  - Centralized destructive toasts in `toastService.ts`.
+  - Changed `memoryDeleted` and added `recordingDiscarded` to use the orange "warning" style.
+  - Set `player.volume = 1.0` on creation in `useAudioPlayback`.
+- **Discard State Tracking:** Added a ref-based flag to `SimpleRecordingScreen` to ensure the "Recording Discarded" toast appears even when exiting via the Edit Modal's alert.
+
+**What we learned:**
+- Deferring database insertion until the final confirmation significantly improves UX by preventing "garbage" or incomplete records from polluting the user's primary view.
+- Consistent color-coding for feedback (green for success, orange for destructive, blue for info) is essential for elderly users to understand the impact of their actions.
+
+**Status:** ✅ Fixed.
 
 ---
 

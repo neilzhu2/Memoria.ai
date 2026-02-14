@@ -7,14 +7,15 @@
 
 import { ITranscriptionProvider, TranscriptionResult, TranscriptionOptions } from './ITranscriptionProvider';
 import { ExpoSpeechProvider } from './ExpoSpeechProvider';
+import { GeminiTranscriptionProvider } from './GeminiTranscriptionProvider';
 
-export type TranscriptionProvider = 'expo-speech' | 'whisper-api';
+export type TranscriptionProvider = 'expo-speech' | 'gemini' | 'whisper-api';
 
 export class TranscriptionService {
   private currentProvider: ITranscriptionProvider;
   private providerType: TranscriptionProvider;
 
-  constructor(providerType: TranscriptionProvider = 'expo-speech') {
+  constructor(providerType: TranscriptionProvider = 'gemini') {
     this.providerType = providerType;
     this.currentProvider = this.createProvider(providerType);
   }
@@ -23,11 +24,13 @@ export class TranscriptionService {
     switch (type) {
       case 'expo-speech':
         return new ExpoSpeechProvider();
+      case 'gemini':
+        return new GeminiTranscriptionProvider();
       case 'whisper-api':
         // Future: return new WhisperAPIProvider();
         throw new Error('Whisper API provider not yet implemented');
       default:
-        return new ExpoSpeechProvider();
+        return new GeminiTranscriptionProvider();
     }
   }
 
@@ -160,7 +163,7 @@ let transcriptionServiceInstance: TranscriptionService | null = null;
 
 export function getTranscriptionService(): TranscriptionService {
   if (!transcriptionServiceInstance) {
-    transcriptionServiceInstance = new TranscriptionService('expo-speech');
+    transcriptionServiceInstance = new TranscriptionService('gemini');
   }
   return transcriptionServiceInstance;
 }

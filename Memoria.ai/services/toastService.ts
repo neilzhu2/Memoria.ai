@@ -143,7 +143,7 @@ class ToastService {
   }
 
   memoryDeleted() {
-    this.success('Memory Deleted', 'The memory has been removed from your collection.');
+    this.warning('Memory Deleted', 'The memory has been removed from your collection.');
   }
 
   memorySaveFailed(error?: string) {
@@ -212,6 +212,10 @@ class ToastService {
       'Please check your microphone and try again.',
       0
     );
+  }
+
+  recordingDiscarded() {
+    this.warning('Recording Discarded', 'The recording has been removed.', 3000);
   }
 
   // ========================================

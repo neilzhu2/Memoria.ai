@@ -1,7 +1,7 @@
 # Memoria Development Worklog
 
-**Last Updated**: February 12, 2026
-**Version**: 1.2.4
+**Last Updated**: February 13, 2026
+**Version**: 1.2.5
 
 ---
 
@@ -23,7 +23,31 @@
 
 ---
 
-## 📋 Latest Session Summary (Feb 12, 2026)
+## 📋 Latest Session Summary (Feb 13, 2026)
+
+**Focus**: 🔇 **Audio Playback Migration & Deferred Save Flow**
+
+**Context**: Resolving a critical iOS audio session conflict between recording (`expo-audio`) and playback (`expo-av`), and refining the record-to-save lifecycle.
+
+**Completed Work**:
+- **Fixed iOS Audio Conflict**: Migrated the entire playback system from `expo-av` to `expo-audio` using the imperative `createAudioPlayer` API. This ensures both recording and playback share the same native audio session manager, eliminating the "audio session not activated" error.
+- **Implemented Staged Save Flow**: Recordings are now initially treated as local "Drafts". They are uploaded to Supabase Storage immediately for safety, but the metadata is only inserted into the database when the user clicks **Save** in the Edit Modal. This prevents incomplete recordings from cluttering the "My Life" list.
+- **Enhanced Transcription for Drafts**: Updated the transcription flow to support draft memories, updating local state until the final database save.
+- **Improved Playback Quality**: Set default playback volume to `1.0` (maximum) and maintained existing scrubbing/skip controls.
+- **Destructive Action Feedback**: Centralized and updated "Delete" and "Discard" toast notifications to a high-visibility orange warning color to clearly signal destructive actions.
+- **Edit Modal Polish**: Added a safeguard to Ensure the "Recording Discarded" toast triggers even when exiting the Edit Modal's "Unsaved Changes" alert.
+
+**Key Files Modified**:
+- `hooks/useAudioPlayback.ts` — Complete rewrite to `expo-audio`
+- `components/SimpleRecordingScreen.tsx` — Deferred save logic + toast refactor
+- `services/toastService.ts` — New `recordingDiscarded` method + orange warning style for deletions
+- `RECORDING_FEATURE_FINDINGS.md` — Added Round 9 & 10 documentation
+
+**Next Objective**: Discuss TestFlight beta deployment and final market-fit validation.
+
+---
+
+## 📋 Session Summary (Feb 12, 2026)
 
 **Focus**: 🎨 **UX/UI Polish & Badge Accuracy**
 
