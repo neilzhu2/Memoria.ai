@@ -2,7 +2,7 @@
   "expo": {
     "name": "Memoria",
     "slug": "memoria-ai",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "memoria-ai",
@@ -13,7 +13,8 @@
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
       },
-      "bundleIdentifier": "com.anonymous.memoriaai"
+      "bundleIdentifier": "com.neilzhu.memoriaai",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
