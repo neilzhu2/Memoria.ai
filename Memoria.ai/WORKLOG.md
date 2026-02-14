@@ -19,11 +19,34 @@
    - Essential UX refinements
    - Address critical UX issues
 
-5. **THEN** → **TestFlight Beta Launch**
+5. **THEN** → **TestFlight Phase 1: Offline Prep** (Completed Feb 13, 2026)
+   - Finalized Bundle ID (`com.neilzhu.memoriaai`)
+   - Configured `eas.json` build profiles
+
+6. **NEXT** → **TestFlight Phase 2: Live 2FA & Submission**
+   - EAS project initialization
+   - 2FA-secured credential generation
+   - Production build & Apple submission
 
 ---
 
-## 📋 Latest Session Summary (Feb 13, 2026)
+## 📋 Latest Session Summary (Feb 13, 2026 - Part 2)
+
+**Focus**: ✈️ **TestFlight Phase 1: Offline Preparation**
+
+**Context**: Preparing the codebase for production distribution while waiting for 2FA access.
+
+**Completed Work**:
+- **Finalized App Metadata**: Updated `app.json` with the production bundle identifier (`com.neilzhu.memoriaai`) and bumped the version to `1.2.0`.
+- **Configured EAS Profiles**: Created `eas.json` with dedicated build profiles for `development`, `preview` (internal testing), and `production`.
+- **Offline Readiness**: Successfully separated deployment into "Offline Prep" (Done) and "Live 2FA" (Pending), allowing development to continue until the Apple ID owner is available.
+- **Documentation**: Updated `task.md` and `implementation_plan.md` to track the 2FA-secured submission steps.
+
+**Next Objective**: **TestFlight Phase 2** (EAS Login, 2FA, and first TestFlight submission).
+
+---
+
+## 📋 Session Summary (Feb 13, 2026 - Part 1)
 
 **Focus**: 🔇 **Audio Playback Migration & Deferred Save Flow**
 
